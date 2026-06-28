@@ -109,7 +109,13 @@
     #hero {
       position: relative;
       width: 100%;
-      height: 100vh;
+      /* The video is 16:9 (1896×1080). On viewports WIDER than 16:9,
+         a 100vh hero would crop top/bottom and cut her head or feet.
+         Sizing the height to the video ratio (~57vw) keeps the hero at
+         (or taller than) 16:9 so the full figure is never cropped
+         vertically — feet land at/just below the fold and ground into
+         the Services section on a small scroll. */
+      height: max(100vh, 57vw);
       min-height: 640px;
       overflow: hidden;
       background: var(--ivory); /* fallback before the video paints */
@@ -122,9 +128,10 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* Anchor to the bottom so her feet stay on the floor line (cover
-         crops the top headroom instead of cutting her legs off). */
-      object-position: center bottom;
+      /* Hero matches the video's 16:9 ratio, so there is little/no
+         vertical crop. Any remaining crop is on the sides; keep her
+         centered. */
+      object-position: center center;
       z-index: 1;
     }
 

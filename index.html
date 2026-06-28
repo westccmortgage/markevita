@@ -7,7 +7,7 @@
   <title>MARKEVITA — We Create Digital Masterpieces</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
 
   <style>
     /* ── RESET & BASE ───────────────────────────────────── */
@@ -170,81 +170,87 @@
     .hero-eyebrow {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.28em;
+      gap: 1.1rem;
+      font-size: 0.7rem;
+      font-weight: 400;
+      letter-spacing: 0.4em;
       text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 1.6rem;
+      color: #B89357;                   /* warm champagne gold */
+      margin-bottom: 2rem;
     }
     .hero-eyebrow::before {
       content: "";
-      width: 36px;
+      width: 46px;
       height: 1px;
-      background: var(--gold);
+      background: #B89357;
+      opacity: 0.8;
       display: inline-block;
     }
 
     .hero-headline {
-      font-family: var(--serif);
-      font-weight: 500;
-      font-size: clamp(2.8rem, 6.2vw, 5.6rem);
-      line-height: 1.04;
-      letter-spacing: -0.01em;
-      color: #20201D;
-      margin-bottom: 1.8rem;
-      /* 3D relief: top-left highlight + bottom-right extruded edge + soft
-         cast shadow → the letters read as raised off the surface. */
+      font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+      font-weight: 500;                 /* elegant volume — not bold, not flat */
+      font-size: clamp(2.9rem, 6vw, 5.4rem);
+      line-height: 1.07;
+      letter-spacing: 0.002em;
+      color: #26241F;                   /* dark charcoal serif */
+      margin-bottom: 2rem;
+      /* subtle luxurious volume: faint top highlight + soft cast shadow */
       text-shadow:
-        -1px -1px 0 rgba(255,255,255,0.55),
-         1px  1px 0 #18150F,
-         2px  2px 0 #18150F,
-         3px  3px 1px rgba(20,17,12,0.45),
-         5px  9px 18px rgba(35,28,16,0.22);
+        0 1px 0 rgba(255,253,248,0.55),
+        0 2px 3px rgba(40,33,20,0.16),
+        0 6px 16px rgba(40,33,20,0.10);
     }
     .hero-headline .gold-italic {
-      /* Engraved Roman capitals to match the MARKEVITA wall logo. */
-      font-family: 'Cinzel', var(--serif);
+      /* refined champagne-gold caps with a soft gradient + gentle depth */
+      font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
       font-style: normal;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
-      font-size: 0.82em;   /* balance the taller all-caps against the line */
-      color: #C99B47;
-      /* Gold relief — echoes the embossed gold logo on the wall. */
-      text-shadow:
-        -1px -1px 0 rgba(255,243,210,0.65),
-         1px  1px 0 #835f23,
-         2px  2px 0 #6d4f1d,
-         3px  3px 1px rgba(70,48,12,0.5),
-         5px  8px 16px rgba(60,42,10,0.30);
+      letter-spacing: 0.035em;
+      font-size: 0.96em;
+      background: linear-gradient(180deg, #EFCB72 0%, #CC9A36 46%, #9C6E22 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      /* soft volume that reads through the gradient fill (text-shadow can't) */
+      filter:
+        drop-shadow(0 1px 0 rgba(255,244,210,0.6))
+        drop-shadow(0 4px 6px rgba(110,75,18,0.34));
     }
 
     .hero-sub {
-      font-size: clamp(1rem, 1.3vw, 1.18rem);
-      font-weight: 300;
-      line-height: 1.6;
-      color: var(--mid-gray);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(1.15rem, 1.5vw, 1.4rem);
+      font-weight: 500;
+      line-height: 1.55;
+      color: #43403A;                   /* calm, not pure black */
       max-width: 30rem;
-      margin-bottom: 2.6rem;
+      margin-bottom: 2.9rem;
+      letter-spacing: 0.003em;
     }
 
     .hero-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.85rem;
-      padding: 1rem 2.1rem;
-      background: var(--charcoal);
-      color: var(--warm-white);
-      font-size: 0.74rem;
+      gap: 0.9rem;
+      padding: 1.15rem 2.6rem;
+      background: transparent;          /* elegant thin outline */
+      color: var(--charcoal);
+      border: 1px solid rgba(28,28,28,0.5);
+      font-size: 0.7rem;
       font-weight: 500;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      transition: background 0.25s, transform 0.25s;
+      transition: background 0.35s ease, color 0.35s ease, border-color 0.35s ease;
     }
-    .hero-btn:hover { background: #000; transform: translateY(-2px); }
-    .hero-btn svg { transition: transform 0.25s; }
+    .hero-btn:hover {
+      background: #2A2A2A;              /* soft charcoal, not harsh black */
+      color: var(--warm-white);
+      border-color: #2A2A2A;
+    }
+    .hero-btn svg { transition: transform 0.35s; }
     .hero-btn:hover svg { transform: translateX(4px); }
 
     /* Sound enabler — shown ONLY if the browser blocks sound-on autoplay.

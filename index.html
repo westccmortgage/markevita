@@ -415,6 +415,197 @@
       .service-card { min-height: 0; padding: 2.2rem 1.6rem 2.4rem; }
       .section-inner { padding: 0 1.5rem; }
     }
+
+    /* ════════════════════════════════════════════════════════
+       HOMEPAGE SECTIONS (build / reasons / system / work)
+    ════════════════════════════════════════════════════════ */
+    .section { position: relative; }
+    .section-build  { background: var(--warm-white); padding: clamp(5rem,9vw,9rem) 0 clamp(5rem,9vw,8rem); }
+    /* soft seam from the hero into the first section */
+    .section-build::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 120px;
+      background: linear-gradient(to bottom, rgba(247,244,239,0.5), rgba(253,250,246,0));
+      pointer-events: none;
+    }
+
+    /* ── What do you need to build ── */
+    .build-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: clamp(0.9rem, 1.4vw, 1.2rem);
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+    }
+    .build-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-gold);
+      background: var(--warm-white);
+      padding: 2.2rem 2.4rem 2.3rem;
+      min-height: 196px;
+      overflow: hidden;
+      transition: background 0.4s ease, border-color 0.4s ease, transform 0.4s ease;
+    }
+    .build-card:hover {
+      background: linear-gradient(150deg, #FFFDF9 0%, #F4EAD6 100%);
+      border-color: rgba(184,150,90,0.55);
+    }
+    .build-index {
+      position: absolute; top: 1.5rem; right: 1.7rem;
+      font-family: 'Cinzel', var(--serif);
+      font-size: 1.5rem; color: rgba(184,150,90,0.22);
+      letter-spacing: 0.04em;
+    }
+    .build-cat {
+      font-size: 0.66rem; font-weight: 500; letter-spacing: 0.24em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 1rem;
+    }
+    .build-name {
+      font-family: var(--serif); font-weight: 500;
+      font-size: 1.7rem; line-height: 1.1; color: var(--charcoal);
+      margin-bottom: 0.7rem; max-width: 24ch;
+    }
+    .build-desc {
+      font-size: 0.95rem; font-weight: 300; line-height: 1.6;
+      color: var(--mid-gray); max-width: 50ch; margin-bottom: 1.6rem;
+    }
+    .build-link {
+      margin-top: auto; display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--charcoal);
+      opacity: 0.5; transition: opacity 0.3s, color 0.3s;
+    }
+    .build-card:hover .build-link { opacity: 1; color: var(--gold); }
+    .build-link svg { transition: transform 0.3s; }
+    .build-card:hover .build-link svg { transform: translateX(4px); }
+    /* capstone — full-width charcoal door */
+    .build-card.capstone {
+      grid-column: 1 / -1;
+      align-items: center; text-align: center;
+      padding: clamp(2.6rem,5vw,3.6rem) 2rem;
+      background: linear-gradient(120deg, #16140F 0%, #2A2519 100%);
+      border-color: rgba(184,150,90,0.4);
+    }
+    .build-card.capstone:hover { background: linear-gradient(120deg, #1B1812 0%, #322C20 100%); }
+    .build-card.capstone .build-cat { color: var(--gold-light); }
+    .build-card.capstone .build-name { color: #F4ECDD; font-size: clamp(1.9rem,3vw,2.6rem); max-width: none; }
+    .build-card.capstone .build-desc { color: #CFC4AE; max-width: 44ch; margin-bottom: 1.4rem; }
+    .build-card.capstone .build-link { color: var(--gold-light); opacity: 1; justify-content: center; }
+
+    /* ── When a basic website is no longer enough ── */
+    .section-reasons { background: var(--ivory); padding: clamp(5rem,9vw,8rem) 0; }
+    .reasons {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      column-gap: clamp(2rem, 4vw, 4rem);
+      border-top: 1px solid var(--border-gold);
+      margin-top: clamp(2rem, 4vw, 3rem);
+    }
+    .reason {
+      display: flex; align-items: flex-start; gap: 1.2rem;
+      padding: 1.7rem 0;
+      border-bottom: 1px solid var(--border-gold);
+    }
+    .reason-mark {
+      font-family: 'Cinzel', var(--serif); font-size: 0.95rem;
+      color: var(--gold); flex-shrink: 0; min-width: 2.2rem; padding-top: 0.15rem;
+      letter-spacing: 0.05em;
+    }
+    .reason-text {
+      font-family: var(--serif); font-weight: 400;
+      font-size: clamp(1.15rem, 1.6vw, 1.35rem); line-height: 1.35; color: var(--charcoal);
+    }
+
+    /* ── From website to working system (charcoal command center) ── */
+    .section-system { background: #16140F; color: #E9E1D2; padding: clamp(5.5rem,10vw,9rem) 0; }
+    .section-system .section-eyebrow { color: var(--gold-light); }
+    .section-system .section-eyebrow::before { background: var(--gold-light); }
+    .system-statement {
+      font-family: var(--serif); font-weight: 400;
+      font-size: clamp(1.7rem, 3.2vw, 2.6rem); line-height: 1.25;
+      color: #F4ECDD; max-width: 24ch; margin-bottom: clamp(2.5rem,5vw,3.5rem);
+    }
+    .system-statement em { font-style: italic; color: var(--gold-light); }
+    .system-title {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.06; color: #F8F1E4;
+      margin-bottom: 1.2rem;
+    }
+    .system-sub {
+      font-size: clamp(1rem,1.2vw,1.12rem); font-weight: 300; line-height: 1.65;
+      color: #C3B9A6; max-width: 46rem; margin-bottom: clamp(2.5rem,5vw,3.5rem);
+    }
+    .pillars {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; background: rgba(184,150,90,0.22);
+      border: 1px solid rgba(184,150,90,0.22);
+    }
+    .pillar { background: #16140F; padding: 2.2rem 1.9rem 2.4rem; transition: background 0.35s; }
+    .pillar:hover { background: #1F1B13; }
+    .pillar-num {
+      font-family: 'Cinzel', var(--serif); font-size: 0.72rem;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-light);
+      display: block; margin-bottom: 1.1rem; opacity: 0.85;
+    }
+    .pillar-name { font-family: var(--serif); font-weight: 500; font-size: 1.5rem; color: #F4ECDD; margin-bottom: 0.55rem; }
+    .pillar-desc { font-size: 0.9rem; font-weight: 300; line-height: 1.6; color: #B6AC98; }
+    .system-tagline {
+      display: flex; flex-wrap: wrap; gap: 1.1rem; align-items: center; justify-content: center;
+      margin-top: clamp(2.5rem,5vw,3.5rem);
+      font-family: 'Cinzel', var(--serif); letter-spacing: 0.2em; text-transform: uppercase;
+      font-size: 0.82rem; color: var(--gold-light);
+    }
+    .system-tagline i { color: var(--gold); opacity: 0.5; font-style: normal; }
+
+    /* ── Selected client work ── */
+    .section-work { background: var(--warm-white); padding: clamp(5rem,9vw,8rem) 0; }
+    .work-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: clamp(1.2rem, 2vw, 1.8rem);
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+    }
+    .work-card {
+      display: block; border: 1px solid var(--border-gold);
+      background: var(--warm-white); overflow: hidden;
+      transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+    }
+    .work-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 44px rgba(40,30,12,0.12);
+      border-color: rgba(184,150,90,0.5);
+    }
+    .work-thumb {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      aspect-ratio: 16 / 10; overflow: hidden;
+      background: linear-gradient(135deg, #EFE7D7 0%, #E2D6BF 100%);
+    }
+    .work-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+    .work-thumb-name {
+      font-family: 'Cinzel', var(--serif); text-transform: uppercase;
+      font-size: clamp(1rem, 1.5vw, 1.45rem); letter-spacing: 0.08em;
+      color: rgba(120,95,45,0.55); text-align: center; padding: 0 1.2rem; line-height: 1.3;
+    }
+    .work-body { padding: 1.4rem 1.5rem 1.6rem; display: flex; flex-direction: column; }
+    .work-cat { font-size: 0.64rem; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.6rem; }
+    .work-name { font-family: var(--serif); font-weight: 500; font-size: 1.4rem; line-height: 1.15; color: var(--charcoal); margin-bottom: 0.3rem; }
+    .work-domain { font-size: 0.85rem; color: var(--mid-gray); }
+    .work-visit {
+      margin-top: 1.1rem; display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.64rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--charcoal); opacity: 0.55; transition: opacity 0.3s, color 0.3s;
+    }
+    .work-card:hover .work-visit { opacity: 1; color: var(--gold); }
+
+    @media (max-width: 980px) { .work-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 860px) { .pillars { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 760px) {
+      .build-grid { grid-template-columns: 1fr; }
+      .reasons { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .work-grid { grid-template-columns: 1fr; }
+      .pillars { grid-template-columns: 1fr; }
+      .build-card { padding: 1.9rem 1.6rem 2rem; }
+    }
   </style>
 </head>
 <body>
@@ -430,8 +621,8 @@
         <span class="logo-wordmark">MARKEVITA</span>
       </a>
       <nav class="main-nav">
-        <a href="#services">Services</a>
-        <a href="#">Work</a>
+        <a href="#build">Services</a>
+        <a href="#work">Work</a>
         <a href="#">About</a>
         <a href="#">Journal</a>
         <a href="#" class="nav-cta">Let's Talk</a>
@@ -480,91 +671,204 @@
 
   </section>
 
-  <!-- ── SERVICES ─────────────────────────────────────── -->
-  <section id="services" class="services">
+  <!-- ── 1 · WHAT DO YOU NEED TO BUILD? ───────────────── -->
+  <section id="build" class="section section-build">
     <div class="section-inner">
 
-      <p class="section-eyebrow">What We Do</p>
-      <h2 class="section-title">Services crafted for <span class="gold-italic">distinction</span>.</h2>
+      <p class="section-eyebrow">Where We Begin</p>
+      <h2 class="section-title">What do you need to build?</h2>
       <p class="section-lead">
-        We partner with ambitious brands end to end — from positioning and identity
-        to the website, the campaigns, and the technology that make them impossible
-        to ignore.
+        From a simple website to a complete digital business system, MARKEVITA creates
+        the strategy, design, technology, and marketing foundation behind your online presence.
       </p>
 
-      <div class="services-grid">
+      <div class="build-grid">
 
-        <article class="service-card">
-          <span class="service-num">01</span>
-          <h3 class="service-name">Brand Strategy &amp; Identity</h3>
-          <p class="service-desc">
-            Positioning, naming, and a complete visual identity system that lets your
-            brand command a premium and stay unmistakably yours.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">01</span>
+          <span class="build-cat">Web</span>
+          <h3 class="build-name">Website</h3>
+          <p class="build-desc">Premium company websites, personal brands, project sites, and landing pages.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
-        <article class="service-card">
-          <span class="service-num">02</span>
-          <h3 class="service-name">Web Design &amp; Development</h3>
-          <p class="service-desc">
-            Bespoke, fast, conversion-focused websites — editorial design backed by
-            clean, scalable engineering that performs on every device.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">02</span>
+          <span class="build-cat">Commerce</span>
+          <h3 class="build-name">Online Store</h3>
+          <p class="build-desc">E-commerce, product pages, collections, checkout, inventory structure, and sales flow.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
-        <article class="service-card">
-          <span class="service-num">03</span>
-          <h3 class="service-name">Performance Marketing</h3>
-          <p class="service-desc">
-            Paid media, SEO, and funnel design engineered around measurable growth —
-            every dollar tracked, every campaign optimized to ROI.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">03</span>
+          <span class="build-cat">Growth</span>
+          <h3 class="build-name">Lead Generation</h3>
+          <p class="build-desc">Campaign pages, lead forms, tracking, CRM routing, and conversion strategy.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
-        <article class="service-card">
-          <span class="service-num">04</span>
-          <h3 class="service-name">Content &amp; Social</h3>
-          <p class="service-desc">
-            Editorial, photography, and short-form video that build desire and keep
-            your audience close across every platform that matters.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">04</span>
+          <span class="build-cat">Systems</span>
+          <h3 class="build-name">CRM &amp; Client Systems</h3>
+          <p class="build-desc">Client databases, intake systems, follow-up flows, dashboards, and automation.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
-        <article class="service-card">
-          <span class="service-num">05</span>
-          <h3 class="service-name">AI Avatars &amp; Automation</h3>
-          <p class="service-desc">
-            Lifelike AI presenters, multilingual concierge video, and workflow
-            automation that let your brand speak to everyone, instantly.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">05</span>
+          <span class="build-cat">Platforms</span>
+          <h3 class="build-name">Marketplace &amp; Portals</h3>
+          <p class="build-desc">Digital marketplaces, private networks, member portals, and platform concepts.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
-        <article class="service-card">
-          <span class="service-num">06</span>
-          <h3 class="service-name">Analytics &amp; CRO</h3>
-          <p class="service-desc">
-            Data dashboards, A/B testing, and conversion-rate optimization that turn
-            traffic into customers and guesswork into decisions.
-          </p>
-          <span class="service-link">Explore
-            <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </article>
+        <a class="build-card" href="#work">
+          <span class="build-index">06</span>
+          <span class="build-cat">Intelligence</span>
+          <h3 class="build-name">AI Experience</h3>
+          <p class="build-desc">AI assistants, avatar guides, interactive intake, and guided client journeys.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a class="build-card" href="#work">
+          <span class="build-index">07</span>
+          <span class="build-cat">Tools</span>
+          <h3 class="build-name">Calculators &amp; Tools</h3>
+          <p class="build-desc">Mortgage tools, pricing logic, comparison tables, estimators, and decision engines.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a class="build-card" href="#work">
+          <span class="build-index">08</span>
+          <span class="build-cat">Industry</span>
+          <h3 class="build-name">Real Estate</h3>
+          <p class="build-desc">Property websites, development presentations, drone visuals, and investor materials.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a class="build-card" href="#work">
+          <span class="build-index">09</span>
+          <span class="build-cat">Industry</span>
+          <h3 class="build-name">Mortgage &amp; Finance</h3>
+          <p class="build-desc">Loan education, Jumbo / Conforming tools, application flows, and lead capture.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a class="build-card" href="#work">
+          <span class="build-index">10</span>
+          <span class="build-cat">Education</span>
+          <h3 class="build-name">Course Platform</h3>
+          <p class="build-desc">Online education, course structure, learning pages, and content delivery.</p>
+          <span class="build-link">Explore <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a class="build-card capstone" href="#system">
+          <span class="build-cat">Everything, Connected</span>
+          <h3 class="build-name">Full Digital System</h3>
+          <p class="build-desc">Everything connected into one premium online experience.</p>
+          <span class="build-link">See how it connects <svg width="15" height="9" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2 · WHEN A BASIC WEBSITE IS NO LONGER ENOUGH ──── -->
+  <section id="not-enough" class="section section-reasons">
+    <div class="section-inner">
+
+      <p class="section-eyebrow">The Turning Point</p>
+      <h2 class="section-title">When a basic website is no&nbsp;longer&nbsp;enough.</h2>
+      <p class="section-lead">Clients come to MARKEVITA when —</p>
+
+      <div class="reasons">
+        <div class="reason"><span class="reason-mark">I</span><p class="reason-text">Their brand looks better in real life than it does online.</p></div>
+        <div class="reason"><span class="reason-mark">II</span><p class="reason-text">Their website doesn’t explain what they actually do.</p></div>
+        <div class="reason"><span class="reason-mark">III</span><p class="reason-text">Their leads are scattered across forms, emails, texts, and spreadsheets.</p></div>
+        <div class="reason"><span class="reason-mark">IV</span><p class="reason-text">They need tools, calculators, applications, or client portals.</p></div>
+        <div class="reason"><span class="reason-mark">V</span><p class="reason-text">They want their business to feel premium, modern, and trusted.</p></div>
+        <div class="reason"><span class="reason-mark">VI</span><p class="reason-text">They need a digital system that supports growth.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3 · FROM WEBSITE TO WORKING SYSTEM ───────────── -->
+  <section id="system" class="section section-system">
+    <div class="section-inner">
+
+      <p class="section-eyebrow">Core Positioning</p>
+      <p class="system-statement">We don’t just build websites. <em>We connect the digital infrastructure</em> behind the&nbsp;business.</p>
+
+      <h2 class="system-title">From website to working&nbsp;system.</h2>
+      <p class="system-sub">
+        A beautiful website is only the beginning. MARKEVITA helps connect the forms, payments,
+        CRM, email, automation, social media, AI, and analytics that make the business work online.
+      </p>
+
+      <div class="pillars">
+        <div class="pillar"><span class="pillar-num">I — Capture</span><h3 class="pillar-name">Capture</h3><p class="pillar-desc">Forms, landing pages, applications, and lead intake.</p></div>
+        <div class="pillar"><span class="pillar-num">II — Organize</span><h3 class="pillar-name">Organize</h3><p class="pillar-desc">CRM, dashboards, client records, and workflow structure.</p></div>
+        <div class="pillar"><span class="pillar-num">III — Sell</span><h3 class="pillar-name">Sell</h3><p class="pillar-desc">Checkout, online stores, payment flows, and product pages.</p></div>
+        <div class="pillar"><span class="pillar-num">IV — Communicate</span><h3 class="pillar-name">Communicate</h3><p class="pillar-desc">Email sequences, follow-ups, notifications, and client updates.</p></div>
+        <div class="pillar"><span class="pillar-num">V — Promote</span><h3 class="pillar-name">Promote</h3><p class="pillar-desc">Social media content, campaign pages, and digital distribution.</p></div>
+        <div class="pillar"><span class="pillar-num">VI — Improve</span><h3 class="pillar-name">Improve</h3><p class="pillar-desc">Analytics, conversion review, optimization, and ongoing support.</p></div>
+      </div>
+
+      <div class="system-tagline">
+        <span>Built</span><i>·</i><span>Connected</span><i>·</i><span>Launched</span><i>·</i><span>Monitored</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4 · SELECTED CLIENT WORK ─────────────────────── -->
+  <section id="work" class="section section-work">
+    <div class="section-inner">
+
+      <p class="section-eyebrow">Selected Client Work</p>
+      <h2 class="section-title">Selected client&nbsp;work.</h2>
+      <p class="section-lead">
+        A curated collection of websites, platforms, CRM systems, and marketing experiences
+        created for MARKEVITA clients.
+      </p>
+
+      <div class="work-grid">
+
+        <a class="work-card" href="https://ta-next.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/ta-next.jpg" alt="TA Next" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">TA Next</span></span>
+          <span class="work-body"><span class="work-cat">Course Creation Platform</span><span class="work-name">TA Next</span><span class="work-domain">ta-next.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://pegasuscapitalnetwork.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/pegasus-capital-network.jpg" alt="Pegasus Capital Network" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">Pegasus Capital Network</span></span>
+          <span class="work-body"><span class="work-cat">Capital / Professional Network Platform</span><span class="work-name">Pegasus Capital Network</span><span class="work-domain">pegasuscapitalnetwork.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://grcrm.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/gr-crm.jpg" alt="GR CRM" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">GR CRM</span></span>
+          <span class="work-body"><span class="work-cat">CRM / Business System</span><span class="work-name">GR CRM</span><span class="work-domain">grcrm.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://orangesmortgages.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/oranges-mortgages.jpg" alt="Oranges Mortgages" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">Oranges Mortgages</span></span>
+          <span class="work-body"><span class="work-cat">Mortgage Marketing Brand</span><span class="work-name">Oranges Mortgages</span><span class="work-domain">orangesmortgages.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://pegasusprivatenetwork.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/pegasus-private-network.jpg" alt="Pegasus Private Network" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">Pegasus Private Network</span></span>
+          <span class="work-body"><span class="work-cat">Private Network Platform</span><span class="work-name">Pegasus Private Network</span><span class="work-domain">pegasusprivatenetwork.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://vistadelmartownhomes.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/vista-del-mar-townhomes.jpg" alt="Vista Del Mar Townhomes" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">Vista Del Mar Townhomes</span></span>
+          <span class="work-body"><span class="work-cat">Real Estate Development Website</span><span class="work-name">Vista Del Mar Townhomes</span><span class="work-domain">vistadelmartownhomes.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
+
+        <a class="work-card" href="https://californiardp.com" target="_blank" rel="noopener noreferrer">
+          <span class="work-thumb"><img src="/images/work/california-rdp.jpg" alt="California RDP" loading="lazy" onerror="this.remove()"><span class="work-thumb-name">California RDP</span></span>
+          <span class="work-body"><span class="work-cat">Residential Development Brand</span><span class="work-name">California RDP</span><span class="work-domain">californiardp.com</span><span class="work-visit">Visit site <svg width="13" height="8" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </a>
 
       </div>
     </div>

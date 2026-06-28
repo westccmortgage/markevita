@@ -137,17 +137,19 @@
       .hero-video { object-fit: cover; object-position: center top; }
     }
 
-    /* z:2 — soft ivory scrim behind the TEXT only (left side), fades out */
+    /* z:2 — soft ivory scrim behind the TEXT ONLY (left column).
+       Clears fully by ~56% so the video stays crisp across the
+       centre/right (no haze over the whole scene). */
     .hero-scrim {
       position: absolute;
       inset: 0;
       z-index: 2;
       pointer-events: none;
       background: linear-gradient(90deg,
-        rgba(250,246,238,0.92) 0%,
-        rgba(250,246,238,0.72) 38%,
-        rgba(250,246,238,0.20) 68%,
-        rgba(250,246,238,0) 100%);
+        rgba(248,244,236,0.95) 0%,
+        rgba(248,244,236,0.86) 26%,
+        rgba(248,244,236,0.42) 44%,
+        rgba(248,244,236,0) 56%);
     }
 
     /* z:3 — text content overlay */
@@ -168,19 +170,19 @@
       display: flex;
       align-items: center;
       gap: 1rem;
-      font-size: 0.66rem;
-      font-weight: 400;
+      font-size: 0.7rem;
+      font-weight: 500;
       letter-spacing: 0.35em;
       text-transform: uppercase;
-      color: #B0894F;                   /* refined champagne gold */
+      color: #B0863A;                   /* warmer, saturated champagne gold */
       margin-bottom: 2.1rem;
     }
     .hero-eyebrow::before {
       content: "";
-      width: 44px;
+      width: 46px;
       height: 1px;
-      background: #B0894F;
-      opacity: 0.85;
+      background: #B0863A;
+      opacity: 0.95;
       display: inline-block;
     }
 
@@ -192,10 +194,12 @@
       letter-spacing: -0.01em;
       color: #1f1f1d;
       margin-bottom: 2.3rem;
-      /* clean, controlled depth — crisp top highlight + one soft far shadow */
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      /* clean, controlled depth — crisp 1px highlight + one tight far shadow */
       text-shadow:
-        0 1px 0 rgba(255,255,255,0.7),
-        0 10px 18px rgba(0,0,0,0.16);
+        0 1px 0 rgba(255,255,255,0.6),
+        0 6px 14px rgba(31,31,29,0.15);
     }
     .hero-headline .gold-italic {
       /* champagne gold — refined gradient, subtle depth, no WordArt */
@@ -203,18 +207,27 @@
       font-style: normal;
       font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.015em;
-      font-size: 1.06em;                /* DIGITAL a touch larger: ~98–118px */
-      background: linear-gradient(180deg, #d9bd78 0%, #b9913f 45%, #f0dfaa 100%);
+      letter-spacing: 0.01em;
+      font-size: 1.08em;                /* DIGITAL a touch larger */
+      /* SOLID, saturated champagne→bronze gold so it reads richly (not a
+         washed hollow outline) against the ivory scrim */
+      background: linear-gradient(180deg,
+        #f6e0a0 0%,
+        #e6c463 20%,
+        #d2a73c 48%,
+        #b8842a 70%,
+        #97681d 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
       color: transparent;
-      /* subtle champagne depth — fine edge + soft lift define it on light bg
-         without washing it out (no white highlight, no WordArt) */
-      filter:
-        drop-shadow(0 1px 1px rgba(120,84,28,0.45))
-        drop-shadow(0 8px 16px rgba(129,91,34,0.24));
+      filter: none;
+      /* genuine raised dimension on the solid fill — warm top highlight,
+         tight dark edge, one soft far shadow (no WordArt emboss) */
+      text-shadow:
+        0 1px 0 rgba(255,248,228,0.7),
+        0 1px 1px rgba(120,82,20,0.5),
+        0 6px 12px rgba(95,64,16,0.22);
     }
 
     .hero-sub {

@@ -601,6 +601,121 @@
       .pillars { grid-template-columns: 1fr; }
       .build-card { padding: 1.9rem 1.6rem 2rem; }
     }
+    /* ── About ──────────────────────────────────────────── */
+    .section-about { background: var(--ivory); padding: clamp(5.5rem,10vw,9rem) 0; }
+    .about-headline {
+      font-family: var(--serif);
+      font-weight: 500;
+      font-size: clamp(2rem, 4.6vw, 3.7rem);
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      color: var(--charcoal);
+      max-width: 18ch;
+      margin: 1rem 0 clamp(2rem,4vw,2.8rem);
+    }
+    .about-body {
+      max-width: 56ch;
+      padding-top: clamp(1.6rem,3vw,2.2rem);
+      border-top: 1px solid var(--border-gold);
+    }
+    .about-body p {
+      font-size: clamp(1rem, 1.2vw, 1.16rem);
+      font-weight: 300;
+      line-height: 1.75;
+      color: var(--mid-gray);
+      margin-bottom: 1.3rem;
+    }
+    .about-body p:last-child { margin-bottom: 0; }
+    .about-statement {
+      margin-top: clamp(2.6rem,5vw,3.6rem);
+      font-family: var(--serif);
+      font-weight: 400;
+      font-size: clamp(1.5rem, 2.9vw, 2.3rem);
+      line-height: 1.32;
+      letter-spacing: -0.005em;
+      color: var(--charcoal);
+      max-width: 28ch;
+    }
+    .about-statement em { font-style: italic; color: var(--gold); }
+
+    /* ── Consultation ───────────────────────────────────── */
+    .section-consult {
+      background: linear-gradient(168deg, #FBF7F0 0%, #F1E8D9 100%);
+      padding: clamp(5.5rem,10vw,9rem) 0;
+    }
+    .consult-form { margin-top: clamp(2.6rem,5vw,3.6rem); max-width: 940px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: clamp(1.5rem,2.6vw,2.1rem) clamp(1.8rem,3vw,2.8rem);
+    }
+    .field { display: flex; flex-direction: column; }
+    .field-full { grid-column: 1 / -1; }
+    .field label {
+      font-size: 0.64rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.7rem;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      font-family: var(--sans);
+      font-size: 1rem;
+      color: var(--charcoal);
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(31,31,29,0.28);
+      padding: 0.55rem 0;
+      transition: border-color 0.3s ease;
+    }
+    .field input::placeholder,
+    .field textarea::placeholder { color: rgba(31,31,29,0.38); }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus { outline: none; border-bottom-color: var(--gold); }
+    .field textarea {
+      border: 1px solid rgba(31,31,29,0.22);
+      border-radius: 2px;
+      padding: 0.85rem 0.95rem;
+      resize: vertical;
+      line-height: 1.55;
+    }
+    .field textarea:focus { border-color: var(--gold); }
+    .field select {
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      padding-right: 1.6rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B8965A' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.1rem center;
+      background-size: 12px 8px;
+    }
+    .consult-submit {
+      margin-top: clamp(2.2rem,4vw,3rem);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 62px;
+      padding: 0 46px;
+      background: #1f1f1d;
+      color: #fffaf1;
+      border: none;
+      font-size: 0.74rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .consult-submit:hover { background: #000; transform: translateY(-2px); }
+
+    @media (max-width: 680px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .consult-submit { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -616,11 +731,10 @@
         <span class="logo-wordmark">MARKEVITA</span>
       </a>
       <nav class="main-nav">
-        <a href="#build">Services</a>
+        <a href="#services">Services</a>
         <a href="#work">Work</a>
-        <a href="#">About</a>
-        <a href="#">Journal</a>
-        <a href="#" class="nav-cta">Let's Talk</a>
+        <a href="#about">About</a>
+        <a href="#consultation" class="nav-cta">Book a Strategy Call</a>
       </nav>
     </div>
   </header>
@@ -654,7 +768,7 @@
       <p class="hero-sub">
         Luxury websites and strategic marketing that elevate brands and drive results.
       </p>
-      <a class="hero-btn" href="#">
+      <a class="hero-btn" href="#work">
         Discover Our Work
         <svg width="16" height="10" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M1 5h13M10 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -666,7 +780,7 @@
   </section>
 
   <!-- ── 1 · WHAT DO YOU NEED TO BUILD? ───────────────── -->
-  <section id="build" class="section section-build">
+  <section id="services" class="section section-build">
     <div class="section-inner">
 
       <p class="section-eyebrow">Where We Begin</p>
@@ -865,6 +979,98 @@
         </a>
 
       </div>
+    </div>
+  </section>
+
+  <!-- ── 5 · ABOUT ────────────────────────────────────── -->
+  <section id="about" class="section section-about">
+    <div class="section-inner">
+      <p class="section-eyebrow">About MARKEVITA</p>
+      <h2 class="about-headline">We build digital presence for businesses that need more than a&nbsp;website.</h2>
+      <div class="about-body">
+        <p>MARKEVITA is a premium digital design and marketing studio creating websites, platforms, CRM systems, online stores, AI experiences, forms, automations, and complete digital business systems for modern companies.</p>
+        <p>We combine strategy, design, technology, and marketing infrastructure so every digital project is not only beautiful, but connected, functional, and ready to support growth.</p>
+      </div>
+      <p class="about-statement">Beautiful design is only the first layer. <em>The real value is in how everything works&nbsp;together.</em></p>
+    </div>
+  </section>
+
+  <!-- ── 6 · CONSULTATION ─────────────────────────────── -->
+  <section id="consultation" class="section section-consult">
+    <div class="section-inner">
+      <p class="section-eyebrow">Start Your Digital Project</p>
+      <h2 class="section-title">Start your digital&nbsp;project.</h2>
+      <p class="section-lead">Tell us what you want to build, and we’ll help you define the right digital system.</p>
+
+      <form class="consult-form" name="consultation" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+        <input type="hidden" name="form-name" value="consultation">
+        <p class="hp" hidden><label>Don’t fill this out: <input name="bot-field"></label></p>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="c-name">Name</label>
+            <input id="c-name" name="name" type="text" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="c-email">Email</label>
+            <input id="c-email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="c-company">Company</label>
+            <input id="c-company" name="company" type="text" autocomplete="organization">
+          </div>
+          <div class="field">
+            <label for="c-phone">Phone</label>
+            <input id="c-phone" name="phone" type="tel" autocomplete="tel">
+          </div>
+
+          <div class="field field-full">
+            <label for="c-build">What do you need to build?</label>
+            <select id="c-build" name="project_type" required>
+              <option value="" disabled selected>Select an option</option>
+              <option>Website</option>
+              <option>Online Store</option>
+              <option>Lead Generation</option>
+              <option>CRM / Client System</option>
+              <option>Marketplace / Portal</option>
+              <option>AI Experience</option>
+              <option>Real Estate Website</option>
+              <option>Mortgage / Finance Platform</option>
+              <option>Course Platform</option>
+              <option>Full Digital System</option>
+            </select>
+          </div>
+
+          <div class="field field-full">
+            <label for="c-details">Project details</label>
+            <textarea id="c-details" name="project_details" rows="4" placeholder="Tell us about your project…"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="c-timeline">Timeline</label>
+            <select id="c-timeline" name="timeline">
+              <option value="" disabled selected>Select a timeline</option>
+              <option>As soon as possible</option>
+              <option>1–3 months</option>
+              <option>3–6 months</option>
+              <option>Flexible</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="c-budget">Budget range</label>
+            <select id="c-budget" name="budget">
+              <option value="" disabled selected>Select a range</option>
+              <option>Under $5,000</option>
+              <option>$5,000 – $15,000</option>
+              <option>$15,000 – $40,000</option>
+              <option>$40,000 – $100,000</option>
+              <option>$100,000+</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="consult-submit">Request Consultation</button>
+      </form>
     </div>
   </section>
 

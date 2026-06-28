@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Luxury websites and strategic marketing that elevate brands and drive results." />
+  <title>MARKEVITA — We Create Digital Masterpieces</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & BASE ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ivory:       #F7F4EF;
+      --cream:       #EDE8DF;
+      --warm-white:  #FDFAF6;
+      --charcoal:    #1C1C1C;
+      --mid-gray:    #5A5A5A;
+      --light-gray:  #9A9A9A;
+      --pale-gray:   #BEBEBE;
+      --gold:        #B8965A;
+      --gold-light:  #D4B07A;
+      --gold-pale:   #EDD9B0;
+      --border-gold: rgba(184,150,90,0.25);
+
+      --serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+      --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--warm-white);
+      color: var(--charcoal);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--ivory); }
+    ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
+
+    img { display: block; max-width: 100%; }
+    button { cursor: pointer; background: none; border: none; font-family: var(--sans); }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    #site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+      border-bottom: 1px solid transparent;
+    }
+    #site-header.scrolled {
+      background: rgba(253,250,246,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom-color: var(--border-gold);
+    }
+    .header-inner {
+      width: 100%;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 0 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+    }
+    .logo-wordmark {
+      font-family: var(--sans);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+    }
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 2.5rem;
+    }
+    .main-nav a {
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      transition: color 0.2s;
+    }
+    .main-nav a:hover { color: var(--charcoal); }
+    .nav-cta {
+      padding: 0.55rem 1.35rem;
+      border: 1px solid var(--charcoal);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--charcoal) !important;
+      transition: background 0.2s, color 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--charcoal); color: var(--warm-white) !important; }
+
+    /* ── HERO ─────────────────────────────────────────────
+       FULL-BLEED layout: lobby image fills the entire frame.
+       Text overlays on the left over a warm scrim; the avatar
+       stands on the right behind the desk. Header spans full width.
+    ───────────────────────────────────────────────────────── */
+    #hero {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      background: var(--warm-white);
+      overflow: hidden;
+    }
+
+    /* Content overlay — sits above all visual layers (z:40) */
+    .hero-content {
+      position: relative;
+      z-index: 40;
+      width: 100%;
+      max-width: 1380px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 7rem 2.5rem 5rem;
+      pointer-events: none; /* let clicks fall through except on interactive children */
+    }
+    @media (min-width: 1200px) { .hero-content { padding-left: 4rem; padding-right: 4rem; } }
+
+    /* ── HERO TEXT (left side) ── */
+    .hero-text {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-width: 480px;
+      pointer-events: auto; /* re-enable interaction on the text block */
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .hero-eyebrow-line {
+      display: block;
+      width: 32px;
+      height: 1px;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+    .hero-eyebrow-text {
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .hero-headline {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(3rem, 5.2vw, 5.4rem);
+      line-height: 1.02;
+      letter-spacing: -0.01em;
+      color: var(--charcoal);
+      margin-bottom: 2rem;
+    }
+    .hero-headline em {
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 300;
+    }
+
+    .hero-sub {
+      font-size: 1.05rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.75;
+      max-width: 380px;
+      margin-bottom: 2.75rem;
+    }
+
+    .hero-ctas {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      margin-bottom: 2rem;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.75rem;
+      background: var(--charcoal);
+      color: var(--warm-white);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #2e2e2e; }
+    .btn-primary svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    .btn-text {
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      border-bottom: 1px solid rgba(184,150,90,0.5);
+      padding-bottom: 2px;
+      transition: color 0.2s;
+    }
+    .btn-text:hover { color: var(--charcoal); }
+
+    /* ── Concierge trigger ── */
+    .concierge-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      border: 1px solid rgba(184,150,90,0.35);
+      background: transparent;
+      color: var(--mid-gray);
+      font-size: 0.68rem;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transition: border-color 0.25s, color 0.25s, background 0.25s;
+      align-self: flex-start;
+    }
+    .concierge-trigger:hover {
+      border-color: rgba(184,150,90,0.7);
+      color: var(--charcoal);
+    }
+    .concierge-trigger.active {
+      border-color: rgba(184,150,90,0.7);
+      background: rgba(184,150,90,0.05);
+    }
+    .concierge-trigger:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* Pulse dot */
+    .pulse-dot {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      flex-shrink: 0;
+    }
+    .pulse-dot-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0.4;
+    }
+    .pulse-dot-ring.pulsing {
+      animation: pulse-ring 1.4s ease-in-out infinite;
+    }
+    .pulse-dot-core {
+      position: absolute;
+      inset: 1px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0.65;
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(1); opacity: 0.5; }
+      70%  { transform: scale(2.2); opacity: 0; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    .hero-est {
+      position: absolute;
+      bottom: 3rem;
+      left: 2.5rem;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      pointer-events: none;
+    }
+    @media (min-width: 1200px) { .hero-est { left: 4rem; } }
+    .hero-est-line {
+      display: block;
+      width: 44px;
+      height: 1px;
+      background: rgba(184,150,90,0.3);
+    }
+    .hero-est-text {
+      font-size: 0.62rem;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--light-gray);
+    }
+
+    /* ── HERO SCENE — full-bleed visual layers ──────────────
+       This container spans the ENTIRE hero (full viewport), not
+       a half panel. All visual layers (lobby, avatar, desk, scrims)
+       are absolutely positioned inside it and fill the whole frame.
+       The text content overlays on top via .hero-content (z:40).
+    ───────────────────────────────────────────────────────── */
+    .hero-scene {
+      position: absolute;
+      inset: 0;            /* fill the entire #hero */
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    /*
+     * ════════════════════════════════════════════════════════
+     * LAYER STACK — exact z-index order (bottom → top)
+     * ════════════════════════════════════════════════════════
+     *
+     *  z:0   Placeholder  — warm bg + asset paths, shown until lobby loads
+     *  z:10  Lobby BG     — /images/markevita-lobby-background.jpg
+     *                       FULL-BLEED. Entire office scene: room, walls,
+     *                       logo, desk, lighting. NO PERSON in this image.
+     *  z:20  Avatar video — /videos/markevita-avatar-{lang}.webm
+     *                       Transparent VP9 WebM. Receptionist figure only.
+     *                       Positioned on the RIGHT, standing behind the desk.
+     *  z:30  Desk mask    — /images/markevita-desk-foreground.png
+     *                       Full-width PNG cutout of the desk front.
+     *                       Covers avatar lower body — "behind desk" illusion.
+     *  z:35  Scrims       — left text scrim + bottom vignette (pointer-events:none)
+     *  z:40  Content/UI   — hero text (left) + language switcher (interactive)
+     * ════════════════════════════════════════════════════════
+     */
+
+    /* ── z:0 PLACEHOLDER ────────────────────────────────── */
+    /*
+     * Shown while assets are missing or loading.
+     * Hidden automatically by JS once lobby image loads.
+     * Shows asset paths as reference for the developer.
+     */
+    .hero-placeholder {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: #EDE8DF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+    }
+    .hero-placeholder-line {
+      width: 48px;
+      height: 1px;
+      background: rgba(184,150,90,0.4);
+    }
+    .hero-placeholder-label {
+      font-size: 0.6rem;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--pale-gray);
+      text-align: center;
+      line-height: 2;
+    }
+    .hero-placeholder-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+    }
+    .placeholder-layer-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .placeholder-z {
+      font-size: 0.55rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      opacity: 0.7;
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .placeholder-path {
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      color: rgba(90,90,90,0.5);
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ── z:10 LOBBY BACKGROUND ──────────────────────────── */
+    /*
+     * ASSET: /images/markevita-lobby-background.jpg
+     *
+     * Spec:
+     *   • Full reception lobby — wall, MARKEVITA logo, lighting, desk
+     *   • Dark stone / charcoal front desk occupying lower ~30% of frame
+     *   • NO receptionist / NO person in this image
+     *   • The desk foreground mask (z:30) will re-composite the desk top
+     *   • Warm beige / travertine walls, directional warm lighting
+     *   • Resolution: 1800 × 2400px minimum, JPG 90 quality
+     *
+     * object-position: center bottom anchors the desk to the bottom
+     * of the container so it aligns predictably with the desk mask.
+     */
+    .hero-lobby-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center bottom;
+    }
+
+    /* ── z:20 AVATAR VIDEO LAYER ────────────────────────── */
+    /*
+     * CONTAINER — positions avatar on the RIGHT side of the
+     * full-bleed scene, standing behind the desk.
+     *
+     * ADJUST THESE VALUES to align with your lobby image:
+     *   bottom    → raise/lower avatar relative to floor
+     *   right     → horizontal placement on the right side
+     *   width     → avatar width relative to the full hero
+     *   max-width → absolute cap in px
+     *
+     * The desk mask (z:30) covers the avatar's lower body,
+     * so position her slightly low — the mask cleans up the
+     * overlap and creates the behind-desk illusion.
+     */
+    .avatar-layer {
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+
+      /* ── TUNE THESE to match your lobby image composition ── */
+      bottom: 0;          /* flush to floor; desk mask covers lower body */
+      right: 12%;         /* place on the right side, over the desk */
+      width: 26%;         /* avatar width relative to full hero width */
+      max-width: 440px;
+      min-width: 280px;
+      /* ────────────────────────────────────────────────────── */
+    }
+    @media (max-width: 1100px) {
+      .avatar-layer { right: 6%; width: 32%; }
+    }
+
+    /*
+     * AVATAR VIDEO element
+     *
+     * FORMAT: VP9 WebM with alpha channel (transparent background)
+     * EXPORT: HeyGen / Runway / D-ID → "Transparent background" = ON
+     * SIZE:   1080 × 1920px portrait, 15–30s per language
+     *
+     * The transparent alpha means the receptionist figure composites
+     * cleanly over the lobby image with no background box or color edge.
+     *
+     * SOLID-BG FALLBACK:
+     *   If your video has a solid background instead of alpha,
+     *   match it to your lobby wall color and set:
+     *   mix-blend-mode: multiply  (works for light solid bgs)
+     */
+    .avatar-video {
+      width: 100%;
+      display: none;           /* JS shows once canplay fires */
+      object-fit: contain;
+      object-position: bottom; /* anchor feet to container bottom */
+      mix-blend-mode: normal;  /* transparent webm composites correctly */
+    }
+
+    /* Static still — shown before video plays or if video unavailable */
+    .avatar-still {
+      width: 100%;
+      object-fit: contain;
+      object-position: bottom;
+      display: block;          /* JS hides once video plays */
+    }
+
+    /* ── z:30 DESK FOREGROUND MASK ──────────────────────── */
+    /*
+     * ASSET: /images/markevita-desk-foreground.png
+     *
+     * What this is:
+     *   A transparent PNG cutout of ONLY the desk surface and front panel.
+     *   The desk pixels are fully opaque; everything else is transparent.
+     *   When placed at z:30 above the avatar (z:20), it covers the
+     *   avatar's lower body — creating the illusion she stands BEHIND the desk.
+     *
+     * How to create this asset:
+     *   1. Take your lobby background image
+     *   2. In Photoshop / Figma / Canva: select just the desk area
+     *      (desk top surface + front panel, roughly lower 25–30% of image)
+     *   3. Mask/erase everything EXCEPT the desk
+     *   4. Export as PNG-24 with transparency
+     *   5. Place at /images/markevita-desk-foreground.png
+     *
+     * POSITIONING:
+     *   The mask should be positioned to perfectly match where the desk
+     *   appears in the lobby background image.
+     *   bottom:0 / left:0 / right:0 ensures it aligns with the container base.
+     *   height controls how much of the panel the mask covers.
+     *
+     *   Fine-tune `height` and `object-position` until the desk mask
+     *   sits flush over the desk in the background image.
+     */
+    .desk-mask {
+      position: absolute;
+      z-index: 30;
+      /* Anchor to bottom of container — aligns with lobby desk position */
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      /*
+       * HEIGHT: set to the portion of the panel the desk occupies.
+       * If your desk is the bottom 30% of the lobby image, use ~30%.
+       * Adjust after placing real assets.
+       */
+      height: 32%;
+      object-fit: cover;
+      object-position: bottom center;
+      pointer-events: none;
+    }
+
+    /* ── z:35 SCRIM OVERLAYS ────────────────────────────── */
+    /*
+     * Sit above the desk mask but below content/UI.
+     * pointer-events:none — never intercept clicks.
+     */
+
+    /* Left text scrim: warm wash on the left third so the
+       charcoal hero text stays crisp over the office photo.
+       Fades to transparent so the right side (avatar) shows clearly. */
+    .hero-scrim-left {
+      position: absolute;
+      inset: 0;
+      z-index: 35;
+      pointer-events: none;
+      background: linear-gradient(
+        to right,
+        rgba(253,250,246,0.96) 0%,
+        rgba(253,250,246,0.82) 22%,
+        rgba(253,250,246,0.45) 42%,
+        rgba(253,250,246,0.08) 58%,
+        transparent 72%
+      );
+    }
+
+    /* Bottom vignette: grounds the scene, adds depth */
+    .hero-scrim-bottom {
+      position: absolute;
+      inset: 0;
+      z-index: 35;
+      pointer-events: none;
+      background: linear-gradient(
+        to top,
+        rgba(20,18,15,0.22) 0%,
+        transparent 30%
+      );
+    }
+
+    /* ── z:40 UI CONTROLS ───────────────────────────────── */
+    /* z:40 — language selector */
+    .lang-ui {
+      position: absolute;
+      z-index: 40;
+      bottom: 2rem;
+      right: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.75rem;
+    }
+    .lang-switcher {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .lang-btn {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.38);
+      padding: 0.3rem 0.55rem;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .lang-btn:hover { color: rgba(255,255,255,0.7); }
+    .lang-btn.active { color: rgba(255,255,255,0.92); }
+    .lang-sep {
+      font-size: 0.5rem;
+      color: rgba(255,255,255,0.18);
+      line-height: 1;
+    }
+    .lang-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .lang-label-line {
+      display: block;
+      width: 16px;
+      height: 1px;
+      background: rgba(184,150,90,0.6);
+    }
+    .lang-label-text {
+      font-size: 0.58rem;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+    }
+
+    /* ── SECTION COMMON ─────────────────────────────────── */
+    .section { padding: 7rem 2.5rem; }
+    .section-inner { max-width: 1380px; margin: 0 auto; }
+
+    .section-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    .section-eyebrow-line {
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+    .section-eyebrow-text {
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .section-title {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(2.2rem, 3.2vw, 3.6rem);
+      line-height: 1.06;
+      color: var(--charcoal);
+    }
+    .section-title em { font-style: italic; color: var(--gold); }
+
+    /* ── SERVICES ───────────────────────────────────────── */
+    #services { background: var(--ivory); }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border: 1px solid var(--border-gold);
+      margin-top: 3.5rem;
+    }
+    .service-card {
+      padding: 2.25rem 1.75rem;
+      border-right: 1px solid var(--border-gold);
+      transition: background 0.3s;
+    }
+    .service-card:last-child { border-right: none; }
+    .service-card:hover { background: var(--cream); }
+    .service-icon { margin-bottom: 1.5rem; color: var(--gold); }
+    .service-name {
+      font-family: var(--serif);
+      font-size: 1.18rem;
+      font-weight: 400;
+      color: var(--charcoal);
+      margin-bottom: 0.6rem;
+      line-height: 1.2;
+    }
+    .service-desc {
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.7;
+    }
+
+    /* ── WORK ───────────────────────────────────────────── */
+    #work { background: var(--warm-white); }
+    .work-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 3.5rem;
+    }
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5px;
+      background: var(--border-gold);
+    }
+    .project-card {
+      background: var(--warm-white);
+      overflow: hidden;
+    }
+    .project-img-area {
+      width: 100%;
+      aspect-ratio: 4/3;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Placeholder bg per card */
+    .project-card:nth-child(1) .project-img-area { background: #E8E3DA; }
+    .project-card:nth-child(2) .project-img-area { background: #DDD8CF; }
+    .project-card:nth-child(3) .project-img-area { background: #E4DDD2; }
+    .project-img-placeholder-label {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--light-gray);
+    }
+    .project-real-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: transform 0.6s ease;
+    }
+    .project-card:hover .project-real-img { transform: scale(1.03); }
+    .project-info {
+      padding: 1.5rem 1.75rem 1.75rem;
+      border-top: 1px solid rgba(184,150,90,0.15);
+    }
+    .project-cat {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .project-name {
+      font-family: var(--serif);
+      font-size: 1.32rem;
+      font-weight: 400;
+      color: var(--charcoal);
+      margin-bottom: 0.5rem;
+    }
+    .project-desc {
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.65;
+      margin-bottom: 1.25rem;
+    }
+    .link-arrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+      border-bottom: 1px solid rgba(184,150,90,0.5);
+      padding-bottom: 2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .link-arrow:hover { color: var(--gold); border-color: var(--gold); }
+    .view-all-link {
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+      border-bottom: 1px solid rgba(184,150,90,0.5);
+      padding-bottom: 2px;
+      transition: color 0.2s;
+    }
+    .view-all-link:hover { color: var(--gold); }
+
+    /* ── ABOUT ──────────────────────────────────────────── */
+    #about { background: var(--cream); }
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      align-items: center;
+    }
+    .about-statement {
+      font-family: var(--serif);
+      font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+      font-weight: 300;
+      line-height: 1.4;
+      color: var(--charcoal);
+      margin-top: 1.25rem;
+    }
+    .about-statement em { font-style: italic; color: var(--gold); }
+    .about-body {
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.8;
+      margin-top: 1.5rem;
+    }
+    .about-right { display: flex; flex-direction: column; gap: 1.5rem; }
+    .about-item {
+      padding: 1.75rem;
+      border: 1px solid var(--border-gold);
+      background: var(--warm-white);
+    }
+    .about-num {
+      font-family: var(--serif);
+      font-size: 1.9rem;
+      font-weight: 300;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+    .about-item-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--charcoal);
+      margin-bottom: 0.4rem;
+    }
+    .about-item-desc {
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.65;
+    }
+
+    /* ── PROCESS ────────────────────────────────────────── */
+    #process { background: var(--charcoal); }
+    #process .section-title { color: var(--warm-white); }
+    #process .section-eyebrow-line { background: rgba(184,150,90,0.6); }
+    #process .section-eyebrow-text { color: rgba(184,150,90,0.8); }
+
+    .process-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-top: 3.5rem;
+    }
+    .process-step {
+      padding: 2.5rem 2rem;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.3s;
+    }
+    .process-step:last-child { border-right: none; }
+    .process-step:hover { background: rgba(255,255,255,0.03); }
+    .process-phase {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(184,150,90,0.7);
+      margin-bottom: 1.25rem;
+    }
+    .process-step-title {
+      font-family: var(--serif);
+      font-size: 1.65rem;
+      font-weight: 300;
+      color: var(--warm-white);
+      margin-bottom: 0.6rem;
+    }
+    .process-divider {
+      width: 28px;
+      height: 1px;
+      background: rgba(184,150,90,0.3);
+      margin-bottom: 1rem;
+    }
+    .process-step-desc {
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.38);
+      line-height: 1.7;
+    }
+
+    /* ── CTA ────────────────────────────────────────────── */
+    #cta {
+      background: var(--ivory);
+      text-align: center;
+      padding: 8rem 2.5rem;
+    }
+    .cta-inner { max-width: 680px; margin: 0 auto; }
+    .cta-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+    }
+    .cta-eyebrow-line {
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--gold);
+    }
+    .cta-eyebrow-text {
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .cta-headline {
+      font-family: var(--serif);
+      font-size: clamp(2.4rem, 3.8vw, 4rem);
+      font-weight: 300;
+      line-height: 1.06;
+      color: var(--charcoal);
+      margin-bottom: 1.25rem;
+    }
+    .cta-headline em { font-style: italic; color: var(--gold); }
+    .cta-sub {
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--mid-gray);
+      line-height: 1.75;
+      max-width: 500px;
+      margin: 0 auto 2.75rem;
+    }
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1.1rem 2.5rem;
+      background: var(--gold);
+      color: var(--warm-white);
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-cta:hover { background: var(--gold-light); color: var(--charcoal); }
+
+    /* ── FOOTER ─────────────────────────────────────────── */
+    footer {
+      background: var(--charcoal);
+      padding: 4rem 2.5rem 2rem;
+    }
+    .footer-inner { max-width: 1380px; margin: 0 auto; }
+    .footer-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 3rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 2rem;
+    }
+    .footer-logo-wordmark {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--warm-white);
+    }
+    .footer-tagline {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.28);
+      margin-top: 0.4rem;
+    }
+    .footer-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 2rem;
+      align-items: center;
+    }
+    .footer-nav a {
+      font-size: 0.7rem;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.38);
+      transition: color 0.2s;
+    }
+    .footer-nav a:hover { color: rgba(184,150,90,0.8); }
+    .footer-contact {
+      text-align: right;
+    }
+    .footer-email {
+      font-size: 0.82rem;
+      color: var(--gold);
+      transition: color 0.2s;
+    }
+    .footer-email:hover { color: var(--gold-light); }
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-copy {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.18);
+      letter-spacing: 0.06em;
+    }
+    .footer-monogram {
+      font-size: 0.62rem;
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: rgba(184,150,90,0.22);
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      /* Full-bleed hero stays visible on tablet/mobile.
+         Strengthen the left scrim so text stays readable over the photo. */
+      .hero-scrim-left {
+        background: linear-gradient(
+          to right,
+          rgba(253,250,246,0.97) 0%,
+          rgba(253,250,246,0.88) 40%,
+          rgba(253,250,246,0.55) 70%,
+          rgba(253,250,246,0.25) 100%
+        );
+      }
+      .hero-text { max-width: 100%; }
+      .services-grid { grid-template-columns: repeat(3, 1fr); }
+      .service-card:nth-child(3) { border-right: none; }
+      .service-card:nth-child(4),
+      .service-card:nth-child(5) { border-top: 1px solid var(--border-gold); }
+      .service-card:nth-child(5) { border-right: none; }
+      .about-grid { grid-template-columns: 1fr; gap: 3rem; }
+      .process-grid { grid-template-columns: 1fr 1fr; }
+      .process-step:nth-child(2) { border-right: none; }
+      .process-step:nth-child(3) { border-right: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(255,255,255,0.1); }
+      .process-step:nth-child(4) { border-right: none; border-top: 1px solid rgba(255,255,255,0.1); }
+    }
+    @media (max-width: 768px) {
+      .main-nav { display: none; }
+      .work-grid { grid-template-columns: 1fr; }
+      .work-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      .footer-top { flex-direction: column; gap: 2rem; }
+      .footer-contact { text-align: left; }
+      .services-grid { grid-template-columns: 1fr 1fr; }
+      .service-card:nth-child(2n) { border-right: none; }
+      .service-card:nth-child(n+3) { border-top: 1px solid var(--border-gold); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════ -->
+<header id="site-header">
+  <div class="header-inner">
+
+    <a class="logo" href="#">
+      <!-- M monogram mark -->
+      <svg class="logo-mark" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="34" height="34" fill="#1C1C1C"/>
+        <path d="M7 25V9L17 19L27 9V25" stroke="#B8965A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <span class="logo-wordmark">MARKEVITA</span>
+    </a>
+
+    <nav class="main-nav">
+      <a href="#services">Services</a>
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="#">Journal</a>
+      <a href="#cta" class="nav-cta">Let's Talk</a>
+    </nav>
+  </div>
+</header>
+
+
+<!-- ════════════════════════════════════════════
+     HERO — FULL-BLEED
+     The office photo fills the entire frame. Text overlays on
+     the left over a warm scrim; the avatar stands on the right
+     behind the desk. Header spans the full width above.
+════════════════════════════════════════════ -->
+<section id="hero">
+
+  <!-- ══════════════════════════════════════════════════════
+       FULL-BLEED SCENE — visual layers fill the whole hero
+       ══════════════════════════════════════════════════════
+       z:0   Placeholder        (dev reference, hidden once lobby loads)
+       z:10  Lobby background    /images/markevita-lobby-background.jpg
+       z:20  Avatar video        /videos/markevita-avatar-{lang}.webm
+       z:30  Desk foreground     /images/markevita-desk-foreground.png
+       z:35  Scrims              (left text scrim + bottom vignette)
+  ══════════════════════════════════════════════════════ -->
+  <div class="hero-scene">
+
+    <!-- ─────────────────────────────────────────────────
+         z:0  PLACEHOLDER — shows asset paths for reference.
+         Hidden by JS the moment the lobby image loads.
+    ───────────────────────────────────────────────── -->
+    <div class="hero-placeholder" id="hero-placeholder">
+      <div class="hero-placeholder-line"></div>
+      <p class="hero-placeholder-label">Awaiting assets</p>
+      <div class="hero-placeholder-layers">
+        <div class="placeholder-layer-row">
+          <span class="placeholder-z">z:10</span>
+          <span class="placeholder-path">/images/markevita-lobby-background.jpg</span>
+        </div>
+        <div class="placeholder-layer-row">
+          <span class="placeholder-z">z:20</span>
+          <span class="placeholder-path">/videos/markevita-avatar-en.webm</span>
+        </div>
+        <div class="placeholder-layer-row">
+          <span class="placeholder-z">z:30</span>
+          <span class="placeholder-path">/images/markevita-desk-foreground.png</span>
+        </div>
+      </div>
+      <div class="hero-placeholder-line"></div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────
+         z:10  LOBBY BACKGROUND IMAGE — FULL BLEED
+         ─────────────────────────────────────────────────
+         ASSET: /images/markevita-lobby-background.jpg
+
+         SPEC — what this image must show:
+           • Full office / reception lobby — fills the entire frame
+           • MARKEVITA logo on wall (backlit or embossed)
+           • Warm beige / travertine walls, architectural lighting
+           • Dark stone / charcoal reception desk — full desk visible
+           • Warm directional lighting, golden-hour feel (~4500K)
+           • Composition: keep the LEFT side calmer / less busy so the
+             overlaid headline reads cleanly; desk + avatar live on the RIGHT
+           • NO person / NO receptionist (avatar video sits above at z:20)
+           • Resolution: 2400 × 1600px landscape (full-bleed), JPG q90
+    ───────────────────────────────────────────────── -->
+    <img
+      id="hero-lobby-bg"
+      class="hero-lobby-bg"
+      src="/images/markevita-lobby-background.jpg"
+      alt="MARKEVITA premium office reception lobby"
+      onload="document.getElementById('hero-placeholder').style.display='none'"
+      onerror="this.style.display='none'"
+    />
+
+    <!-- ─────────────────────────────────────────────────
+         z:20  AVATAR VIDEO LAYER — RIGHT SIDE
+         ─────────────────────────────────────────────────
+         ASSETS (one per language):
+           /videos/markevita-avatar-en.webm
+           /videos/markevita-avatar-ru.webm
+           /videos/markevita-avatar-es.webm
+
+         VIDEO FORMAT:
+           VP9 WebM with alpha channel (transparent background).
+           HeyGen / Runway / D-ID → enable "Transparent background".
+           Resolution: 1080 × 1920px portrait, 15–30s per language.
+
+         FALLBACK:
+           /images/markevita-avatar-still.png (transparent PNG).
+
+         BEHAVIOR:
+           • Autoplays muted on load (ambient loop)
+           • Unmutes & plays from start on concierge click
+           • Returns to muted loop after greeting ends
+           • Swaps src immediately on language switch
+
+         POSITIONING:
+           .avatar-layer is bottom:0, right:12% so she stands on the
+           RIGHT side. The desk mask (z:30) covers her lower body,
+           creating the behind-desk illusion. Tune in CSS.
+    ───────────────────────────────────────────────── -->
+    <div class="avatar-layer">
+
+      <video
+        id="avatar-video"
+        class="avatar-video"
+        playsinline
+        muted
+        loop
+        autoplay
+        preload="auto"
+      >
+        <!-- Transparent WebM (preferred — enables the behind-desk composite) -->
+        <source id="avatar-src-webm" src="/videos/markevita-avatar-en.webm" type="video/webm">
+        <!-- Uploaded MP4 (opaque). Plays everywhere; used until a transparent WebM exists. -->
+        <source id="avatar-src" src="/videos/markevita-avatar-en.mp4" type="video/mp4">
+        <!--
+          Safari alpha-video (HEVC with alpha, when available):
+          <source src="/videos/markevita-avatar-en.mov" type='video/mp4; codecs="hvc1"'>
+        -->
+      </video>
+
+      <!-- Static fallback: transparent PNG of receptionist -->
+      <img
+        id="avatar-still"
+        class="avatar-still"
+        src="/images/markevita-avatar-still.png"
+        alt="MARKEVITA digital concierge"
+        onerror="this.style.display='none'"
+      />
+
+    </div><!-- /avatar-layer z:20 -->
+
+    <!-- ─────────────────────────────────────────────────
+         z:30  DESK FOREGROUND MASK — FULL WIDTH
+         ─────────────────────────────────────────────────
+         ASSET: /images/markevita-desk-foreground.png
+
+         Transparent PNG of ONLY the desk surface + front panel.
+         Sits above the avatar (z:20) and covers her lower body so
+         she appears to stand BEHIND the desk. Spans the full width
+         along the bottom of the frame; height ~32% (tune in CSS).
+
+         CREATE IT:
+           A) Photoshop — isolate desk from the lobby image, export PNG-24
+           B) AI gen — "isolated luxury reception desk, dark charcoal stone,
+              front panel only, transparent background, PNG"
+           C) 3D — render just the desk mesh on a transparent layer
+
+         CRITICAL: perspective, scale & lighting must match the lobby BG.
+    ───────────────────────────────────────────────── -->
+    <img
+      id="desk-mask"
+      class="desk-mask"
+      src="/images/markevita-desk-foreground.png"
+      alt=""
+      role="presentation"
+      onerror="this.style.display='none'"
+    />
+
+    <!-- z:35  SCRIMS — left text scrim + bottom vignette (non-interactive) -->
+    <div class="hero-scrim-left"></div>
+    <div class="hero-scrim-bottom"></div>
+
+    <!-- z:40 (within scene)  LANGUAGE SELECTOR UI — bottom-right -->
+    <div class="lang-ui">
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="en" onclick="switchLang('en')">EN</button>
+        <span class="lang-sep">·</span>
+        <button class="lang-btn" data-lang="ru" onclick="switchLang('ru')">RU</button>
+        <span class="lang-sep">·</span>
+        <button class="lang-btn" data-lang="es" onclick="switchLang('es')">ES</button>
+      </div>
+      <div class="lang-label">
+        <span class="lang-label-line"></span>
+        <span class="lang-label-text" id="lang-full">English</span>
+      </div>
+    </div><!-- /lang-ui -->
+
+  </div><!-- /hero-scene -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       z:40  CONTENT OVERLAY — hero text on the LEFT
+  ══════════════════════════════════════════════════════ -->
+  <div class="hero-content">
+    <div class="hero-text">
+
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-line"></span>
+        <span class="hero-eyebrow-text">Premium Digital Agency</span>
+      </div>
+
+      <h1 class="hero-headline">
+        We create<br>
+        <em>digital</em><br>
+        masterpieces.
+      </h1>
+
+      <p class="hero-sub">
+        Luxury websites and strategic marketing that elevate brands and drive results.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#work" class="btn-primary">
+          Discover Our Work
+          <svg viewBox="0 0 14 14" fill="none"><path d="M1 7h12M8 2l6 5-6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="#services" class="btn-text">Our Services</a>
+      </div>
+
+      <!--
+        DIGITAL CONCIERGE TRIGGER
+        Plays the avatar greeting with sound when clicked.
+        Premium and minimal — no chatbot bubble, no widget chrome.
+      -->
+      <button
+        id="concierge-btn"
+        class="concierge-trigger"
+        onclick="playGreeting()"
+        title="Play MARKEVITA digital concierge greeting"
+      >
+        <span class="pulse-dot">
+          <span class="pulse-dot-ring" id="pulse-ring"></span>
+          <span class="pulse-dot-core"></span>
+        </span>
+        <span id="concierge-label">Meet your digital concierge</span>
+        <svg id="concierge-icon-play" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 2l7 4-7 4V2z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/>
+        </svg>
+        <svg id="concierge-icon-sound" width="12" height="12" viewBox="0 0 12 12" fill="none" style="display:none">
+          <path d="M2 4h2l3-2.5v9L4 8H2V4z" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 3.5a3 3 0 010 5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      </div><!-- /hero-text -->
+    </div><!-- /hero-content -->
+
+    <div class="hero-est">
+      <span class="hero-est-line"></span>
+      <span class="hero-est-text">Est. 2016</span>
+    </div>
+
+</section><!-- /hero -->
+
+
+<!-- ════════════════════════════════════════════
+     SERVICES
+════════════════════════════════════════════ -->
+<section id="services" class="section">
+  <div class="section-inner">
+
+    <div class="section-eyebrow">
+      <span class="section-eyebrow-line"></span>
+      <span class="section-eyebrow-text">What We Do</span>
+    </div>
+    <h2 class="section-title">
+      Five disciplines,<br>one <em>vision</em>
+    </h2>
+
+    <div class="services-grid">
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M4 7h20M4 14h14M4 21h17" stroke="#B8965A" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="23" cy="21" r="3.5" stroke="#B8965A" stroke-width="1"/>
+          </svg>
+        </div>
+        <h3 class="service-name">Brand Strategy</h3>
+        <p class="service-desc">Positioning, narrative, and identity systems that make a brand unmistakable in its market.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="3" y="5" width="22" height="16" rx="1.5" stroke="#B8965A" stroke-width="1"/>
+            <path d="M10 24h8M14 21v3" stroke="#B8965A" stroke-width="1" stroke-linecap="round"/>
+            <path d="M8 11l3 3 6-5" stroke="#B8965A" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3 class="service-name">Website Design</h3>
+        <p class="service-desc">High-performance sites with editorial precision — designed to convert, built to endure.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M5 20L10 14l5 4 4-6 4 8" stroke="#B8965A" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="5" cy="20" r="1.5" fill="#B8965A" opacity="0.5"/>
+          </svg>
+        </div>
+        <h3 class="service-name">Digital Marketing</h3>
+        <p class="service-desc">Campaigns across paid, social, and email that build audience and accelerate growth.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="13" cy="13" r="7" stroke="#B8965A" stroke-width="1"/>
+            <path d="M18.5 18.5L24 24" stroke="#B8965A" stroke-width="1" stroke-linecap="round"/>
+            <path d="M13 9v4l3 2" stroke="#B8965A" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3 class="service-name">SEO & Performance</h3>
+        <p class="service-desc">Technical and content SEO that makes your brand visible to exactly the right people.</p>
+      </div>
+
+      <div class="service-card">
+        <div class="service-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="5" stroke="#B8965A" stroke-width="1"/>
+            <path d="M14 3v3M14 22v3M3 14h3M22 14h3" stroke="#B8965A" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3 class="service-name">Creative Direction</h3>
+        <p class="service-desc">Art direction, photography briefs, and visual systems that unify every brand touchpoint.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     FEATURED WORK
+════════════════════════════════════════════ -->
+<section id="work" class="section" style="background:var(--warm-white)">
+  <div class="section-inner">
+
+    <div class="work-header">
+      <div>
+        <div class="section-eyebrow">
+          <span class="section-eyebrow-line"></span>
+          <span class="section-eyebrow-text">Featured Work</span>
+        </div>
+        <h2 class="section-title">Selected <em>projects</em></h2>
+      </div>
+      <a href="#" class="view-all-link">View all work →</a>
+    </div>
+
+    <div class="work-grid">
+
+      <div class="project-card">
+        <!--
+          DROP: /images/work-aurevelle.jpg (1200×900px, brand/editorial photography)
+        -->
+        <div class="project-img-area">
+          <span class="project-img-placeholder-label">Aurevelle Interiors</span>
+          <img class="project-real-img" src="/images/work-aurevelle.jpg" alt="Aurevelle Interiors"
+               onerror="this.style.display='none'"/>
+        </div>
+        <div class="project-info">
+          <p class="project-cat">Brand Identity · Web</p>
+          <h3 class="project-name">Aurevelle Interiors</h3>
+          <p class="project-desc">Full rebrand and e-commerce presence for a luxury interior design studio — resulting in 2.4× enquiry volume within 90 days.</p>
+          <a href="#" class="link-arrow">
+            View case study
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8M6 2l3 3-3 3" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-img-area">
+          <span class="project-img-placeholder-label">Novara Skincare</span>
+          <img class="project-real-img" src="/images/work-novara.jpg" alt="Novara Skincare"
+               onerror="this.style.display='none'"/>
+        </div>
+        <div class="project-info">
+          <p class="project-cat">Digital Marketing · SEO</p>
+          <h3 class="project-name">Novara Skincare</h3>
+          <p class="project-desc">Multi-channel launch campaign for a premium skincare line — 180K reach in 30 days and a 38% conversion rate lift.</p>
+          <a href="#" class="link-arrow">
+            View case study
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8M6 2l3 3-3 3" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-img-area">
+          <span class="project-img-placeholder-label">Castellan Capital</span>
+          <img class="project-real-img" src="/images/work-castellan.jpg" alt="Castellan Capital"
+               onerror="this.style.display='none'"/>
+        </div>
+        <div class="project-info">
+          <p class="project-cat">Strategy · Creative Direction</p>
+          <h3 class="project-name">Castellan Capital</h3>
+          <p class="project-desc">Editorial brand strategy and investor-facing web presence for a private equity firm entering new markets.</p>
+          <a href="#" class="link-arrow">
+            View case study
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8M6 2l3 3-3 3" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     ABOUT
+════════════════════════════════════════════ -->
+<section id="about" class="section">
+  <div class="section-inner">
+    <div class="about-grid">
+
+      <div>
+        <div class="section-eyebrow">
+          <span class="section-eyebrow-line"></span>
+          <span class="section-eyebrow-text">About MARKEVITA</span>
+        </div>
+        <p class="about-statement">
+          We believe the most powerful brands are built on <em>clarity, craft,</em> and a refusal to be ordinary.
+        </p>
+        <p class="about-body">
+          MARKEVITA is a boutique marketing agency working with ambitious brands that demand more than templates and tactics. We bring together strategy, design, and technology — held to the same standard of excellence as the clients we serve.
+        </p>
+        <a href="#cta" class="btn-primary" style="margin-top:2rem;display:inline-flex;">
+          Start a project
+          <svg viewBox="0 0 14 14" width="14" height="14" fill="none"><path d="M1 7h12M8 2l6 5-6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+
+      <div class="about-right">
+        <div class="about-item">
+          <div class="about-num">01</div>
+          <div class="about-item-title">Intentional Craft</div>
+          <p class="about-item-desc">Every pixel, word, and interaction is deliberate — optimized not just for beauty, but for the goals it must achieve.</p>
+        </div>
+        <div class="about-item">
+          <div class="about-num">02</div>
+          <div class="about-item-title">Strategic Thinking</div>
+          <p class="about-item-desc">Design without strategy is decoration. We begin with your business objectives and build backward.</p>
+        </div>
+        <div class="about-item">
+          <div class="about-num">03</div>
+          <div class="about-item-title">Lasting Partnership</div>
+          <p class="about-item-desc">We stay. Our retainer clients average 3+ years — because when the relationship is right, results compound.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     PROCESS
+════════════════════════════════════════════ -->
+<section id="process" class="section">
+  <div class="section-inner">
+
+    <div class="section-eyebrow">
+      <span class="section-eyebrow-line"></span>
+      <span class="section-eyebrow-text">How We Work</span>
+    </div>
+    <h2 class="section-title">
+      Four phases.<br><em>One standard.</em>
+    </h2>
+
+    <div class="process-grid">
+      <div class="process-step">
+        <p class="process-phase">Phase 01</p>
+        <h3 class="process-step-title">Discovery</h3>
+        <div class="process-divider"></div>
+        <p class="process-step-desc">We audit your competitive landscape, interview your team, and surface what makes you worth choosing.</p>
+      </div>
+      <div class="process-step">
+        <p class="process-phase">Phase 02</p>
+        <h3 class="process-step-title">Strategy</h3>
+        <div class="process-divider"></div>
+        <p class="process-step-desc">Positioning, messaging hierarchy, and a creative brief that every downstream deliverable traces back to.</p>
+      </div>
+      <div class="process-step">
+        <p class="process-phase">Phase 03</p>
+        <h3 class="process-step-title">Design</h3>
+        <div class="process-divider"></div>
+        <p class="process-step-desc">Concepts, iterations, and a refined visual system your team can execute across every channel.</p>
+      </div>
+      <div class="process-step">
+        <p class="process-phase">Phase 04</p>
+        <h3 class="process-step-title">Launch</h3>
+        <div class="process-divider"></div>
+        <p class="process-step-desc">Deployment, QA, and a 30-day performance review. Going live is the beginning, not the end.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     CTA
+════════════════════════════════════════════ -->
+<section id="cta">
+  <div class="cta-inner">
+
+    <div class="cta-eyebrow">
+      <span class="cta-eyebrow-line"></span>
+      <span class="cta-eyebrow-text">New Projects</span>
+      <span class="cta-eyebrow-line"></span>
+    </div>
+
+    <h2 class="cta-headline">
+      Ready to build<br>something <em>extraordinary?</em>
+    </h2>
+
+    <p class="cta-sub">
+      We accept a limited number of new clients each quarter. Tell us about your project and we'll tell you if we're the right fit.
+    </p>
+
+    <a href="mailto:hello@markevita.com" class="btn-cta">
+      Book a Consultation
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M8 2l6 5-6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════ -->
+<footer>
+  <div class="footer-inner">
+
+    <div class="footer-top">
+      <div>
+        <div class="footer-logo-wordmark">MARKEVITA</div>
+        <p class="footer-tagline">We create digital masterpieces.</p>
+      </div>
+      <nav class="footer-nav">
+        <a href="#services">Services</a>
+        <a href="#work">Work</a>
+        <a href="#about">About</a>
+        <a href="#">Journal</a>
+        <a href="#cta">Let's Talk</a>
+      </nav>
+      <div class="footer-contact">
+        <a href="mailto:hello@markevita.com" class="footer-email">hello@markevita.com</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2026 MARKEVITA. All rights reserved.</span>
+      <span class="footer-monogram">M A R K E V I T A</span>
+    </div>
+
+  </div>
+</footer>
+
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+  /* ── Avatar video paths by language ── */
+  /*
+   * Currently a single uploaded MP4 serves all languages. Replace each entry
+   * with a per-language transparent WebM (markevita-avatar-{lang}.webm) when
+   * available — the behind-desk composite needs an alpha channel the MP4 lacks.
+   */
+  const AVATAR_VIDEOS = {
+    en: '/videos/markevita-avatar-en.mp4',
+    ru: '/videos/markevita-avatar-en.mp4',
+    es: '/videos/markevita-avatar-en.mp4',
+  };
+
+  const LANG_LABELS = {
+    en: 'English',
+    ru: 'Русский',
+    es: 'Español',
+  };
+
+  let currentLang = 'en';
+  let greetingActive = false;
+
+  const video = document.getElementById('avatar-video');
+  const avatarStill = document.getElementById('avatar-still');
+
+  /* ── Init: autoplay muted on page load ── */
+  function initAvatar() {
+    if (!video) return;
+    video.muted = true;
+    video.loop = true;
+
+    video.addEventListener('canplay', () => {
+      video.style.display = 'block';
+      if (avatarStill) avatarStill.style.display = 'none';
+    });
+
+    video.addEventListener('error', () => {
+      video.style.display = 'none';
+      if (avatarStill) avatarStill.style.display = 'block';
+      document.getElementById('concierge-btn').disabled = true;
+    });
+
+    video.addEventListener('ended', onGreetingEnd);
+
+    video.play().catch(() => {
+      // Autoplay blocked — show still; button still works on click
+      if (avatarStill) avatarStill.style.display = 'block';
+    });
+  }
+
+  /* ── playGreeting: unmute, restart from top, play once ── */
+  function playGreeting() {
+    if (!video || video.disabled) return;
+
+    video.muted = false;
+    video.loop = false;
+    video.currentTime = 0;
+
+    video.play().catch(() => {
+      // Browser blocked unmuted play — fallback to muted
+      video.muted = true;
+      video.play().catch(() => {});
+    });
+
+    greetingActive = true;
+    updateConciergeUI(true);
+  }
+
+  /* ── After greeting ends: return to muted ambient loop ── */
+  function onGreetingEnd() {
+    greetingActive = false;
+    video.muted = true;
+    video.loop = true;
+    video.play().catch(() => {});
+    updateConciergeUI(false);
+  }
+
+  /* ── Update concierge button state ── */
+  function updateConciergeUI(active) {
+    const btn = document.getElementById('concierge-btn');
+    const label = document.getElementById('concierge-label');
+    const iconPlay = document.getElementById('concierge-icon-play');
+    const iconSound = document.getElementById('concierge-icon-sound');
+    const pulseRing = document.getElementById('pulse-ring');
+
+    if (active) {
+      btn.classList.add('active');
+      label.textContent = 'Speaking…';
+      iconPlay.style.display = 'none';
+      iconSound.style.display = 'block';
+      pulseRing.classList.add('pulsing');
+    } else {
+      btn.classList.remove('active');
+      label.textContent = 'Meet your digital concierge';
+      iconPlay.style.display = 'block';
+      iconSound.style.display = 'none';
+      pulseRing.classList.remove('pulsing');
+    }
+  }
+
+  /* ── switchLang: swap video src, restart muted ── */
+  function switchLang(code) {
+    if (code === currentLang) return;
+    currentLang = code;
+
+    /* Update button states */
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === code);
+    });
+    document.getElementById('lang-full').textContent = LANG_LABELS[code];
+
+    /* Swap video */
+    if (video) {
+      greetingActive = false;
+      updateConciergeUI(false);
+      video.muted = true;
+      video.loop = true;
+      video.src = AVATAR_VIDEOS[code];
+      video.load();
+      video.play().catch(() => {});
+    }
+  }
+
+  /* ── Sticky header ── */
+  const header = document.getElementById('site-header');
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  /* ── Boot ── */
+  document.addEventListener('DOMContentLoaded', initAvatar);
+</script>
+
+</body>
+</html>

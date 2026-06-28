@@ -109,16 +109,16 @@
     #hero {
       position: relative;
       width: 100%;
-      /* The video is 16:9 (1896×1080). On viewports WIDER than 16:9,
-         a 100vh hero would crop top/bottom and cut her head or feet.
-         Sizing the height to the video ratio (~57vw) keeps the hero at
-         (or taller than) 16:9 so the full figure is never cropped
-         vertically — feet land at/just below the fold and ground into
-         the Services section on a small scroll. */
-      height: max(100vh, 57vw);
-      min-height: 640px;
+      /* Fit the hero to the screen so the whole figure is visible without
+         scrolling. The video (16:9) is scaled to fit by height (contain),
+         and the small side margins are filled with a warm tone that blends
+         into the lobby — nothing is cropped, and she fits on screen. */
+      height: 100vh;
+      height: 100svh;
+      min-height: 600px;
       overflow: hidden;
-      background: var(--ivory); /* fallback before the video paints */
+      background: radial-gradient(135% 115% at 72% 35%,
+        #FCF8F2 0%, #F3ECE0 55%, #EBE1D2 100%);
     }
 
     /* z:1 — video, behind everything */
@@ -127,12 +127,14 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      /* Hero matches the video's 16:9 ratio, so there is little/no
-         vertical crop. Any remaining crop is on the sides; keep her
-         centered. */
-      object-position: center center;
+      /* Desktop: show the WHOLE figure scaled to fit, anchored to the
+         floor. Mobile switches to cover (below) so she stays prominent. */
+      object-fit: contain;
+      object-position: center bottom;
       z-index: 1;
+    }
+    @media (max-width: 720px) {
+      .hero-video { object-fit: cover; object-position: center top; }
     }
 
     /* z:2 — warm scrim behind the TEXT only (left side), fades out */
@@ -186,16 +188,31 @@
 
     .hero-headline {
       font-family: var(--serif);
-      font-weight: 400;
+      font-weight: 500;
       font-size: clamp(2.8rem, 6.2vw, 5.6rem);
-      line-height: 1.02;
+      line-height: 1.04;
       letter-spacing: -0.01em;
-      color: var(--charcoal);
+      color: #20201D;
       margin-bottom: 1.8rem;
+      /* 3D relief: top-left highlight + bottom-right extruded edge + soft
+         cast shadow → the letters read as raised off the surface. */
+      text-shadow:
+        -1px -1px 0 rgba(255,255,255,0.55),
+         1px  1px 0 #18150F,
+         2px  2px 0 #18150F,
+         3px  3px 1px rgba(20,17,12,0.45),
+         5px  9px 18px rgba(35,28,16,0.22);
     }
     .hero-headline .gold-italic {
       font-style: italic;
-      color: var(--gold);
+      color: #C99B47;
+      /* Gold relief — echoes the embossed gold logo on the wall. */
+      text-shadow:
+        -1px -1px 0 rgba(255,243,210,0.65),
+         1px  1px 0 #835f23,
+         2px  2px 0 #6d4f1d,
+         3px  3px 1px rgba(70,48,12,0.5),
+         5px  8px 16px rgba(60,42,10,0.30);
     }
 
     .hero-sub {

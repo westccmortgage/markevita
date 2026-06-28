@@ -694,23 +694,29 @@
       background-position: right 0.1rem center;
       background-size: 12px 8px;
     }
+    /* matches the hero CTA — thin luxury outline, fills on hover */
     .consult-submit {
       margin-top: clamp(2.2rem,4vw,3rem);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 62px;
-      padding: 0 46px;
+      height: 60px;
+      padding: 0 44px;
+      background: transparent;
+      color: #1f1f1d;
+      border: 1px solid rgba(31,31,29,0.45);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    }
+    .consult-submit:hover {
       background: #1f1f1d;
       color: #fffaf1;
-      border: none;
-      font-size: 0.74rem;
-      font-weight: 500;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      transition: background 0.3s ease, transform 0.3s ease;
+      border-color: #1f1f1d;
     }
-    .consult-submit:hover { background: #000; transform: translateY(-2px); }
 
     @media (max-width: 680px) {
       .form-grid { grid-template-columns: 1fr; }

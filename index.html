@@ -492,7 +492,13 @@
       display: none;           /* JS shows once canplay fires */
       object-fit: contain;
       object-position: bottom; /* anchor feet to container bottom */
-      mix-blend-mode: normal;  /* transparent webm composites correctly */
+      /*
+       * The uploaded MP4 has an opaque warm-beige background that matches
+       * the lobby walls. `multiply` drops that beige into the lobby so she
+       * reads as standing IN the room rather than inside a video box.
+       * Swap to `normal` once a transparent-alpha WebM is supplied.
+       */
+      mix-blend-mode: multiply;
     }
 
     /* Static still — shown before video plays or if video unavailable */
@@ -501,6 +507,7 @@
       object-fit: contain;
       object-position: bottom;
       display: block;          /* JS hides once video plays */
+      mix-blend-mode: multiply;
     }
 
     /* ── z:30 DESK FOREGROUND MASK ──────────────────────── */
@@ -1161,7 +1168,7 @@
     <img
       id="hero-lobby-bg"
       class="hero-lobby-bg"
-      src="/images/markevita-lobby-background.jpg"
+      src="/images/markevita-lobby-background.webp"
       alt="MARKEVITA premium office reception lobby"
       onload="document.getElementById('hero-placeholder').style.display='none'"
       onerror="this.style.display='none'"

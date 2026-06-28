@@ -7,7 +7,7 @@
   <title>MARKEVITA — We Create Digital Masterpieces</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     /* ── RESET & BASE ───────────────────────────────────── */
@@ -204,7 +204,13 @@
          5px  9px 18px rgba(35,28,16,0.22);
     }
     .hero-headline .gold-italic {
-      font-style: italic;
+      /* Engraved Roman capitals to match the MARKEVITA wall logo. */
+      font-family: 'Cinzel', var(--serif);
+      font-style: normal;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.82em;   /* balance the taller all-caps against the line */
       color: #C99B47;
       /* Gold relief — echoes the embossed gold logo on the wall. */
       text-shadow:

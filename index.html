@@ -460,16 +460,19 @@
       z-index: 20;
       pointer-events: none;
 
-      /* ── TUNE THESE to match your lobby image composition ── */
-      bottom: 0;          /* flush to floor; desk mask covers lower body */
-      right: 12%;         /* place on the right side, over the desk */
-      width: 26%;         /* avatar width relative to full hero width */
-      max-width: 440px;
-      min-width: 280px;
-      /* ────────────────────────────────────────────────────── */
+      /* Height-based sizing: the cutout is cropped tight to her body, so
+         sizing by width would oversize her. Anchor to the floor; she stands
+         in front of the brand wall on the right. Tune `right`/`height`. */
+      bottom: 0;
+      right: 11%;
+      height: min(86vh, 760px);
+      width: auto;
     }
     @media (max-width: 1100px) {
-      .avatar-layer { right: 6%; width: 32%; }
+      .avatar-layer { right: 3%; height: min(66vh, 560px); }
+    }
+    @media (max-width: 720px) {
+      .avatar-layer { right: -2%; height: 50vh; }
     }
 
     /*
@@ -488,26 +491,28 @@
      *   mix-blend-mode: multiply  (works for light solid bgs)
      */
     .avatar-video {
-      width: 100%;
-      display: none;           /* JS shows once canplay fires */
+      height: 100%;
+      width: auto;
+      display: none;           /* shown only while the concierge is speaking */
       object-fit: contain;
-      object-position: bottom; /* anchor feet to container bottom */
+      object-position: bottom center;
       /*
-       * The uploaded MP4 has an opaque warm-beige background that matches
-       * the lobby walls. `multiply` drops that beige into the lobby so she
-       * reads as standing IN the room rather than inside a video box.
-       * Swap to `normal` once a transparent-alpha WebM is supplied.
+       * Vita.mp4 has a WHITE background. `multiply` drops the white into the
+       * lobby while she talks. The resting state uses the fully transparent
+       * still below, so no box is ever shown unless she is actively speaking.
        */
       mix-blend-mode: multiply;
     }
 
-    /* Static still — shown before video plays or if video unavailable */
+    /* Resting avatar: a background-free transparent PNG cutout of her.
+       This is what shows by default — she stands cleanly in the lobby. */
     .avatar-still {
-      width: 100%;
+      height: 100%;
+      width: auto;
       object-fit: contain;
-      object-position: bottom;
-      display: block;          /* JS hides once video plays */
-      mix-blend-mode: multiply;
+      object-position: bottom center;
+      display: block;
+      mix-blend-mode: normal;  /* already transparent → composites cleanly */
     }
 
     /* ── z:30 DESK FOREGROUND MASK ──────────────────────── */
@@ -1209,7 +1214,6 @@
         playsinline
         muted
         loop
-        autoplay
         preload="auto"
       >
         <!-- Transparent WebM (preferred — enables the behind-desk composite) -->
@@ -1684,55 +1688,57 @@
   const video = document.getElementById('avatar-video');
   const avatarStill = document.getElementById('avatar-still');
 
-  /* ── Init: autoplay muted on page load ── */
+  /* ── Init: rest on the clean transparent still; video plays on demand ── */
   function initAvatar() {
     if (!video) return;
-    video.muted = true;
-    video.loop = true;
+    video.loop = false;
 
-    video.addEventListener('canplay', () => {
-      video.style.display = 'block';
-      if (avatarStill) avatarStill.style.display = 'none';
-    });
+    // Default resting state: background-free cutout, no video box.
+    video.style.display = 'none';
+    if (avatarStill) avatarStill.style.display = 'block';
 
     video.addEventListener('error', () => {
+      // Video unavailable → keep the still, disable the concierge button.
       video.style.display = 'none';
       if (avatarStill) avatarStill.style.display = 'block';
-      document.getElementById('concierge-btn').disabled = true;
+      const btn = document.getElementById('concierge-btn');
+      if (btn) btn.disabled = true;
     });
 
     video.addEventListener('ended', onGreetingEnd);
-
-    video.play().catch(() => {
-      // Autoplay blocked — show still; button still works on click
-      if (avatarStill) avatarStill.style.display = 'block';
-    });
   }
 
-  /* ── playGreeting: unmute, restart from top, play once ── */
+  /* ── playGreeting: reveal video, unmute, play once from the top ── */
   function playGreeting() {
-    if (!video || video.disabled) return;
+    if (!video || video.disabled || greetingActive) return;
 
+    video.style.display = 'block';
+    if (avatarStill) avatarStill.style.display = 'none';
     video.muted = false;
     video.loop = false;
-    video.currentTime = 0;
+    try { video.currentTime = 0; } catch (e) {}
 
     video.play().catch(() => {
-      // Browser blocked unmuted play — fallback to muted
+      // Unmuted play blocked — try muted so she still animates.
       video.muted = true;
-      video.play().catch(() => {});
+      video.play().catch(() => {
+        // Total failure → fall back to the resting still.
+        video.style.display = 'none';
+        if (avatarStill) avatarStill.style.display = 'block';
+        updateConciergeUI(false);
+      });
     });
 
     greetingActive = true;
     updateConciergeUI(true);
   }
 
-  /* ── After greeting ends: return to muted ambient loop ── */
+  /* ── After greeting ends: return to the clean resting still ── */
   function onGreetingEnd() {
     greetingActive = false;
-    video.muted = true;
-    video.loop = true;
-    video.play().catch(() => {});
+    try { video.pause(); } catch (e) {}
+    video.style.display = 'none';
+    if (avatarStill) avatarStill.style.display = 'block';
     updateConciergeUI(false);
   }
 
@@ -1770,15 +1776,18 @@
     });
     document.getElementById('lang-full').textContent = LANG_LABELS[code];
 
-    /* Swap video */
+    /* Point the greeting video at the chosen language and return to the
+       clean resting still — the new clip plays on the next concierge click. */
     if (video) {
       greetingActive = false;
       updateConciergeUI(false);
+      try { video.pause(); } catch (e) {}
+      video.style.display = 'none';
+      if (avatarStill) avatarStill.style.display = 'block';
       video.muted = true;
-      video.loop = true;
+      video.loop = false;
       video.src = AVATAR_VIDEOS[code];
       video.load();
-      video.play().catch(() => {});
     }
   }
 

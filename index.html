@@ -265,29 +265,6 @@
     .hero-btn svg { transition: transform 0.35s; }
     .hero-btn:hover svg { transform: translateX(4px); }
 
-    /* Sound enabler — shown ONLY if the browser blocks sound-on autoplay.
-       Tapping it starts the video with audio. */
-    .sound-hint {
-      position: absolute;
-      z-index: 4;
-      right: 2rem;
-      bottom: 2rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.7rem 1.2rem;
-      background: rgba(28,28,28,0.82);
-      color: var(--warm-white);
-      border: 1px solid var(--border-gold);
-      border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-    }
-    .sound-hint[hidden] { display: none; }
 
     /* ── RESPONSIVE ─────────────────────────────────────── */
     @media (max-width: 860px) {
@@ -651,8 +628,9 @@
   <!-- ── HERO ─────────────────────────────────────────── -->
   <section id="hero">
 
-    <!-- Full-bleed video. Plays once with sound; holds its final frame.
-         No loop attribute. Not muted. -->
+    <!-- Full-bleed hero video. Plays once (no loop), holds its final frame.
+         No visible controls. Pauses/mutes when scrolled away and resumes
+         from the same timestamp when scrolled back (see script below). -->
     <video
       id="hero-video"
       class="hero-video"
@@ -684,8 +662,6 @@
       </a>
     </div>
 
-    <!-- Sound enabler (only appears if sound-on autoplay is blocked) -->
-    <button class="sound-hint" id="sound-hint" hidden>🔊 Tap for sound</button>
 
   </section>
 
@@ -893,51 +869,61 @@
   </section>
 
   <script>
-    /* ── Hero video: play ONCE with sound, hold the final frame ── */
+    /* ── Hero video ───────────────────────────────────────────
+       Plays once (no loop, no controls). Holds the final frame when
+       it ends. Pauses + mutes when scrolled out of view and resumes
+       from the same timestamp (unmuting if allowed) when back in view.
+    ───────────────────────────────────────────────────────────── */
     const heroVideo = document.getElementById('hero-video');
-    const soundHint = document.getElementById('sound-hint');
+    const heroSection = document.getElementById('hero');
 
     if (heroVideo) {
-      // Sound is always on — never muted.
-      heroVideo.muted = false;
-      heroVideo.removeAttribute('loop'); // explicitly never loop
-      heroVideo.volume = 1.0;
+      heroVideo.removeAttribute('loop');   // never loop
 
-      let started = false;
-      function startWithSound() {
-        if (started) return;
+      let videoEnded = false;
+      let wasPausedByScroll = false;
+      let storedTime = 0;
+
+      heroVideo.addEventListener('ended', () => {
+        videoEnded = true;                 // keep final frame; never auto-restart
+      });
+
+      // Try to play; if sound autoplay is blocked, fall back to muted
+      // (no error, no extra UI).
+      function playSafely(preferSound) {
+        if (videoEnded) return;
+        if (preferSound) heroVideo.muted = false;
         const p = heroVideo.play();
-        if (p && typeof p.then === 'function') {
-          p.then(() => {
-            started = true;
-            if (soundHint) soundHint.hidden = true;
-            removeGestureListeners();
-          }).catch(() => {
-            // Browser blocked sound-on autoplay → offer a one-tap start.
-            if (soundHint) soundHint.hidden = false;
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => {
+            heroVideo.muted = true;
+            heroVideo.play().catch(() => {});
           });
         }
       }
 
-      // First user gesture anywhere starts playback with sound.
-      function onGesture() { startWithSound(); }
-      function removeGestureListeners() {
-        document.removeEventListener('pointerdown', onGesture);
-        document.removeEventListener('keydown', onGesture);
-        document.removeEventListener('touchstart', onGesture);
+      // Initial autoplay (tries sound, gracefully falls back to muted).
+      playSafely(true);
+
+      // Pause/mute off-screen; resume from the same spot on-screen.
+      if (heroSection && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+          const ratio = entries[0].intersectionRatio;
+          if (ratio < 0.7) {
+            if (!heroVideo.paused && !videoEnded) {
+              storedTime = heroVideo.currentTime;
+              heroVideo.pause();
+              heroVideo.muted = true;
+              wasPausedByScroll = true;
+            }
+          } else if (wasPausedByScroll && !videoEnded) {
+            try { heroVideo.currentTime = storedTime; } catch (e) {}
+            wasPausedByScroll = false;
+            playSafely(true);              // resume, attempt unmute, muted fallback
+          }
+        }, { threshold: [0, 0.7, 1] });
+        io.observe(heroSection);
       }
-      document.addEventListener('pointerdown', onGesture, { passive: true });
-      document.addEventListener('keydown', onGesture);
-      document.addEventListener('touchstart', onGesture, { passive: true });
-      if (soundHint) soundHint.addEventListener('click', startWithSound);
-
-      // Attempt sound-on autoplay immediately.
-      startWithSound();
-
-      // When it ends: do nothing. No reset, no replay → final frame stays.
-      heroVideo.addEventListener('ended', () => {
-        removeGestureListeners();
-      });
     }
 
     /* ── Sticky header tint on scroll ── */

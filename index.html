@@ -723,6 +723,57 @@
       .form-grid { grid-template-columns: 1fr; }
       .consult-submit { width: 100%; }
     }
+
+    /* ── Hero sound toggle ──────────────────────────────── */
+    .sound-toggle {
+      position: absolute;
+      z-index: 5;
+      right: clamp(1.2rem, 2.4vw, 2.2rem);
+      bottom: clamp(1.2rem, 2.4vw, 2.2rem);
+      width: 46px;
+      height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(26,22,16,0.30);
+      border: 1px solid rgba(255,250,241,0.35);
+      color: #FBF7F0;
+      backdrop-filter: blur(9px) saturate(1.15);
+      -webkit-backdrop-filter: blur(9px) saturate(1.15);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.14);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+    }
+    .sound-toggle:hover {
+      background: rgba(26,22,16,0.46);
+      border-color: rgba(255,250,241,0.6);
+      transform: translateY(-1px);
+    }
+    .sound-toggle svg { width: 20px; height: 20px; display: block; }
+    .sound-toggle .icon-on { display: none; }
+    .sound-toggle.is-on .icon-on { display: block; }
+    .sound-toggle.is-on .icon-muted { display: none; }
+    /* gentle ring pulse while muted — invites a click, then stops once on */
+    .sound-toggle::after {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,250,241,0.55);
+      opacity: 0;
+      animation: soundPulse 2.6s ease-out infinite;
+      pointer-events: none;
+    }
+    .sound-toggle.is-on::after { animation: none; }
+    @keyframes soundPulse {
+      0%   { transform: scale(1);    opacity: 0.55; }
+      70%  { transform: scale(1.55); opacity: 0; }
+      100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sound-toggle::after { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -783,6 +834,19 @@
       </a>
     </div>
 
+    <!-- Modern, semi-transparent sound toggle (corner) -->
+    <button id="sound-toggle" class="sound-toggle" type="button" aria-label="Turn on sound" aria-pressed="false">
+      <svg class="icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z"/>
+        <line x1="16.5" y1="9.5" x2="21" y2="14"/>
+        <line x1="21" y1="9.5" x2="16.5" y2="14"/>
+      </svg>
+      <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z"/>
+        <path d="M16.2 8.8a4.5 4.5 0 0 1 0 6.4"/>
+        <path d="M18.8 6.3a8 8 0 0 1 0 11.4"/>
+      </svg>
+    </button>
 
   </section>
 
@@ -1090,52 +1154,61 @@
     const heroVideo = document.getElementById('hero-video');
     const heroSection = document.getElementById('hero');
 
+    const soundToggle = document.getElementById('sound-toggle');
+
     if (heroVideo) {
       heroVideo.removeAttribute('loop');   // never loop
 
       let videoEnded = false;
       let wasPausedByScroll = false;
       let storedTime = 0;
-      let soundUnlocked = false;           // true once the browser allows audio
+      let userWantsSound = false;          // controlled by the corner toggle
+
+      function syncToggle() {
+        if (!soundToggle) return;
+        soundToggle.classList.toggle('is-on', userWantsSound);
+        soundToggle.setAttribute('aria-pressed', userWantsSound ? 'true' : 'false');
+        soundToggle.setAttribute('aria-label', userWantsSound ? 'Turn off sound' : 'Turn on sound');
+      }
 
       heroVideo.addEventListener('ended', () => {
         videoEnded = true;                 // keep final frame; never auto-restart
+        if (soundToggle) soundToggle.style.display = 'none';
       });
 
-      // Play; once sound is unlocked, play it with sound; otherwise muted.
+      // Play honouring the current sound preference; muted fallback on block.
       function playSafely() {
         if (videoEnded) return;
-        if (soundUnlocked) heroVideo.muted = false;
+        heroVideo.muted = !userWantsSound;
         const p = heroVideo.play();
         if (p && typeof p.catch === 'function') {
           p.catch(() => { heroVideo.muted = true; heroVideo.play().catch(() => {}); });
         }
       }
 
-      // 1) Try to start WITH sound immediately (works where the browser allows it).
+      // Try to start WITH sound (works where the browser allows it); if blocked,
+      // start muted — the corner toggle lets the visitor switch sound on.
       heroVideo.muted = false;
       const first = heroVideo.play();
       if (first && typeof first.then === 'function') {
-        first.then(() => { soundUnlocked = true; })
-             .catch(() => { heroVideo.muted = true; heroVideo.play().catch(() => {}); });
+        first.then(() => { userWantsSound = true; syncToggle(); })
+             .catch(() => { heroVideo.muted = true; userWantsSound = false; heroVideo.play().catch(() => {}); syncToggle(); });
       }
 
-      // 2) Otherwise unmute at the earliest moment browsers allow — the first
-      //    user interaction anywhere on the page (no visible control).
-      function unlockSound() {
-        if (soundUnlocked) return;
-        soundUnlocked = true;
-        if (!wasPausedByScroll && !videoEnded) {
-          heroVideo.muted = false;
-          heroVideo.play().catch(() => {});
-        }
-        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
-          window.removeEventListener(ev, unlockSound, true));
+      // Corner sound toggle.
+      if (soundToggle) {
+        soundToggle.addEventListener('click', () => {
+          userWantsSound = !userWantsSound;
+          heroVideo.muted = !userWantsSound;
+          if (userWantsSound && !videoEnded && heroVideo.paused) {
+            heroVideo.play().catch(() => { heroVideo.muted = true; userWantsSound = false; syncToggle(); });
+          }
+          syncToggle();
+        });
       }
-      ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
-        window.addEventListener(ev, unlockSound, { capture: true, passive: true }));
 
-      // 3) Pause + mute when scrolled away; resume from the same spot when back.
+      // Pause + mute when scrolled away; resume from the same spot (restoring
+      // the visitor's sound choice) when the hero is back in view.
       if (heroSection && 'IntersectionObserver' in window) {
         const io = new IntersectionObserver((entries) => {
           const ratio = entries[0].intersectionRatio;
@@ -1149,7 +1222,7 @@
           } else if (wasPausedByScroll && !videoEnded) {
             try { heroVideo.currentTime = storedTime; } catch (e) {}
             wasPausedByScroll = false;
-            playSafely();                  // resume (with sound once unlocked)
+            playSafely();
           }
         }, { threshold: [0, 0.7, 1] });
         io.observe(heroSection);

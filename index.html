@@ -127,14 +127,15 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      /* Desktop: show the WHOLE figure scaled to fit, anchored to the
-         floor. Mobile switches to cover (below) so she stays prominent. */
-      object-fit: contain;
-      object-position: center bottom;
+      /* Fill the hero (no empty bands) and frame slightly high in the
+         source so the subject sits a touch lower on screen. Lower the
+         % to push the subject down further; raise it to lift her up. */
+      object-fit: cover;
+      object-position: center 22%;
       z-index: 1;
     }
     @media (max-width: 720px) {
-      .hero-video { object-fit: cover; object-position: center top; }
+      .hero-video { object-position: center 18%; }
     }
 
     /* z:2 — soft ivory scrim behind the TEXT ONLY (left column).
@@ -1095,29 +1096,46 @@
       let videoEnded = false;
       let wasPausedByScroll = false;
       let storedTime = 0;
+      let soundUnlocked = false;           // true once the browser allows audio
 
       heroVideo.addEventListener('ended', () => {
         videoEnded = true;                 // keep final frame; never auto-restart
       });
 
-      // Try to play; if sound autoplay is blocked, fall back to muted
-      // (no error, no extra UI).
-      function playSafely(preferSound) {
+      // Play; once sound is unlocked, play it with sound; otherwise muted.
+      function playSafely() {
         if (videoEnded) return;
-        if (preferSound) heroVideo.muted = false;
+        if (soundUnlocked) heroVideo.muted = false;
         const p = heroVideo.play();
         if (p && typeof p.catch === 'function') {
-          p.catch(() => {
-            heroVideo.muted = true;
-            heroVideo.play().catch(() => {});
-          });
+          p.catch(() => { heroVideo.muted = true; heroVideo.play().catch(() => {}); });
         }
       }
 
-      // Initial autoplay (tries sound, gracefully falls back to muted).
-      playSafely(true);
+      // 1) Try to start WITH sound immediately (works where the browser allows it).
+      heroVideo.muted = false;
+      const first = heroVideo.play();
+      if (first && typeof first.then === 'function') {
+        first.then(() => { soundUnlocked = true; })
+             .catch(() => { heroVideo.muted = true; heroVideo.play().catch(() => {}); });
+      }
 
-      // Pause/mute off-screen; resume from the same spot on-screen.
+      // 2) Otherwise unmute at the earliest moment browsers allow — the first
+      //    user interaction anywhere on the page (no visible control).
+      function unlockSound() {
+        if (soundUnlocked) return;
+        soundUnlocked = true;
+        if (!wasPausedByScroll && !videoEnded) {
+          heroVideo.muted = false;
+          heroVideo.play().catch(() => {});
+        }
+        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+          window.removeEventListener(ev, unlockSound, true));
+      }
+      ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+        window.addEventListener(ev, unlockSound, { capture: true, passive: true }));
+
+      // 3) Pause + mute when scrolled away; resume from the same spot when back.
       if (heroSection && 'IntersectionObserver' in window) {
         const io = new IntersectionObserver((entries) => {
           const ratio = entries[0].intersectionRatio;
@@ -1131,7 +1149,7 @@
           } else if (wasPausedByScroll && !videoEnded) {
             try { heroVideo.currentTime = storedTime; } catch (e) {}
             wasPausedByScroll = false;
-            playSafely(true);              // resume, attempt unmute, muted fallback
+            playSafely();                  // resume (with sound once unlocked)
           }
         }, { threshold: [0, 0.7, 1] });
         io.observe(heroSection);

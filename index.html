@@ -1189,12 +1189,28 @@
       // Default: start WITH sound.
       startFromBeginning();
 
-      // Corner toggle — turn sound off / back on.
+      // Browsers block sound-before-interaction. So the moment the visitor
+      // interacts ANYWHERE (click/tap/key) — except on the toggle, which
+      // manages itself — turn the sound on (unless they chose to mute it).
+      function enableSoundOnGesture(e) {
+        if (soundToggle && soundToggle.contains(e.target)) return;
+        if (userTurnedOff || wasAway) return;
+        if (heroVideo.muted) {
+          heroVideo.muted = false;
+          if (heroVideo.paused) heroVideo.play().catch(() => {});
+          syncToggle();
+        }
+      }
+      ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+        window.addEventListener(ev, enableSoundOnGesture, { capture: true, passive: true }));
+
+      // Corner toggle — one click does what the icon shows (turn on / off).
       if (soundToggle) {
         soundToggle.addEventListener('click', () => {
-          userTurnedOff = !userTurnedOff;
-          heroVideo.muted = userTurnedOff;
-          if (!userTurnedOff && heroVideo.paused) heroVideo.play().catch(() => {});
+          const turnOn = heroVideo.muted;     // muted now → this click means "on"
+          userTurnedOff = !turnOn;
+          heroVideo.muted = !turnOn;
+          if (turnOn && heroVideo.paused) heroVideo.play().catch(() => {});
           syncToggle();
         });
       }

@@ -1159,70 +1159,60 @@
     if (heroVideo) {
       heroVideo.removeAttribute('loop');   // never loop
 
-      let videoEnded = false;
-      let wasPausedByScroll = false;
-      let storedTime = 0;
-      let userWantsSound = false;          // controlled by the corner toggle
+      let userTurnedOff = false;           // true only if the visitor mutes it
+      let wasAway = false;
 
+      // Icon reflects the actual audible state.
       function syncToggle() {
         if (!soundToggle) return;
-        soundToggle.classList.toggle('is-on', userWantsSound);
-        soundToggle.setAttribute('aria-pressed', userWantsSound ? 'true' : 'false');
-        soundToggle.setAttribute('aria-label', userWantsSound ? 'Turn off sound' : 'Turn on sound');
+        const on = !heroVideo.muted;
+        soundToggle.classList.toggle('is-on', on);
+        soundToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        soundToggle.setAttribute('aria-label', on ? 'Turn off sound' : 'Turn on sound');
       }
 
-      heroVideo.addEventListener('ended', () => {
-        videoEnded = true;                 // keep final frame; never auto-restart
-        if (soundToggle) soundToggle.style.display = 'none';
-      });
-
-      // Play honouring the current sound preference; muted fallback on block.
-      function playSafely() {
-        if (videoEnded) return;
-        heroVideo.muted = !userWantsSound;
+      // Play from the very beginning — with sound unless the visitor muted it.
+      // If the browser blocks sound autoplay, fall back to muted (no error).
+      function startFromBeginning() {
+        try { heroVideo.currentTime = 0; } catch (e) {}
+        heroVideo.muted = userTurnedOff;
         const p = heroVideo.play();
-        if (p && typeof p.catch === 'function') {
-          p.catch(() => { heroVideo.muted = true; heroVideo.play().catch(() => {}); });
-        }
+        if (p && typeof p.then === 'function') {
+          p.then(syncToggle).catch(() => {
+            heroVideo.muted = true;
+            heroVideo.play().catch(() => {});
+            syncToggle();
+          });
+        } else { syncToggle(); }
       }
 
-      // Try to start WITH sound (works where the browser allows it); if blocked,
-      // start muted — the corner toggle lets the visitor switch sound on.
-      heroVideo.muted = false;
-      const first = heroVideo.play();
-      if (first && typeof first.then === 'function') {
-        first.then(() => { userWantsSound = true; syncToggle(); })
-             .catch(() => { heroVideo.muted = true; userWantsSound = false; heroVideo.play().catch(() => {}); syncToggle(); });
-      }
+      // Default: start WITH sound.
+      startFromBeginning();
 
-      // Corner sound toggle.
+      // Corner toggle — turn sound off / back on.
       if (soundToggle) {
         soundToggle.addEventListener('click', () => {
-          userWantsSound = !userWantsSound;
-          heroVideo.muted = !userWantsSound;
-          if (userWantsSound && !videoEnded && heroVideo.paused) {
-            heroVideo.play().catch(() => { heroVideo.muted = true; userWantsSound = false; syncToggle(); });
-          }
+          userTurnedOff = !userTurnedOff;
+          heroVideo.muted = userTurnedOff;
+          if (!userTurnedOff && heroVideo.paused) heroVideo.play().catch(() => {});
           syncToggle();
         });
       }
 
-      // Pause + mute when scrolled away; resume from the same spot (restoring
-      // the visitor's sound choice) when the hero is back in view.
+      // Scroll away → pause + mute. Scroll back → RESTART from the beginning
+      // (with sound unless the visitor turned it off).
       if (heroSection && 'IntersectionObserver' in window) {
         const io = new IntersectionObserver((entries) => {
           const ratio = entries[0].intersectionRatio;
           if (ratio < 0.7) {
-            if (!heroVideo.paused && !videoEnded) {
-              storedTime = heroVideo.currentTime;
+            if (!heroVideo.paused) {
               heroVideo.pause();
               heroVideo.muted = true;
-              wasPausedByScroll = true;
             }
-          } else if (wasPausedByScroll && !videoEnded) {
-            try { heroVideo.currentTime = storedTime; } catch (e) {}
-            wasPausedByScroll = false;
-            playSafely();
+            wasAway = true;
+          } else if (wasAway) {
+            wasAway = false;
+            startFromBeginning();          // replay from 0, with sound if not muted
           }
         }, { threshold: [0, 0.7, 1] });
         io.observe(heroSection);

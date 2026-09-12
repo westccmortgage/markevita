@@ -1,0 +1,19 @@
+[
+  {
+    "id": "loc_a",
+    "name": "Location A",
+    "description": "placeholder location A",
+    "lighting_states": {
+      "default": "day",
+      "night": "night"
+    }
+  },
+  {
+    "id": "loc_b",
+    "name": "Location B",
+    "description": "placeholder location B",
+    "lighting_states": {
+      "default": "interior"
+    }
+  }
+]

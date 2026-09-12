@@ -1,0 +1,13 @@
+[
+  {
+    "id": "rel_ab",
+    "a": "char_a",
+    "b": "char_b",
+    "type": "placeholder",
+    "state": "state_1",
+    "allowed_states": [
+      "state_1",
+      "state_2"
+    ]
+  }
+]

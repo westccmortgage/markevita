@@ -1,0 +1,32 @@
+{
+  "scenes": {
+    "sc03": {
+      "keyframe_prompt": "placeholder keyframe sc03",
+      "video_prompt": "placeholder motion sc03"
+    },
+    "sc04": {
+      "keyframe_prompt": "placeholder keyframe sc04",
+      "video_prompt": "placeholder motion sc04"
+    },
+    "sc05": {
+      "keyframe_prompt": "placeholder keyframe sc05",
+      "video_prompt": "placeholder motion sc05"
+    },
+    "sc06": {
+      "keyframe_prompt": "placeholder keyframe sc06",
+      "video_prompt": "placeholder motion sc06"
+    },
+    "sc08": {
+      "keyframe_prompt": "placeholder keyframe sc08",
+      "video_prompt": "placeholder motion sc08"
+    },
+    "sc11": {
+      "keyframe_prompt": "placeholder keyframe sc11",
+      "video_prompt": "placeholder motion sc11"
+    },
+    "sc12": {
+      "keyframe_prompt": "placeholder keyframe sc12",
+      "video_prompt": "placeholder motion sc12"
+    }
+  }
+}

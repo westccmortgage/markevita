@@ -1,0 +1,186 @@
+{
+  "schema_version": "2.0",
+  "series_id": "your_series_id",
+  "season_id": "s01",
+  "episode_id": "s01e01",
+  "number": 1,
+  "title": "Fixture One",
+  "logline": "placeholder",
+  "scenes": [
+    {
+      "scene_id": "sc03",
+      "sequence": 1,
+      "duration_seconds": 8,
+      "location": "loc_a",
+      "characters_in_frame": [
+        "char_a",
+        "char_b"
+      ],
+      "action": "placeholder action 3",
+      "dialogue": [
+        {
+          "speaker": "char_a",
+          "text": "Placeholder three."
+        },
+        {
+          "speaker": "char_b",
+          "text": "Placeholder four."
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": ""
+    },
+    {
+      "scene_id": "sc04",
+      "sequence": 2,
+      "duration_seconds": 4,
+      "location": "loc_b",
+      "characters_in_frame": [
+        "char_a"
+      ],
+      "action": "placeholder action 4",
+      "dialogue": [
+        {
+          "speaker": "char_v",
+          "text": "Placeholder phone line.",
+          "voice_over": true,
+          "delivery": "phone"
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": ""
+    },
+    {
+      "scene_id": "sc05",
+      "sequence": 3,
+      "duration_seconds": 4,
+      "location": "loc_b",
+      "characters_in_frame": [
+        "char_a",
+        "char_b"
+      ],
+      "action": "placeholder action 5",
+      "dialogue": [
+        {
+          "speaker": "char_b",
+          "text": "Placeholder five."
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": "",
+      "knowledge_gained": [
+        {
+          "character": "char_a",
+          "secret": "secret_x",
+          "how": "told"
+        }
+      ]
+    },
+    {
+      "scene_id": "sc06",
+      "sequence": 4,
+      "duration_seconds": 4,
+      "location": "loc_b",
+      "characters_in_frame": [
+        "char_a"
+      ],
+      "action": "placeholder action 6",
+      "dialogue": [],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": "",
+      "knowledge_required": [
+        {
+          "character": "char_a",
+          "secret": "secret_x"
+        }
+      ]
+    },
+    {
+      "scene_id": "sc08",
+      "sequence": 5,
+      "duration_seconds": 4,
+      "location": "loc_a",
+      "characters_in_frame": [
+        "char_b"
+      ],
+      "action": "placeholder action 8",
+      "dialogue": [
+        {
+          "speaker": "char_b",
+          "text": "Placeholder eight."
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": "",
+      "relationship_changes": [
+        {
+          "id": "rel_ab",
+          "state": "state_2"
+        }
+      ]
+    },
+    {
+      "scene_id": "sc11",
+      "sequence": 6,
+      "duration_seconds": 4,
+      "location": "loc_b",
+      "characters_in_frame": [
+        "char_b"
+      ],
+      "action": "placeholder action 11",
+      "dialogue": [
+        {
+          "speaker": "char_b",
+          "text": "Placeholder eleven."
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": "",
+      "knowledge_gained": [
+        {
+          "character": "char_b",
+          "secret": "secret_y"
+        }
+      ]
+    },
+    {
+      "scene_id": "sc12",
+      "sequence": 7,
+      "duration_seconds": 4,
+      "location": "loc_b",
+      "characters_in_frame": [
+        "char_a",
+        "char_b"
+      ],
+      "action": "placeholder action 12",
+      "dialogue": [
+        {
+          "speaker": "char_b",
+          "text": "Placeholder twelve."
+        }
+      ],
+      "shot_type": "medium",
+      "camera_motion": "locked tripod",
+      "continuity_in": "",
+      "continuity_out": "cut to black",
+      "is_cliffhanger": true
+    }
+  ],
+  "cliffhanger": {
+    "scene_id": "sc12",
+    "hook": "placeholder hook",
+    "resolves_in": "tbd"
+  }
+}

@@ -1,0 +1,69 @@
+"""Оценка стоимости, резервирование и бюджетный стоп (spec §6). Цены из pricing.json, override через PRICE_<KEY>."""
+import json
+import os
+from pathlib import Path
+
+
+def load_prices() -> dict:
+    p = json.loads((Path(__file__).parent / "pricing.json").read_text())
+    for k in list(p):
+        v = os.getenv(f"PRICE_{k.upper()}")
+        if v:
+            p[k] = float(v)
+    return p
+
+
+PRICE = load_prices()
+
+
+class BudgetExceeded(RuntimeError):
+    pass
+
+
+def video_cost(seconds: int, audio: bool, resolution: str) -> float:
+    k4 = "_4k" if resolution == "4k" else ""
+    return seconds * PRICE[f"veo31_fast_per_sec{k4}_{'audio' if audio else 'silent'}"]
+
+
+def image_cost(pro: bool, resolution: str) -> float:
+    r = resolution.lower()
+    if pro:
+        return PRICE["nano_banana_pro_image_2k"] if r == "2k" else PRICE["nano_banana_pro_image_1k"]
+    return PRICE.get(f"nano_banana_2_image_{r}", PRICE["nano_banana_2_image_1k"])
+
+
+def lipsync_cost(seconds: float, variant: str) -> float:
+    return seconds * (PRICE["sync_lipsync_2_pro_per_sec"] if variant == "lipsync-2-pro" else PRICE["sync_lipsync_2_per_sec"])
+
+
+class Budget:
+    """reserve() ПЕРЕД платным вызовом, settle() после. Неудачный, но оплаченный запрос тоже списывается."""
+
+    def __init__(self, cap_usd: float, state):
+        self.cap = cap_usd
+        self.state = state
+
+    @property
+    def spent(self) -> float:
+        return float(self.state.data.get("spent_usd", 0.0))
+
+    @property
+    def reserved(self) -> float:
+        return float(self.state.data.get("reserved_usd", 0.0))
+
+    def reserve(self, amount: float, what: str):
+        if self.spent + self.reserved + amount > self.cap:
+            self.state.data["status"] = "needs_budget_override"
+            self.state.save()
+            raise BudgetExceeded(
+                f"budget: spent ${self.spent:.2f} + reserved ${self.reserved:.2f} + next '{what}' ${amount:.2f} > cap ${self.cap:.2f}. "
+                f"Status set to needs_budget_override. Raise MAX_EPISODE_BUDGET_USD explicitly (logged) to continue."
+            )
+        self.state.data["reserved_usd"] = round(self.reserved + amount, 4)
+        self.state.save()
+
+    def settle(self, reserved: float, actual: float, what: str, take_id: str | None = None):
+        self.state.data["reserved_usd"] = round(max(0.0, self.reserved - reserved), 4)
+        self.state.data["spent_usd"] = round(self.spent + actual, 4)
+        self.state.data.setdefault("cost_log", []).append({"what": what, "take_id": take_id, "estimated": round(reserved, 4), "actual": round(actual, 4)})
+        self.state.save()

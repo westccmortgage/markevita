@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.0",
+  "series_id": "your_series_id",
+  "title": "Your Series Title",
+  "logline": "One sentence.",
+  "language": "en-US",
+  "format": {
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "captions": "both"
+  },
+  "seasons": [
+    {
+      "season_id": "s01",
+      "number": 1,
+      "title": "",
+      "arc": "",
+      "episodes": [
+        "s01e01"
+      ]
+    }
+  ],
+  "production_limits": {
+    "maximum_episode_budget_usd": 50,
+    "maximum_regenerations_per_scene": 2,
+    "allowed_clip_seconds": [
+      4,
+      6,
+      8
+    ],
+    "min_scenes": 1,
+    "max_scenes": 18,
+    "min_episode_seconds": 10,
+    "max_episode_seconds": 120
+  },
+  "approval": {
+    "status": "draft"
+  },
+  "genre": ""
+}

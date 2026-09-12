@@ -1,0 +1,63 @@
+[
+  {
+    "id": "char_a",
+    "name": "Char A",
+    "visual": true,
+    "age": "30",
+    "appearance": "placeholder appearance A",
+    "wardrobe": {
+      "default": "w_day",
+      "variants": {
+        "w_day": {
+          "description": "placeholder day outfit"
+        },
+        "w_night": {
+          "description": "placeholder evening outfit"
+        }
+      }
+    },
+    "props": [
+      {
+        "prop_id": "prop_a",
+        "rule": "carries prop_a in scenes 2-4"
+      }
+    ],
+    "immutable": [
+      "hair"
+    ],
+    "voice": {
+      "provider": "elevenlabs",
+      "voice_env": "ELEVENLABS_VOICE_ID_CHAR_A",
+      "language": "en-US"
+    }
+  },
+  {
+    "id": "char_b",
+    "name": "Char B",
+    "visual": true,
+    "age": "35",
+    "appearance": "placeholder appearance B",
+    "wardrobe": {
+      "default": "w_main",
+      "variants": {
+        "w_main": {
+          "description": "placeholder outfit B"
+        }
+      }
+    },
+    "voice": {
+      "provider": "elevenlabs",
+      "voice_env": "ELEVENLABS_VOICE_ID_CHAR_B"
+    }
+  },
+  {
+    "id": "char_v",
+    "name": "Char V",
+    "visual": false,
+    "voice": {
+      "provider": "elevenlabs",
+      "voice_env": "ELEVENLABS_VOICE_ID_CHAR_V",
+      "phone_fx": true
+    }
+  }
+]

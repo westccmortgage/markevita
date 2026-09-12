@@ -1,0 +1,348 @@
+{
+  "schema_version": "1.0",
+  "series_id": "vita_after_hours",
+  "series_title": "VITA: After Hours",
+  "episode_id": "ep01",
+  "episode_number": 1,
+  "title": "The Impossible Brief",
+  "status": "provisional_pending_anatoliy_approval",
+  "logline": "Six minutes after MarkeVita closes, Vita and Leo receive a launch brief containing five impossible contradictions, solve it before morning, and discover that an unknown presence has entered their production system.",
+  "dialogue_language": "en-US",
+  "format": {
+    "aspect_ratio": "9:16",
+    "target_width": 1080,
+    "target_height": 1920,
+    "target_duration_seconds": 108,
+    "minimum_duration_seconds": 90,
+    "maximum_duration_seconds": 120,
+    "caption_safe_areas_required": true
+  },
+  "production_limits": {
+    "maximum_episode_budget_usd": 50,
+    "maximum_regenerations_per_scene": 2,
+    "maximum_clip_duration_seconds": 10,
+    "allowed_generated_clip_durations_seconds": [
+      4,
+      6,
+      8
+    ]
+  },
+  "characters": [
+    "vita",
+    "leo_mercer",
+    "client_voice"
+  ],
+  "locations": [
+    "markevita_lobby",
+    "production_control_room"
+  ],
+  "scenes": [
+    {
+      "scene_id": "sc01",
+      "sequence": 1,
+      "duration_seconds": 6,
+      "location": "markevita_lobby",
+      "characters_in_frame": [
+        "vita"
+      ],
+      "action": "After-hours lobby. Vita stands alone in her canonical position, finishes a small welcoming gesture, notices that the room has gone quiet, and looks toward an off-screen alert.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "MarkeVita closed six minutes ago.",
+          "delivery": "calm, faintly amused"
+        }
+      ],
+      "shot_type": "medium shot, 50mm",
+      "camera_motion": "locked frame with a very slow push-in",
+      "continuity_out": "Vita turns her gaze toward the lobby entrance."
+    },
+    {
+      "scene_id": "sc02",
+      "sequence": 2,
+      "duration_seconds": 8,
+      "location": "markevita_lobby",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "Leo enters quickly from the left carrying the matte-black coffee cup. Vita remains still and watches him approach.",
+      "dialogue": [
+        {
+          "speaker": "leo_mercer",
+          "text": "New client. Launch at nine. They sent no logo, no copy, no assets.",
+          "delivery": "controlled urgency"
+        }
+      ],
+      "shot_type": "two-shot, 35mm",
+      "camera_motion": "slow lateral track following Leo, settling into the two-shot",
+      "continuity_in": "Vita is looking toward the entrance.",
+      "continuity_out": "Leo stops one meter from Vita with coffee cup in right hand."
+    },
+    {
+      "scene_id": "sc03",
+      "sequence": 3,
+      "duration_seconds": 8,
+      "location": "markevita_lobby",
+      "characters_in_frame": [
+        "vita"
+      ],
+      "action": "Vita gives Leo one measured look, then lets a minimal smile appear.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "So, a miracle with brand guidelines.",
+          "delivery": "dry, precise humor"
+        }
+      ],
+      "shot_type": "medium close-up, 50mm",
+      "camera_motion": "locked tripod",
+      "continuity_in": "Vita faces Leo off-camera right.",
+      "continuity_out": "Her smile disappears as she waits for the actual brief."
+    },
+    {
+      "scene_id": "sc04",
+      "sequence": 4,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "First establishing view of the production room. Abstract light appears on the three displays as Vita and Leo take their fixed positions at the console.",
+      "dialogue": [
+        {
+          "speaker": "leo_mercer",
+          "text": "Can your system build a campaign from one sentence?",
+          "delivery": "skeptical but serious"
+        }
+      ],
+      "shot_type": "wide establishing two-shot, 35mm",
+      "camera_motion": "slow stabilized push toward the console",
+      "continuity_in": "Leo still carries the coffee cup.",
+      "continuity_out": "Vita stands left of console; Leo stands right."
+    },
+    {
+      "scene_id": "sc05",
+      "sequence": 5,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita"
+      ],
+      "action": "Vita studies the abstract display without touching it, then shifts her eyes toward Leo.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "Yes. The dangerous part is which sentence.",
+          "delivery": "calm warning"
+        }
+      ],
+      "shot_type": "medium shot, 50mm",
+      "camera_motion": "subtle push-in",
+      "continuity_in": "Vita remains on the left side of the console.",
+      "continuity_out": "A call indicator appears only as an abstract pulse, with no text."
+    },
+    {
+      "scene_id": "sc06",
+      "sequence": 6,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "Vita and Leo listen to the unseen client's recorded message. Neither speaks; their reactions remain restrained.",
+      "dialogue": [
+        {
+          "speaker": "client_voice",
+          "text": "Make us established, disruptive, timeless, young—and don't change anything.",
+          "delivery": "confident, rushed phone message",
+          "voice_over": true
+        }
+      ],
+      "shot_type": "balanced two-shot, 35mm",
+      "camera_motion": "locked tripod",
+      "continuity_in": "Call pulse remains on the center display.",
+      "continuity_out": "Leo slowly turns his head toward Vita."
+    },
+    {
+      "scene_id": "sc07",
+      "sequence": 7,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "leo_mercer"
+      ],
+      "action": "Leo counts the contradictions silently on the fingers of his free left hand, then lowers it.",
+      "dialogue": [
+        {
+          "speaker": "leo_mercer",
+          "text": "Five contradictions. New record.",
+          "delivery": "deadpan disbelief"
+        }
+      ],
+      "shot_type": "medium close-up, 50mm",
+      "camera_motion": "locked tripod",
+      "continuity_in": "Coffee remains in Leo's right hand; watch remains on left wrist.",
+      "continuity_out": "Leo looks from Vita to the displays."
+    },
+    {
+      "scene_id": "sc08",
+      "sequence": 8,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "Leo places the coffee cup on the front-right corner of the console. Vita raises one hand slightly and the displays reorganize into clean abstract compositions.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "Separate the intentions. Keep the trust. Remove the panic.",
+          "delivery": "decisive, controlled"
+        }
+      ],
+      "shot_type": "medium two-shot, 35mm",
+      "camera_motion": "slow pan from the cup to Vita",
+      "continuity_in": "Coffee cup begins in Leo's right hand.",
+      "continuity_out": "Coffee cup is fixed on the console's front-right corner."
+    },
+    {
+      "scene_id": "sc09",
+      "sequence": 9,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita"
+      ],
+      "action": "Several overly bright abstract campaign concepts flash across the displays. Vita makes one small dismissive gesture; the noisy concepts vanish and a restrained composition replaces them.",
+      "dialogue": [],
+      "shot_type": "over-shoulder medium shot from behind Vita, 50mm",
+      "camera_motion": "slow controlled push toward the displays",
+      "continuity_in": "Coffee cup remains visible on far right of console.",
+      "continuity_out": "One clean ivory, gold, and charcoal concept remains."
+    },
+    {
+      "scene_id": "sc10",
+      "sequence": 10,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "Leo studies the restrained concept, then glances at Vita. Vita keeps her attention on the work.",
+      "dialogue": [
+        {
+          "speaker": "leo_mercer",
+          "text": "You killed the fireworks.",
+          "delivery": "testing her reasoning"
+        },
+        {
+          "speaker": "vita",
+          "text": "They sell fireworks.",
+          "delivery": "quiet certainty"
+        }
+      ],
+      "shot_type": "two-shot with shallow focus shift, 50mm",
+      "camera_motion": "locked camera; rack focus from Leo to Vita",
+      "continuity_in": "Clean concept remains on displays; cup remains on console.",
+      "continuity_out": "Leo accepts the logic with a small nod."
+    },
+    {
+      "scene_id": "sc11",
+      "sequence": 11,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "The final concept fills the center display as abstract shapes, with no readable text. Vita and Leo listen to the client's reply.",
+      "dialogue": [
+        {
+          "speaker": "client_voice",
+          "text": "That's exactly what I meant.",
+          "delivery": "immediate satisfaction over phone",
+          "voice_over": true
+        }
+      ],
+      "shot_type": "wide two-shot, 35mm",
+      "camera_motion": "very slow pull back",
+      "continuity_in": "Final concept and coffee cup remain in place.",
+      "continuity_out": "Call pulse disappears."
+    },
+    {
+      "scene_id": "sc12",
+      "sequence": 12,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "Leo leans lightly against his side of the console. Vita turns from the display toward him.",
+      "dialogue": [
+        {
+          "speaker": "leo_mercer",
+          "text": "He never meant it.",
+          "delivery": "quiet realization"
+        },
+        {
+          "speaker": "vita",
+          "text": "Clients recognize decisions after they see them.",
+          "delivery": "warm, matter-of-fact"
+        }
+      ],
+      "shot_type": "medium two-shot, 50mm",
+      "camera_motion": "subtle lateral slide toward Vita",
+      "continuity_in": "Coffee cup remains on front-right console corner.",
+      "continuity_out": "Both briefly relax before the system changes."
+    },
+    {
+      "scene_id": "sc13",
+      "sequence": 13,
+      "duration_seconds": 8,
+      "location": "production_control_room",
+      "characters_in_frame": [
+        "vita",
+        "leo_mercer"
+      ],
+      "action": "The warm room lights flicker cool once. An unfamiliar dark geometric presence appears across the abstract displays. Vita becomes visibly concerned for the first time; Leo straightens.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "Someone entered the production system.",
+          "delivery": "low, controlled alarm"
+        }
+      ],
+      "shot_type": "slow tightening two-shot, 35mm",
+      "camera_motion": "measured push-in, no shake",
+      "continuity_in": "Coffee cup remains on console; final concept is replaced by dark geometry.",
+      "continuity_out": "Vita and Leo look toward the lobby."
+    },
+    {
+      "scene_id": "sc14",
+      "sequence": 14,
+      "duration_seconds": 6,
+      "location": "markevita_lobby",
+      "characters_in_frame": [
+        "vita"
+      ],
+      "action": "Back in the lobby, the glass entrance locks with a quiet mechanical movement. Vita stands in foreground profile, then turns her eyes toward camera without smiling.",
+      "dialogue": [
+        {
+          "speaker": "vita",
+          "text": "And it wasn't the client.",
+          "delivery": "quiet cliffhanger"
+        }
+      ],
+      "shot_type": "medium close-up profile to three-quarter, 50mm",
+      "camera_motion": "locked frame with a final minimal push-in",
+      "continuity_in": "Vita has moved from the control room to the lobby; wardrobe remains unchanged.",
+      "continuity_out": "Cut to black immediately after the line."
+    }
+  ]
+}

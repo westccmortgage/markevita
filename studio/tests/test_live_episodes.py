@@ -250,6 +250,39 @@ def test_native_audio_mode_does_not_need_voice_ids(monkeypatch):
     assert os.environ['PIPELINE_ALLOW_PAID'] == 'true'
 
 
+def test_voice_admission_reports_missing_voices_after_silent_shots(short_package, monkeypatch):
+    """The script importer omits optional dialogue on silent reaction shots."""
+    from urllib.parse import parse_qs, urlsplit
+    store, sid, eid = short_package
+    store.update('scenes', {'series_id': sid, 'episode_id': eid, 'scene_id': 'sc01'},
+                 {'dialogue': []})
+    store.update('scenes', {'series_id': sid, 'episode_id': eid, 'scene_id': 'sc03'},
+                 {'dialogue': []})
+    cfg = Config(mode='live', allow_paid_env=True, elevenlabs_api_key='offline-test',
+                 r2_account_id='offline', r2_bucket='private',
+                 r2_access_key_id='offline', r2_secret_access_key='offline')
+    cfg.native_dialogue = False
+    monkeypatch.setattr(live_jobs, 'configuration', lambda mode: cfg)
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(web, 'require_admin', lambda request: {'email': 'admin@example.test'})
+    monkeypatch.setattr(web, '_check_form', lambda *a: None)
+    monkeypatch.setattr(live_jobs, 'SeriesLease', lambda *a: pytest.fail('Voice admission must finish before a worker starts'))
+    for variable in list(os.environ):
+        if variable.startswith('ELEVENLABS_VOICE_ID_'):
+            monkeypatch.delenv(variable)
+    digest = live_jobs.review(sid, eid)
+    brief = json.loads((packaging.package_dir(sid) / 'episodes' / eid / 'brief.json').read_text())
+    assert 'dialogue' not in brief['scenes'][0]
+    assert brief['scenes'][1]['dialogue'][0]['speaker'] == 'lead_a'
+    response = web.production_control(None, sid, eid, action='start', stages=['voice'],
+        force='', csrf_token='offline', approve_live='yes', approved_digest=digest, audio_mode='voices')
+    assert response.status_code == 303
+    error = parse_qs(urlsplit(response.headers['location']).query)['err'][0]
+    assert error == 'Assign ElevenLabs voices for lead_a, or choose Native scene audio.'
+    assert not store.list('production_jobs', {'series_id': sid, 'episode_id': eid})
+    assert not store.list('costs', {'series_id': sid, 'episode_id': eid})
+
+
 def test_input_digest_changes_with_saved_dialogue(short_package):
     store, sid, eid = short_package
     before = live_jobs.review(sid, eid)

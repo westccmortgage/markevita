@@ -84,7 +84,8 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
     if not cfg.native_dialogue and 'voice' in stages:
         from serial.costs import PRICE
-        voices = {d['speaker'] for s in pkg.load_episode(episode_id)['scenes'] for d in s['dialogue']}
+        # Dialogue is optional in the package; silent POV/reaction shots omit it.
+        voices = {d['speaker'] for s in pkg.load_episode(episode_id)['scenes'] for d in s.get('dialogue', [])}
         missing = [c for c in voices if not os.environ.get((pkg.characters[c].get('voice') or {}).get('voice_env', ''), '') and not cfg.voice_ids.get(c)]
         if missing:
             raise ValueError('Assign ElevenLabs voices for ' + ', '.join(missing) + ', or choose Native scene audio.')

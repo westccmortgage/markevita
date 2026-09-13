@@ -32,6 +32,10 @@ ENV STUDIO_BASE_PATH=/studio \
     STUDIO_ALLOW_PAID=false \
     PYTHONUNBUFFERED=1
 
+# Exercise the real app target in a fresh process with no injected PYTHONPATH
+# or runtime secrets. A broken import/startup must fail the image build.
+RUN python check_startup.py
+
 EXPOSE 8800
 
 # One worker on purpose: production jobs run as in-process background threads,

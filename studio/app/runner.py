@@ -19,7 +19,6 @@ engine with private checkpoints, a durable worker lease and paid-call tracking.
 """
 from __future__ import annotations
 
-import sys
 import threading
 import traceback
 from datetime import datetime, timezone
@@ -30,12 +29,10 @@ from .ingest import history, ingest_episode, ingest_series_state
 from .packaging import materialize, package_dir
 from .store import store
 
-sys.path.insert(0, str(PIPELINE_DIR))
-
-from serial.config import Config           # noqa: E402
-from serial.package import PackageError, SeriesPackage, validate_episode  # noqa: E402
-from serial.pipeline import STAGES, Pipeline, SeriesState  # noqa: E402
-from serial.state import State             # noqa: E402
+from serial.config import Config
+from serial.package import PackageError, SeriesPackage, validate_episode
+from serial.pipeline import STAGES, Pipeline, SeriesState
+from serial.state import State
 
 RUNS_ROOT = PIPELINE_DIR / "runs"
 # Every stage except publish. Publishing is a separate, explicitly approved act.

@@ -33,6 +33,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install -r pipeline/requirements.txt -r studio/requirements.txt pytest
+      - name: Check production startup in an isolated process
+        run: python studio/check_startup.py
       - name: Validate the full production and recovery flow without credentials
         env:
           PYTHONPATH: pipeline:studio

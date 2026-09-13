@@ -13,7 +13,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -26,9 +25,8 @@ import httpx
 from .config import PIPELINE_DIR, STUDIO_DIR, settings
 from .store import store
 
-sys.path.insert(0, str(PIPELINE_DIR))
-from serial.config import Config  # noqa: E402
-from serial.storage import R2  # noqa: E402
+from serial.config import Config
+from serial.storage import R2
 
 SPEC_PATH = STUDIO_DIR / "previews" / "first_clip.json"
 MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024

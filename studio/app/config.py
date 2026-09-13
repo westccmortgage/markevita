@@ -11,9 +11,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from . import PIPELINE_DIR
+
 STUDIO_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = STUDIO_DIR.parent
-PIPELINE_DIR = REPO_ROOT / "pipeline"
 
 
 def _bool(name: str, default: bool = False) -> bool:

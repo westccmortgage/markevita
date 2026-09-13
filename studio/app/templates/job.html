@@ -19,6 +19,9 @@
   <p class="hint">{{ _("After approving the references, open the episode and click Resume to continue production.") }}</p>
 </section>
 {% endif %}
+{% if job.state == 'done' %}
+<p><a class="btn btn-primary" href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}#watch">{{ _("Watch or download episode") if 'deliver' in completed_stages else _("Open episode") }}</a></p>
+{% endif %}
 <div class="btn-row">
   <a class="btn" href="{{ base }}/jobs/{{ job.id }}">{{ _("Refresh status") }}</a>
   <span class="hint">{{ _("Refreshes this page. It does not resume production.") }}</span>

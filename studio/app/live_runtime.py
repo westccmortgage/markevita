@@ -11,6 +11,7 @@ import json
 import shutil
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -114,7 +115,8 @@ class Checkpoint:
         if not manifest:
             return
         old_root = manifest.get('root', str(self.root))
-        for name, info in manifest['files'].items():
+        def restore_file(item):
+            name, info = item
             path = (self.root / name).resolve()
             if not path.is_relative_to(self.root.resolve()):
                 raise ValueError('Invalid checkpoint path')
@@ -126,6 +128,11 @@ class Checkpoint:
                 data = data.replace(old_root.encode(), str(self.root).encode())
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
+        # Only immutable, checksummed objects run concurrently. Paid requests,
+        # state mutation and the conditional checkpoint commit remain serial.
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(restore_file, manifest['files'].items()))
+        self.check()
         self.files = manifest['files']
 
     def save(self):

@@ -17,6 +17,8 @@ from .api import router as api_router
 from .config import STUDIO_DIR, settings
 from .preview_web import router as preview_router
 from .web import router as web_router
+from .notification_web import router as notification_router
+from .notifications import Dispatcher
 
 app = FastAPI(
     title="MarkeVita AI Series Studio",
@@ -28,6 +30,20 @@ app.mount("/static", StaticFiles(directory=str(STUDIO_DIR / "app" / "static")), 
 app.include_router(api_router)
 app.include_router(web_router)
 app.include_router(preview_router)
+app.include_router(notification_router)
+
+notification_dispatcher = Dispatcher()
+
+
+@app.on_event('startup')
+async def start_notifications():
+    if settings.store_driver == 'supabase':
+        notification_dispatcher.start()
+
+
+@app.on_event('shutdown')
+async def stop_notifications():
+    notification_dispatcher.stop.set()
 
 
 @app.exception_handler(401)
@@ -74,6 +90,7 @@ async def healthz():
         "episode_duration_configurable": True,
         "ui_languages": ["en", "ru"],
         "asset_download_recovery": True,
+        "web_push_available": True,
         # Identify the deployed build without exposing configuration values.
         "build_commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None,
     }

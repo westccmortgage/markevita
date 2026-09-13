@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><h1>{{ _("Notifications") }}</h1></div>
+<section class="card">
+  <h2>{{ _("Let me know when production finishes") }}</h2>
+  <p>{{ _("Receive a system notification when your episode is ready, production needs attention, or references need approval. Click it to open the result or the next step.") }}</p>
+  <p>{{ _("Works with the Studio tab closed. Delivery depends on your browser and system notification settings; sleeping or offline devices receive it later.") }}</p>
+  <p id="push-status" role="status" aria-live="polite">{{ _("Checking notification settings…") }}</p>
+  <div class="btn-row">
+    <button class="btn btn-primary" data-push-action="enable" disabled>{{ _("Enable notifications") }}</button>
+    <button class="btn" data-push-action="test" disabled>{{ _("Send test notification") }}</button>
+    <button class="btn" data-push-action="disable" disabled>{{ _("Disable on this browser") }}</button>
+  </div>
+  <p class="hint">{{ _("Only jobs you started are included. Enable separately on each device. On a shared computer, disable before signing out.") }}</p>
+</section>
+<script id="push-config" type="application/json">{{ {
+ 'base': base, 'csrf': csrf_token, 'text': {
+ 'enabled': _("Notifications enabled on this browser."),
+ 'disabled': _("Notifications are off on this browser."),
+ 'blocked': _("Notifications are blocked. Allow them in this site's browser settings, then try again."),
+ 'unsupported': _("This browser does not support push notifications here. Try Chrome on your computer."),
+ 'sent': _("Test sent. Check your system notifications."),
+ 'error': _("Could not update notifications. Refresh the page and try again.")
+ } }|tojson }}</script>
+<script defer src="{{ base }}/static/notifications.js"></script>
+{% endblock %}

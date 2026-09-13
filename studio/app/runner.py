@@ -427,7 +427,7 @@ def episode_runtime(series_id: str, episode_id: str) -> dict:
     masters = []
     out = ep_dir / "out" / "masters"
     if out.exists():
-        for v in sorted(out.iterdir()):
+        for v in sorted(out.iterdir(), key=lambda p: int(p.name[1:]) if p.name[1:].isdigit() else -1):
             masters.append({"version": v.name, "files": sorted(f.name for f in v.iterdir() if f.is_file())})
     if not masters and st.data.get("master_version"):
         masters = [{"version": "v" + str(st.data["master_version"]), "files": ["episode.mp4", "episode.srt", "poster.jpg"]}]

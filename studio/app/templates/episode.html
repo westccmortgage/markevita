@@ -12,6 +12,15 @@
   </div>
 </div>
 
+{% if mode == 'live' and runtime.masters and runtime.stages.get('deliver') == 'done' %}
+{% set latest_master = runtime.masters|last %}
+<section class="card" id="watch" aria-labelledby="episode-ready-title">
+  <h2 id="episode-ready-title">{{ _("Your episode is ready") }}</h2>
+  <p><a class="btn btn-primary" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ latest_master.version }}">{{ _("Watch or download episode") }} · {{ latest_master.version }}</a></p>
+  <video controls playsinline preload="none" style="width:100%;max-width:360px;max-height:65vh;background:#000" src="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ latest_master.version }}"></video>
+</section>
+{% endif %}
+
 {% set budget = (s.production_limits or {}).get('maximum_episode_budget_usd', 50)|float %}
 {% set pct = ((runtime.spent_usd / budget * 100) if budget else 0) %}
 <div class="grid g4" style="margin-bottom:18px">

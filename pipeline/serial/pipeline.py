@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import media, package as pkgmod, prompts, providers
+from . import media, package as pkgmod, prompts, providers, reference_reuse
 from .costs import Budget, BudgetExceeded
 from .llm import LLM
 from .state import State, now, sha256
@@ -246,12 +246,38 @@ class Pipeline:
         self._guard_live("references")
         bv = self.pkg.bible_version
         R = self.sstate.data["references"]
+        if (self.sstate.data.get("bible_version") != bv
+                or self.sstate.data.get("reference_pack_complete") != bv):
+            reused = reference_reuse.find_reusable(self.pkg, self.series_dir, self.sstate.data)
+            if reused is not None and not self.force:
+                refs, source_version, approval = reused
+                for kind, group in refs.items():
+                    for pack in group.values():
+                        for rec in ([pack] if kind == "props" else pack.values()):
+                            rec.update(bible_version=bv, source_bible_version=rec.get("source_bible_version", source_version),
+                                       approval="approved" if approval else "pending")
+                self.sstate.data.update(references=refs, bible_version=bv, reference_pack_complete=bv,
+                                        reference_inputs_fingerprint=reference_reuse.fingerprint(self.pkg))
+                if approval:
+                    approval.update(bible_version=bv, source_bible_version=source_version)
+                    self.sstate.data["approvals"]["references"] = approval
+                else:
+                    self.sstate.data["approvals"].pop("references", None)
+                self.sstate.save()
+                self.state.mark_stage("references")
+                self.state.set_status("references_review")
+                self.log(f"references: reused verified images from {source_version}; no image generation")
+                if not approval:
+                    self.log("references: recovered approved images from a delivered episode; review and approve this pack to continue")
+                return
         if self.sstate.data.get("bible_version") != bv:
             if self.sstate.data.get("bible_version"):
                 self.log(f"references: bible изменился ({self.sstate.data['bible_version']} -> {bv}); пакет референсов генерируется заново, approval сброшен")
             R.clear(); R.update({"characters": {}, "locations": {}, "props": {}})
             self.sstate.data["approvals"].pop("references", None)
+            self.sstate.data.pop("reference_pack_complete", None)
             self.sstate.data["bible_version"] = bv
+            self.sstate.data["reference_inputs_fingerprint"] = reference_reuse.fingerprint(self.pkg)
             self.sstate.save()
         elif self._done("references") and R["characters"]:
             self.log("references: уже сделано для этой версии bible"); return
@@ -333,6 +359,7 @@ class Pipeline:
             R["props"][pid] = self._ref_record(p, self.keys.bible_prop(pid, bv, f"{pid}.png")); self.sstate.save()
 
         self.sstate.data["reference_pack_complete"] = self.pkg.bible_version
+        self.sstate.data["reference_inputs_fingerprint"] = reference_reuse.fingerprint(self.pkg)
         self.sstate.save()
         self.state.mark_stage("references"); self.state.set_status("references_review")
         self.log(f"references: пакет в {rdir}. Утвердить: --approve references --by \"...\"")

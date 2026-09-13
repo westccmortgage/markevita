@@ -1,0 +1,164 @@
+"""Reference identity survives episode edits, including recovery after partial runs."""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+from make_fixture import build
+from serial import prompts, reference_reuse
+from serial.config import Config
+from serial.package import SeriesPackage
+from serial.pipeline import Pipeline
+from serial.state import State, sha256
+
+
+def write(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data))
+
+
+@pytest.fixture
+def previous(tmp_path):
+    source = build(tmp_path / "pkg", fast=True)
+    for name in ("characters", "locations"):
+        path = source / "bible" / f"{name}.json"
+        rows = json.loads(path.read_text())
+        for row in rows:
+            row.pop("seed_assets", None)
+        write(path, rows)
+    pkg = SeriesPackage(source)
+    root = tmp_path / "runs" / pkg.series["series_id"]
+    refs = {"characters": {}, "locations": {}, "props": {}}
+    def record(kind, owner, name):
+        path = root / "references" / pkg.bible_version / kind / owner / f"{name}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"original image {kind}/{owner}/{name}".encode())
+        return {"path": str(path), "checksum": sha256(path), "approval": "approved",
+                "bible_version": pkg.bible_version, "r2_key": f"original/{kind}/{owner}/{name}.png"}
+    for cid, char in pkg.characters.items():
+        if not char["visual"]:
+            continue
+        names = [k for k, _ in prompts.CHARACTER_PACK if not k.startswith("fullbody")]
+        names += [f"{k}__{v}" for k, _ in prompts.CHARACTER_PACK if k.startswith("fullbody")
+                  for v in char["wardrobe"]["variants"]]
+        refs["characters"][cid] = {name: record("characters", cid, name) for name in names}
+    for lid in pkg.locations:
+        refs["locations"][lid] = {name: record("locations", lid, name) for name, _ in prompts.LOCATION_PACK}
+    for pid in pkg.props:
+        refs["props"][pid] = record("props", pid, pid)
+    master = root / "s01e01" / "out" / "masters" / "v2"
+    write(master / "provenance.json", {"bible_version": pkg.bible_version, "references": refs})
+    (master / "episode.mp4").write_bytes(b"original delivered movie")
+    state = State(root / "s01e01")
+    state.data.update(package_checksums=pkg.checksums, episode=dict(pkg.series["format"]),
+                      master_dir=str(master), stages={"deliver": "done"})
+    state.save()
+    return source, root, pkg, refs, master
+
+
+def new_episode(source):
+    series = json.loads((source / "series.json").read_text())
+    series["seasons"][0]["episodes"].append("s01e01_v2")
+    series["language"] = "ru-RU"
+    write(source / "series.json", series)
+    return SeriesPackage(source)
+
+
+def test_partial_new_pack_recovers_originals_without_generation_or_fabricated_approval(previous, monkeypatch):
+    source, root, old, refs, master = previous
+    original_provenance = (master / "provenance.json").read_bytes()
+    pkg = new_episode(source)
+    assert pkg.bible_version != old.bible_version
+    cfg = Config.load(HERE.parent, live=False)
+    pipeline = Pipeline(cfg, pkg, "s01e01_v2", root.parent)
+    pipeline.sstate.data.update(bible_version=pkg.bible_version,
+                                references={"characters": {"char_a": {}}, "locations": {}, "props": {}})
+    monkeypatch.setattr(pipeline, "_gen_ref", lambda *a, **kw: pytest.fail("regenerated original actors"))
+    pipeline.stage_references()
+    recovered = pipeline.sstate.data["references"]
+    for kind, owners in refs.items():
+        for owner, pack in owners.items():
+            for name, rec in ({owner: pack} if kind == "props" else pack).items():
+                got = recovered[kind][owner] if kind == "props" else recovered[kind][owner][name]
+                assert got["path"] == rec["path"] and got["checksum"] == rec["checksum"]
+                assert got["r2_key"] == rec["r2_key"]
+                assert got["source_bible_version"] == old.bible_version
+                assert got["bible_version"] == pkg.bible_version and got["approval"] == "pending"
+    with pytest.raises(RuntimeError, match="approval"):
+        pipeline._require_references_approval()
+    assert pipeline.state.stage_done("references")
+    assert (master / "provenance.json").read_bytes() == original_provenance
+    assert (master / "episode.mp4").read_bytes() == b"original delivered movie"
+    pipeline.logf.close()
+
+
+def test_nonvisual_edits_preserve_existing_approval(previous, monkeypatch):
+    source, root, old, refs, _ = previous
+    approval = {"approved": True, "by": "reviewer", "at": "original-time", "bible_version": old.bible_version}
+    ss = {"bible_version": old.bible_version, "reference_pack_complete": old.bible_version,
+          "reference_inputs_fingerprint": reference_reuse.fingerprint(old), "references": refs,
+          "approvals": {"references": approval}}
+    pkg = new_episode(source)
+    path = source / "bible" / "characters.json"
+    chars = json.loads(path.read_text())
+    chars[0]["voice"]["language"] = "ru-RU"
+    write(path, chars)
+    pkg = SeriesPackage(source)
+    result = reference_reuse.find_reusable(pkg, root, ss)
+    assert result == (refs, old.bible_version, approval)
+    assert result[2] is not approval
+    pipeline = Pipeline(Config.load(HERE.parent, live=False), pkg, "s01e01_v2", root.parent)
+    pipeline.sstate.data.update(ss)
+    monkeypatch.setattr(pipeline, "_gen_ref", lambda *a, **kw: pytest.fail("unnecessary generation"))
+    pipeline.stage_references()
+    pipeline._require_references_approval()
+    copied = pipeline.sstate.data["approvals"]["references"]
+    assert copied["by"] == "reviewer" and copied["at"] == "original-time"
+    assert copied["bible_version"] == pkg.bible_version
+    pipeline.logf.close()
+
+
+@pytest.mark.parametrize("change", ["appearance", "wardrobe", "location", "style", "format", "seed", "corrupt", "missing", "unapproved", "checksums"])
+def test_legacy_recovery_requires_unchanged_visuals_and_verified_evidence(previous, change):
+    source, root, old, refs, master = previous
+    if change in ("appearance", "wardrobe", "seed"):
+        path = source / "bible" / "characters.json"
+        data = json.loads(path.read_text())
+        if change == "appearance":
+            data[0]["appearance"] = "A different person"
+        elif change == "wardrobe":
+            data[0]["wardrobe"]["variants"]["w_day"]["description"] = "A different outfit"
+        else:
+            data[0]["seed_assets"] = ["assets/char_a_seed.png"]
+        write(path, data)
+    elif change == "location":
+        path = source / "bible" / "locations.json"
+        data = json.loads(path.read_text()); data[0]["description"] = "Different architecture"
+        write(path, data)
+    elif change == "style":
+        path = source / "bible" / "style.json"
+        data = json.loads(path.read_text()); data["style_sentence"] = "Different style"
+        write(path, data)
+    elif change == "format":
+        path = source / "series.json"
+        data = json.loads(path.read_text()); data["format"]["width"] = 720
+        write(path, data)
+    elif change in ("corrupt", "missing"):
+        path = Path(next(iter(refs["characters"]["char_a"].values()))["path"])
+        path.write_bytes(b"corrupt") if change == "corrupt" else path.unlink()
+    elif change == "unapproved":
+        next(iter(refs["characters"]["char_a"].values()))["approval"] = "pending"
+        write(master / "provenance.json", {"bible_version": old.bible_version, "references": refs})
+    else:
+        state = State(root / "s01e01"); state.data.pop("package_checksums"); state.save()
+    assert reference_reuse.find_reusable(new_episode(source), root, {}) is None
+
+
+def test_visual_fingerprint_includes_seed_bytes(tmp_path):
+    source = build(tmp_path / "pkg", fast=True)
+    before = reference_reuse.fingerprint(SeriesPackage(source))
+    (source / "assets" / "char_a_seed.png").write_bytes(b"changed image bytes")
+    assert reference_reuse.fingerprint(SeriesPackage(source)) != before

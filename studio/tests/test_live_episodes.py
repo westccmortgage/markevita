@@ -290,6 +290,26 @@ def test_input_digest_changes_with_saved_dialogue(short_package):
     assert live_jobs.review(sid, eid) != before
 
 
+@pytest.mark.parametrize('action', ['start', 'resume'])
+def test_successful_production_opens_the_returned_job(short_package, monkeypatch, action):
+    from urllib.parse import urlsplit
+    store, sid, eid = short_package
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(web, 'require_admin', lambda request: {'email': 'admin@example.test'})
+    monkeypatch.setattr(web, '_check_form', lambda *args: None)
+    calls = []
+    def admitted(*args, **kwargs):
+        calls.append(kwargs)
+        return {'id': 'saved-production-job'}
+    monkeypatch.setattr(runner.jobs, action, admitted)
+    response = web.production_control(None, sid, eid, action=action, stages=['intake'], force='',
+        csrf_token='offline', approve_live='yes', approved_digest='reviewed-digest', audio_mode='voices')
+    assert response.status_code == 303
+    assert urlsplit(response.headers['location']).path.endswith('/jobs/saved-production-job')
+    assert len(calls) == 1
+    assert calls[0] == {'approve_live': True, 'approved_digest': 'reviewed-digest', 'audio_mode': 'voices'}
+
+
 def test_production_form_uses_current_script_budget_and_csrf(short_package, monkeypatch):
     from fastapi.testclient import TestClient
     from app.main import app

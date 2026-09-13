@@ -668,9 +668,9 @@ def production_control(request: Request, series_id: str, episode_id: str,
         approval = dict(approve_live=approve_live == "yes", approved_digest=approved_digest, audio_mode=audio_mode)
     try:
         if action == "start":
-            runner.jobs.start(series_id, episode_id, stages or None, a["email"],
+            job = runner.jobs.start(series_id, episode_id, stages or None, a["email"],
                               [f.strip() for f in force.split(",") if f.strip()], **approval)
-            return _redirect(back, ok=f"Production started in {settings.mode} mode. Open Jobs for progress.")
+            return _redirect(f"/jobs/{job['id']}", ok=f"Production started in {settings.mode} mode. Open Jobs for progress.")
         if action == "pause":
             job = runner.jobs.active_job(series_id, episode_id)
             if not job:
@@ -678,8 +678,8 @@ def production_control(request: Request, series_id: str, episode_id: str,
             runner.jobs.pause(job["id"], a["email"])
             return _redirect(back, ok="Pausing at the next stage boundary.")
         if action == "resume":
-            runner.jobs.resume(series_id, episode_id, a["email"], **approval)
-            return _redirect(back, ok="Resumed. Completed stages are skipped.")
+            job = runner.jobs.resume(series_id, episode_id, a["email"], **approval)
+            return _redirect(f"/jobs/{job['id']}", ok="Resumed. Completed stages are skipped.")
         if action == "cancel":
             job = runner.jobs.active_job(series_id, episode_id)
             if not job:

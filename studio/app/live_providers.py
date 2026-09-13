@@ -3,6 +3,7 @@ import requests
 
 from serial.providers import Fal
 from serial.state import now
+from .provider_errors import ProviderFailure, fal_diagnostic
 
 
 class DurableFal(Fal):
@@ -24,13 +25,26 @@ class DurableFal(Fal):
                     self.state.save()
                 raise
             # requests has no implicit POST retry. Provider retries are disabled too.
-            response = requests.post('https://queue.fal.run/' + endpoint, json=args,
-                headers={'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'}, timeout=60)
-            response.raise_for_status()
+            try:
+                response = requests.post('https://queue.fal.run/' + endpoint, json=args,
+                    headers={'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'}, timeout=60)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as exc:
+                info = fal_diagnostic(exc, phase='submit')
+                take['provider_error'] = info
+                self.state.save()
+                raise ProviderFailure(info['message']) from exc
             take['request_id'] = response.json()['request_id']
             take['status'] = 'submitted'
             self.state.save()  # Includes private R2 checkpoint before waiting.
-        result = self._wait(endpoint, take['request_id'])
+        try:
+            result = self._wait(endpoint, take['request_id'])
+        except Exception as exc:
+            info = fal_diagnostic(exc, take['request_id'])
+            take['provider_error'] = info
+            self.state.save()
+            raise ProviderFailure(info['message']) from exc
+        take.pop('provider_error', None)
         take.update(status='succeeded', completed_at=now(), result=result,
                     actual_cost=est_cost, actual_cost_source='provider estimate')
         # Result and its cost are committed in one state/checkpoint update.

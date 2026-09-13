@@ -580,5 +580,20 @@
   "Your episode is ready": "Ваш эпизод готов",
   "Selected stages completed": "Выбранные этапы завершены",
   "Production needs attention": "Производству требуется внимание",
-  "References need your review": "Нужно проверить референсы"
+  "References need your review": "Нужно проверить референсы",
+  "fal.ai could not download an input file. Check the saved request in fal.ai before retrying.": "fal.ai не смог скачать входной файл. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
+  "fal.ai could not read an input image. Check the saved request in fal.ai before retrying.": "fal.ai не смог прочитать входное изображение. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
+  "fal.ai rejected the request under its content policy. Review the provider result before continuing.": "fal.ai отклонил запрос по правилам сервиса. Перед продолжением проверьте ответ провайдера.",
+  "fal.ai could not detect the required face in the input image.": "fal.ai не смог обнаружить нужное лицо на входном изображении.",
+  "fal.ai rejected an input file or parameter. Check the saved request details.": "fal.ai отклонил входной файл или параметр. Проверьте данные сохранённого запроса.",
+  "fal.ai authentication failed. Check the API key in Render.": "fal.ai не принял авторизацию. Проверьте API-ключ в Render.",
+  "fal.ai requires a billing check. Check the fal.ai account balance and billing status.": "fal.ai требует проверить оплату. Проверьте баланс и статус оплаты аккаунта fal.ai.",
+  "fal.ai denied access. Check the key permissions and model access in fal.ai.": "fal.ai отказал в доступе. Проверьте права ключа и доступ к модели в fal.ai.",
+  "fal.ai reported a request limit. Check the fal.ai request status before continuing.": "fal.ai сообщил о лимите запросов. Перед продолжением проверьте статус запроса в fal.ai.",
+  "fal.ai could not complete this operation. Check the saved request status before continuing.": "fal.ai не смог завершить операцию. Перед продолжением проверьте статус сохранённого запроса.",
+  "fal.ai reported a processing failure. Check the saved request status before continuing.": "fal.ai сообщил об ошибке обработки. Перед продолжением проверьте статус сохранённого запроса.",
+  "Reference images define your characters, wardrobe and locations. Existing images can be reused when their visual settings and files are verified unchanged.": "Референсы определяют внешность персонажей, одежду и локации. Готовые изображения можно использовать повторно, если проверка подтверждает, что их визуальные настройки и файлы не изменились.",
+  "Current pack version:": "Текущая версия набора:",
+  "Check the approval status of the current images below.": "Проверьте статус утверждения текущих изображений ниже.",
+  "Generate the reference pack for the current series settings first.": "Набор референсов для текущих настроек ещё не готов. Откройте журнал последней задачи: сначала нужно устранить ошибку и завершить подготовку набора."
 }

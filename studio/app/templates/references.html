@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head"><div>
   <h1>{{ _("Reference pack") }}</h1>
-  <p class="sub">{{ _("One pack per bible version: headshots, expressions, a full-body reference per wardrobe variant, locations and props. Any change to the bible invalidates the approval and the pack is regenerated.") }}</p>
+  <p class="sub">{{ _("Reference images define your characters, wardrobe and locations. Existing images can be reused when their visual settings and files are verified unchanged.") }}</p>
 </div></div>
 
 {% set approved = approvals and approvals[-1] %}
@@ -11,7 +11,7 @@
   <div class="notice ok">{{ _("Approved for bible") }} <code>{{ approved.subject_id }}</code>
     {{ _("by") }} <b>{{ approved.actor }}</b> {{ _("on") }} {{ approved.created_at|time }}.
     {% if s.bible_version and s.bible_version != approved.subject_id %}
-      <br><b>{{ _("The bible has changed since") }}</b> {{ _("(now") }} <code>{{ s.bible_version }}</code>{{ _(") — regenerate and re-approve.") }}
+      <br>{{ _("Current pack version:") }} <code>{{ s.bible_version }}</code>. {{ _("Check the approval status of the current images below.") }}
     {% endif %}
   </div>
 {% endif %}

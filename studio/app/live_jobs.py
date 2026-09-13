@@ -14,6 +14,7 @@ from .config import PIPELINE_DIR, settings
 from .packaging import materialize
 from .live_runtime import Checkpoint, SeriesLease, unexpired
 from .live_providers import DurableFal
+from .provider_errors import ProviderFailure
 from serial.config import Config
 from serial.package import SeriesPackage, validate_episode
 from serial.pipeline import Pipeline, STAGES
@@ -191,7 +192,7 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         except Exception:
             pass
         # Keep provider payloads/tokens out of the UI. Details are in private checkpoints.
-        message = str(exc) if isinstance(exc, (ValueError, PermissionError)) else type(exc).__name__ + ': ' + runner.explain(type(exc).__name__ + ': ' + str(exc))
+        message = str(exc) if isinstance(exc, (ValueError, PermissionError, ProviderFailure)) else type(exc).__name__ + ': ' + runner.explain(type(exc).__name__ + ': ' + str(exc))
         if not message.split(':', 1)[-1].strip():
             message = 'Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.'
         try:

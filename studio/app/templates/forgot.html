@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Password recovery — Series Studio{% endblock %}
+{% block content %}
+<div style="max-width:400px;margin:9vh auto 0">
+  <div class="brand" style="margin-bottom:26px;font-size:15px">MARKE<span>VITA</span> · Series Studio</div>
+  <div class="card">
+    <h2>Recover your password</h2>
+    {% if supabase %}
+      <p class="hint" style="margin-top:-6px">We will email a recovery link. It opens a page where you set a new password.</p>
+      <form method="post" action="{{ base }}/forgot">
+        <div class="field"><label>Email</label><input type="email" name="email" required autofocus autocomplete="username"></div>
+        <button class="btn-primary" type="submit" style="width:100%;justify-content:center">Send recovery link</button>
+      </form>
+    {% else %}
+      <div class="notice info" style="margin:0">
+        Password recovery needs Supabase Auth, which is not configured.
+        The local administrator password is set directly in the backend environment.
+      </div>
+    {% endif %}
+    <p class="hint" style="margin-top:16px"><a href="{{ base }}/login">Back to sign-in</a></p>
+  </div>
+</div>
+{% endblock %}

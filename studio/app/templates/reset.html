@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Set a new password — Series Studio{% endblock %}
+{% block content %}
+<div style="max-width:400px;margin:9vh auto 0">
+  <div class="brand" style="margin-bottom:26px;font-size:15px">MARKE<span>VITA</span> · Series Studio</div>
+  <div class="card">
+    <h2>Set a new password</h2>
+    <div id="no-token" class="notice err" hidden>
+      This page was opened without a recovery link.
+      <a href="{{ base }}/forgot">Request a new one</a>.
+    </div>
+    <form method="post" action="{{ base }}/reset" id="reset-form">
+      <input type="hidden" name="token_hash" value="{{ token_hash }}">
+      <input type="hidden" name="access_token" id="access_token" value="">
+      <div class="field"><label>New password</label>
+        <input type="password" name="password" required minlength="8" autocomplete="new-password"></div>
+      <div class="field"><label>Repeat new password</label>
+        <input type="password" name="confirm" required minlength="8" autocomplete="new-password"></div>
+      <button class="btn-primary" type="submit" style="width:100%;justify-content:center">Set password</button>
+      <p class="hint" style="margin-top:10px">At least 8 characters.</p>
+    </form>
+  </div>
+</div>
+<script>
+  // Supabase's implicit flow returns the token in the URL fragment, which is
+  // never sent to a server. Move it into the form, then strip it from the
+  // address bar so the token does not linger in history.
+  (function () {
+    var hash = window.location.hash || '';
+    var token = new URLSearchParams(hash.replace(/^#/, '')).get('access_token');
+    if (token) {
+      document.getElementById('access_token').value = token;
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    var hasToken = token || document.querySelector('input[name=token_hash]').value;
+    if (!hasToken) {
+      document.getElementById('no-token').hidden = false;
+      document.getElementById('reset-form').hidden = true;
+    }
+  })();
+</script>
+{% endblock %}

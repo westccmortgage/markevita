@@ -78,8 +78,12 @@ def login_form(request: Request):
         return RedirectResponse(settings.url("/"), status_code=303)
     return templates.TemplateResponse(request, "login.html", {
         "err": request.query_params.get("err"),
+        "ok": request.query_params.get("ok"),
         "next": request.query_params.get("next") or settings.url("/"),
         "admin": None, "all_series": [],
+        # Without this an operator locked out by configuration sees only
+        # "invalid password" and has nowhere to look.
+        "problems": settings.config_problems(),
     })
 
 
@@ -95,9 +99,76 @@ def login(request: Request, email: str = Form(...), password: str = Form(...),
     response.set_cookie(
         auth.COOKIE, auth.serialize(session), max_age=auth.MAX_AGE,
         httponly=True, samesite="lax", path=settings.base_path or "/",
-        secure=not settings.host.startswith("127."),
+        secure=auth.cookie_is_secure(request),
     )
     return response
+
+
+def _public_origin(request: Request) -> str:
+    """The origin the BROWSER used, for building recovery links.
+
+    Behind Netlify the service sees Render's own host, so the forwarded
+    headers are the only source of markevita.com. STUDIO_PUBLIC_URL overrides
+    both when a platform does not forward them.
+    """
+    if settings.public_url:
+        return settings.public_url
+    headers = request.headers
+    host = (headers.get("x-forwarded-host") or headers.get("host") or "").split(",")[0].strip()
+    scheme = (headers.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
+    return f"{scheme}://{host}" if host else str(request.base_url).rstrip("/")
+
+
+@router.get("/forgot", response_class=HTMLResponse)
+def forgot_form(request: Request):
+    return templates.TemplateResponse(request, "forgot.html", {
+        "err": request.query_params.get("err"), "ok": request.query_params.get("ok"),
+        "supabase": auth.supabase_enabled(), "admin": None, "all_series": [],
+    })
+
+
+@router.post("/forgot")
+def forgot(request: Request, email: str = Form(...)):
+    reset_url = _public_origin(request) + settings.url("/reset")
+    try:
+        auth.request_password_reset(email.strip().lower(), reset_url)
+    except auth.AuthError as e:
+        return _redirect("/forgot", err=str(e))
+    # The same answer regardless of whether the address has an account.
+    return _redirect("/forgot", ok="If that address has an account, a recovery link is on its way.")
+
+
+@router.get("/reset", response_class=HTMLResponse)
+def reset_form(request: Request):
+    """Landing page for a recovery link.
+
+    Supabase returns either `?token_hash=` (verified server-side) or an
+    implicit-flow `#access_token=` fragment, which never reaches the server —
+    a little JavaScript moves it into the form.
+    """
+    return templates.TemplateResponse(request, "reset.html", {
+        "err": request.query_params.get("err"),
+        "token_hash": request.query_params.get("token_hash", ""),
+        "admin": None, "all_series": [],
+    })
+
+
+@router.post("/reset")
+def reset(request: Request, password: str = Form(...), confirm: str = Form(""),
+          token_hash: str = Form(""), access_token: str = Form("")):
+    if password != confirm:
+        return _redirect("/reset", err="The two passwords do not match.")
+    try:
+        if token_hash:
+            access_token = auth.verify_recovery_token(token_hash)
+        if not access_token:
+            return _redirect("/reset", err="This page needs a valid recovery link. Request a new one.")
+        email = auth.update_password(access_token, password)
+    except auth.AuthError as e:
+        return _redirect("/reset", err=str(e))
+    if email and not auth.is_admin(email):
+        return _redirect("/login", err="Password updated, but this account is not a studio administrator.")
+    return _redirect("/login", ok="Password updated. Sign in with the new password.")
 
 
 @router.get("/logout")

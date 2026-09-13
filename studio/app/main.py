@@ -33,6 +33,26 @@ async def unauthorized(request: Request, exc):
     return RedirectResponse(settings.url(f"/login?next={target}"), status_code=303)
 
 
+@app.on_event("startup")
+async def report_configuration() -> None:
+    """Print a configuration report at boot.
+
+    Hosted platforms show this in their log stream, which is the only place an
+    operator can see a fault that otherwise only appears as a failed sign-in.
+    """
+    problems = settings.config_problems()
+    print(f"[studio] mode={settings.mode} store={settings.store_driver} "
+          f"base_path={settings.base_path or '/'} deployed={settings.deployed}")
+    if not problems:
+        print("[studio] configuration OK")
+        return
+    print(f"[studio] {len(problems)} CONFIGURATION PROBLEM(S):")
+    for p in problems:
+        print(f"[studio]   ! {p['what']}")
+        print(f"[studio]     {p['why']}")
+        print(f"[studio]     fix: {p['fix']}")
+
+
 @app.get("/healthz", include_in_schema=False)
 async def healthz():
     return {
@@ -40,4 +60,7 @@ async def healthz():
         "mode": settings.mode,
         "store": settings.store_driver,
         "paid_calls_enabled": settings.allow_paid,
+        # Count only: the detail is for the operator on the sign-in page and in
+        # the logs, not for anonymous callers of a public endpoint.
+        "configuration_problems": len(settings.config_problems()),
     }

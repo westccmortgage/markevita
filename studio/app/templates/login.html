@@ -3,7 +3,18 @@
 {% block content %}
 <div style="max-width:400px;margin:9vh auto 0">
   <div class="brand" style="margin-bottom:26px;font-size:15px">MARKE<span>VITA</span> · Series Studio</div>
-  {% if err %}<div class="notice err">{{ err }}</div>{% endif %}
+  {% if problems %}
+    <div class="notice err">
+      <b>This studio is not configured and cannot be used yet.</b>
+      {% for p in problems %}
+        <div style="margin-top:10px">
+          <div>{{ p.what }}</div>
+          <div class="hint" style="margin-top:3px">{{ p.why }}</div>
+          <div class="hint" style="margin-top:3px"><b>Fix:</b> {{ p.fix }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
   <div class="card">
     <h2>Administrator sign-in</h2>
     <form method="post" action="{{ base }}/login">
@@ -12,7 +23,11 @@
       <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>
       <button class="btn-primary" type="submit" style="width:100%;justify-content:center">Sign in</button>
     </form>
-    <p class="hint" style="margin-top:16px">Authentication backend: <b>{{ auth_backend }}</b>.</p>
+    <p class="hint" style="margin-top:16px">Authentication backend: <b>{{ auth_backend }}</b>.
+      {% if auth_backend == 'Supabase Auth' %}
+        <a href="{{ base }}/forgot">Forgot password?</a>
+      {% endif %}
+    </p>
   </div>
   <p class="hint">This build runs in mock mode. No paid provider call can be made from it.</p>
 </div>

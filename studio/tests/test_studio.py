@@ -211,6 +211,203 @@ def test_missing_credential_is_reported_not_raised(isolated_store, monkeypatch):
     assert result["state"] == "Missing" and "FAL_KEY" in result["last_error"]
 
 
+# ── deployment configuration faults ────────────────────────────────────────
+
+def _deployed_settings(monkeypatch, **env):
+    """Settings as they would load on a hosted platform."""
+    from app.config import Settings
+    for key in ("STUDIO_ADMIN_EMAIL", "STUDIO_ADMIN_PASSWORD", "STUDIO_SESSION_SECRET",
+                "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "STUDIO_STORE"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("STUDIO_BASE_PATH", "/studio")
+    monkeypatch.setenv("STUDIO_HOST", "0.0.0.0")
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    # Ignore any developer .env so the test describes the hosted environment.
+    monkeypatch.setattr("app.config.load_dotenv", lambda *a, **k: None)
+    return Settings.load()
+
+
+def test_unconfigured_deployment_reports_every_fault(monkeypatch):
+    """The exact state the Render deployment was in: nobody could sign in,
+    sessions died on restart, and records lived on an ephemeral disk."""
+    problems = _deployed_settings(monkeypatch).config_problems()
+    faults = " ".join(p["what"] for p in problems)
+    assert "Nobody can sign in" in faults
+    assert "signed out whenever the service restarts" in faults
+    assert "records are lost" in faults
+    assert all(p["level"] == "fatal" for p in problems)
+
+
+def test_a_correctly_configured_deployment_reports_nothing(monkeypatch):
+    s = _deployed_settings(
+        monkeypatch,
+        STUDIO_ADMIN_EMAIL="admin@example.test", STUDIO_ADMIN_PASSWORD="pw",
+        STUDIO_SESSION_SECRET="a-fixed-secret",
+        STUDIO_STORE="supabase", SUPABASE_URL="https://x.supabase.co",
+        SUPABASE_ANON_KEY="anon-key", SUPABASE_SERVICE_ROLE_KEY="service-key",
+    )
+    assert s.config_problems() == []
+
+
+def test_local_use_is_not_treated_as_a_deployment(monkeypatch):
+    """A laptop with no session secret is fine; only hosted use is a fault."""
+    from app.config import Settings
+    monkeypatch.setattr("app.config.load_dotenv", lambda *a, **k: None)
+    for key in ("STUDIO_BASE_PATH", "STUDIO_SESSION_SECRET"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("STUDIO_HOST", "127.0.0.1")
+    monkeypatch.setenv("STUDIO_ADMIN_EMAIL", "admin@example.test")
+    monkeypatch.setenv("STUDIO_ADMIN_PASSWORD", "pw")
+    s = Settings.load()
+    assert s.deployed is False
+    assert s.config_problems() == []
+    assert s.env_hint == "studio/.env"
+
+
+def test_env_hint_points_at_the_platform_when_deployed(monkeypatch):
+    """The old message told a Render operator to edit studio/.env, which does
+    not exist there."""
+    assert _deployed_settings(monkeypatch).env_hint == "the service's environment variables"
+
+
+def test_supabase_auth_does_not_depend_on_the_record_store(monkeypatch):
+    """The production bug: Supabase was fully configured, but because the
+    record store had fallen back to local the panel silently reported
+    'Local administrator' and refused every sign-in."""
+    s = _deployed_settings(monkeypatch, SUPABASE_URL="https://x.supabase.co",
+                           SUPABASE_ANON_KEY="anon-key", STUDIO_STORE="local")
+    assert s.store_driver == "local"
+    assert s.supabase_auth_configured is True
+    assert not any("Nobody can sign in" in p["what"] for p in s.config_problems())
+
+
+def test_a_degraded_store_is_reported_rather_than_hidden(monkeypatch):
+    """STUDIO_STORE=supabase quietly became local; that must be visible."""
+    s = _deployed_settings(monkeypatch, STUDIO_STORE="supabase",
+                           SUPABASE_URL="https://x.supabase.co", SUPABASE_ANON_KEY="anon-key")
+    assert s.store_driver == "local"
+    assert "SUPABASE_SERVICE_ROLE_KEY" in s.store_fallback_reason
+    assert any("local store is in use" in p["what"] for p in s.config_problems())
+
+
+def test_auth_backend_follows_supabase_config_only(monkeypatch):
+    monkeypatch.setattr(settings, "supabase_url", "https://x.supabase.co")
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    monkeypatch.setattr(settings, "store_driver", "local")
+    assert auth.auth_backend() == "Supabase Auth"
+    monkeypatch.setattr(settings, "supabase_url", "")
+    assert auth.auth_backend() == "Local administrator"
+
+
+# ── password recovery ──────────────────────────────────────────────────────
+
+def test_recovery_needs_supabase(monkeypatch):
+    monkeypatch.setattr(settings, "supabase_url", "")
+    with pytest.raises(auth.AuthError, match="Supabase Auth"):
+        auth.request_password_reset("someone@example.test", "https://markevita.com/studio/reset")
+
+
+def test_recovery_does_not_reveal_whether_an_account_exists(monkeypatch, isolated_store):
+    """The response must not vary with the address, or the page becomes an
+    account-enumeration oracle."""
+    monkeypatch.setattr(settings, "supabase_url", "https://x.supabase.co")
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    sent = []
+
+    class _Resp:
+        status_code = 400
+        def json(self): return {"msg": "User not found"}
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: (sent.append(k), _Resp())[1])
+    auth.request_password_reset("nobody@example.test", "https://markevita.com/studio/reset")
+    assert sent, "the recovery request is still sent"
+    # No exception, no distinguishing return value.
+
+
+def test_recovery_transport_failure_is_swallowed(monkeypatch, isolated_store):
+    monkeypatch.setattr(settings, "supabase_url", "https://x.supabase.co")
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    import httpx
+
+    def boom(*a, **k):
+        raise httpx.ConnectError("network down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    auth.request_password_reset("someone@example.test", "https://markevita.com/studio/reset")
+
+
+def test_short_new_password_is_rejected_before_any_call(monkeypatch):
+    import httpx
+    monkeypatch.setattr(httpx, "put", lambda *a, **k: pytest.fail("must not call Supabase"))
+    with pytest.raises(auth.AuthError, match="at least 8"):
+        auth.update_password("token", "short")
+
+
+def test_invalid_recovery_token_is_reported(monkeypatch):
+    monkeypatch.setattr(settings, "supabase_url", "https://x.supabase.co")
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+
+    class _Resp:
+        status_code = 401
+        def json(self): return {"msg": "Token has expired"}
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: _Resp())
+    with pytest.raises(auth.AuthError, match="expired"):
+        auth.verify_recovery_token("bad-token")
+
+
+def test_sign_in_reports_bad_credentials_plainly(monkeypatch, isolated_store):
+    monkeypatch.setattr(settings, "supabase_url", "https://x.supabase.co")
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+
+    class _Resp:
+        status_code = 400
+        def json(self): return {"error_description": "Invalid login credentials"}
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: _Resp())
+    with pytest.raises(auth.AuthError, match="Invalid email or password"):
+        auth.sign_in("someone@example.test", "wrong")
+
+
+# ── session cookie ─────────────────────────────────────────────────────────
+
+class _FakeRequest:
+    def __init__(self, scheme, forwarded=None):
+        from types import SimpleNamespace
+        self.url = SimpleNamespace(scheme=scheme)
+        self.headers = {"x-forwarded-proto": forwarded} if forwarded else {}
+
+
+def test_cookie_is_secure_behind_an_https_proxy():
+    """The app speaks HTTP behind Netlify and Render; only the forwarded
+    scheme reveals that the browser is on HTTPS."""
+    assert auth.cookie_is_secure(_FakeRequest("http", "https")) is True
+    assert auth.cookie_is_secure(_FakeRequest("http", "https, http")) is True
+
+
+def test_cookie_is_not_secure_on_plain_local_http():
+    """A Secure cookie over local HTTP is never sent back, which looks like a
+    login that silently fails."""
+    assert auth.cookie_is_secure(_FakeRequest("http")) is False
+
+
+def test_cookie_is_secure_on_direct_https():
+    assert auth.cookie_is_secure(_FakeRequest("https")) is True
+
+
+def test_non_ascii_credentials_fail_cleanly(monkeypatch, isolated_store):
+    """compare_digest rejects non-ASCII str, which would raise instead of
+    returning a normal 'invalid password'."""
+    monkeypatch.setattr(settings, "admin_email", "admin@example.test")
+    monkeypatch.setattr(settings, "admin_password", "test-password")
+    with pytest.raises(auth.AuthError):
+        auth.sign_in("админ@example.test", "пароль")
+
+
 # ── public path prefix (markevita.com/studio) ──────────────────────────────
 
 def test_base_path_is_normalised():

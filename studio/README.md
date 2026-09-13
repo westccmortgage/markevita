@@ -162,11 +162,57 @@ SUPABASE_ANON_KEY=…
 SUPABASE_SERVICE_ROLE_KEY=…
 ```
 
-Sign-in then uses Supabase Auth, and an authenticated user must also appear in
-`studio_admins` to be an administrator. The backend uses the service role key
-server-side and bypasses RLS; the policies in the migration exist so the tables
-stay safe if a browser ever reaches them with a user token — administrators can
-read, nobody writes directly.
+The backend uses the service role key server-side and bypasses RLS; the
+policies in the migration exist so the tables stay safe if a browser ever
+reaches them with a user token — administrators can read, nobody writes
+directly.
+
+### Supabase Auth
+
+Sign-in uses Supabase Auth whenever `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+are set. This is **independent of `STUDIO_STORE`**: which database holds the
+series has nothing to do with who may sign in. (An earlier build coupled the
+two, so a degraded record store silently downgraded sign-in to the local
+administrator — the bug behind "No administrator is configured" in
+production.)
+
+An authenticated user must also be an administrator: their email must appear
+in `studio_admins`. To bootstrap the first one, set `STUDIO_ADMIN_EMAIL` to
+that user's email; it is added to the allow-list on first sign-in. No local
+password is needed — the password lives in Supabase.
+
+**Password recovery** is built in: *Forgot password?* on the sign-in page
+emails a link that opens `/studio/reset`, where the user sets a new password.
+Both of Supabase's link formats are handled — `?token_hash=` is verified
+server-side, and an implicit-flow `#access_token=` fragment is moved into the
+form by the page. The page answers identically whether or not the address has
+an account, so it cannot be used to enumerate users.
+
+Two settings in the Supabase dashboard, **Authentication → URL Configuration**:
+
+- **Site URL**: `https://markevita.com`
+- **Redirect URLs**: add `https://markevita.com/studio/reset`
+
+Without the second, Supabase refuses to send users back to the studio. The
+link target is derived from the forwarded headers Netlify sends; set
+`STUDIO_PUBLIC_URL=https://markevita.com` if a platform does not forward them.
+
+### Render environment checklist
+
+```
+STUDIO_BASE_PATH=/studio
+STUDIO_SESSION_SECRET=<fixed random value>      python -c "import secrets;print(secrets.token_hex(32))"
+STUDIO_STORE=supabase
+SUPABASE_URL=…
+SUPABASE_ANON_KEY=…
+SUPABASE_SERVICE_ROLE_KEY=…
+STUDIO_ADMIN_EMAIL=<the first administrator's email>
+STUDIO_ALLOW_PAID=false
+```
+
+The service prints a configuration report at boot and the sign-in page shows
+any fault that would lock an operator out, so a wrong or missing variable is
+visible rather than guessed at. `GET /healthz` reports the count.
 
 Supabase stores records only. Media lives in R2; the database keeps object
 keys, checksums and metadata.

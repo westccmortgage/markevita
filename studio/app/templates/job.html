@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head"><div>
   <h1>Job {{ job.id[:8] }}</h1>
-  <p class="sub"><a href="/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ job.series_id }} / {{ job.episode_id }}</a></p>
+  <p class="sub"><a href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ job.series_id }} / {{ job.episode_id }}</a></p>
 </div><div>
   <span class="pill {{ 'ok' if job.state == 'done' else ('bad' if job.state == 'failed' else ('gold' if job.state == 'running' else 'mute')) }}">{{ job.state }}</span>
 </div></div>

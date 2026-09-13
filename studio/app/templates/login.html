@@ -6,7 +6,7 @@
   {% if err %}<div class="notice err">{{ err }}</div>{% endif %}
   <div class="card">
     <h2>Administrator sign-in</h2>
-    <form method="post" action="/login">
+    <form method="post" action="{{ base }}/login">
       <input type="hidden" name="next" value="{{ next }}">
       <div class="field"><label>Email</label><input type="email" name="email" required autofocus autocomplete="username"></div>
       <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>

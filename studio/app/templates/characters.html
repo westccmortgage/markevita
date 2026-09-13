@@ -17,7 +17,7 @@
 
   <details>
     <summary>Edit identity</summary>
-    <form method="post" action="/series/{{ s.id }}/characters" style="margin-top:12px">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/characters" style="margin-top:12px">
       <input type="hidden" name="character_id" value="{{ c.character_id }}">
       <div class="row">
         <div class="field"><label>Name</label><input type="text" name="name" value="{{ c.name }}" required></div>
@@ -35,7 +35,7 @@
         <textarea name="immutable" rows="3">{{ (c.immutable or [])|join('\n') }}</textarea></div>
       <div class="btn-row"><button class="btn-primary" type="submit">Save</button></div>
     </form>
-    <form method="post" action="/series/{{ s.id }}/characters/{{ c.character_id }}/delete" style="margin-top:10px"
+    <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/delete" style="margin-top:10px"
           onsubmit="return confirm('Remove {{ c.character_id }} with its wardrobe and voice binding?')">
       <button class="btn-danger btn-sm" type="submit">Remove character</button>
     </form>
@@ -52,7 +52,7 @@
           <td><code>{{ w.variant_id }}</code>{% if w.is_default %} <span class="pill ok">default</span>{% endif %}</td>
           <td class="small">{{ w.description or '—' }}</td>
           <td class="small muted">{{ (w.immutable or [])|join('; ') }}</td>
-          <td><form method="post" action="/series/{{ s.id }}/characters/{{ c.character_id }}/clothing/{{ w.variant_id }}/delete">
+          <td><form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/clothing/{{ w.variant_id }}/delete">
             <button class="btn-danger btn-sm" type="submit">Remove</button></form></td>
         </tr>
       {% endfor %}
@@ -62,7 +62,7 @@
     <p class="hint">No wardrobe yet. A character on camera needs at least one variant before references can be generated.</p>
   {% endif %}
   <details><summary>Add or replace a wardrobe variant</summary>
-    <form method="post" action="/series/{{ s.id }}/characters/{{ c.character_id }}/clothing" style="margin-top:12px">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/clothing" style="margin-top:12px">
       <div class="row">
         <div class="field"><label>Variant id</label><input type="text" name="variant_id" placeholder="w_arrival" required></div>
         <div class="field"><label>Default</label><select name="is_default"><option value="">no</option><option value="yes">yes</option></select></div>
@@ -77,7 +77,7 @@
   <hr class="sep">
   <h3>Voice</h3>
   {% set v = c._voice or {} %}
-  <form method="post" action="/series/{{ s.id }}/characters/{{ c.character_id }}/voice">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/voice">
     <div class="row">
       <div class="field"><label>Voice id variable name</label>
         <input type="text" name="voice_env" value="{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}"></div>
@@ -99,7 +99,7 @@
 
 <div class="card">
   <h2>Add character</h2>
-  <form method="post" action="/series/{{ s.id }}/characters">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/characters">
     <div class="row">
       <div class="field"><label>Character id</label><input type="text" name="character_id" placeholder="char_a" required></div>
       <div class="field"><label>Name</label><input type="text" name="name" required></div>

@@ -26,7 +26,7 @@
           {% for k, v in (p.extra_models or {}).items() %}<div class="hint mono">{{ v }}</div>{% endfor %}</td>
         <td class="small muted">{{ p.last_test_at|time }}</td>
         <td class="small" style="max-width:260px;color:{{ 'var(--bad)' if p.last_error else 'var(--ink-faint)' }}">{{ p.last_error or '—' }}</td>
-        <td><form method="post" action="/integrations/{{ p.provider }}/test">
+        <td><form method="post" action="{{ base }}/integrations/{{ p.provider }}/test">
           <button class="btn-sm" type="submit">Test</button></form></td>
       </tr>
     {% endfor %}

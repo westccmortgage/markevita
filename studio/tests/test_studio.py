@@ -211,6 +211,35 @@ def test_missing_credential_is_reported_not_raised(isolated_store, monkeypatch):
     assert result["state"] == "Missing" and "FAL_KEY" in result["last_error"]
 
 
+# ── public path prefix (markevita.com/studio) ──────────────────────────────
+
+def test_base_path_is_normalised():
+    from app.config import Settings
+    for raw, expected in [("/studio/", "/studio"), ("studio", "/studio"),
+                          ("", ""), ("   ", ""), ("/", "")]:
+        os.environ["STUDIO_BASE_PATH"] = raw
+        assert Settings.load().base_path == expected, raw
+    os.environ.pop("STUDIO_BASE_PATH", None)
+
+
+def test_url_helper_prefixes_only_when_configured():
+    from app.config import Settings
+    os.environ["STUDIO_BASE_PATH"] = "/studio"
+    prefixed = Settings.load()
+    assert prefixed.url("/login") == "/studio/login"
+    assert prefixed.url("/") == "/studio/"
+    os.environ.pop("STUDIO_BASE_PATH", None)
+    assert Settings.load().url("/login") == "/login"
+
+
+def test_every_template_url_carries_the_prefix():
+    """A hardcoded internal link would break the panel under /studio."""
+    import re
+    for f in (STUDIO / "app" / "templates").glob("*.html"):
+        bare = re.findall(r'(?:href|action)="/(?!/)[^"]*', f.read_text())
+        assert not bare, f"{f.name} has unprefixed URLs: {bare}"
+
+
 # ── auth ───────────────────────────────────────────────────────────────────
 
 def test_session_cookie_round_trips_and_rejects_tampering():

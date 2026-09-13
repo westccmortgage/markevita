@@ -1,0 +1,10 @@
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+studio/.studio-data/
+studio/.studio-packages/
+studio/.env
+pipeline/runs/
+pipeline/.env
+.venv/
+.git/

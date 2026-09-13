@@ -9,9 +9,9 @@
       {% if s.bible_version %}· bible <code>{{ s.bible_version }}</code>{% endif %}</p>
   </div>
   <div class="btn-row">
-    <a class="btn" href="/series/{{ s.id }}/characters">Characters ({{ characters|length }})</a>
-    <a class="btn" href="/series/{{ s.id }}/locations">Locations ({{ locations|length }})</a>
-    <a class="btn" href="/series/{{ s.id }}/references">References</a>
+    <a class="btn" href="{{ base }}/series/{{ s.id }}/characters">Characters ({{ characters|length }})</a>
+    <a class="btn" href="{{ base }}/series/{{ s.id }}/locations">Locations ({{ locations|length }})</a>
+    <a class="btn" href="{{ base }}/series/{{ s.id }}/references">References</a>
   </div>
 </div>
 
@@ -27,7 +27,7 @@
         <tbody>
         {% for e in validation.episodes %}
           <tr>
-            <td><a href="/series/{{ s.id }}/episodes/{{ e.episode_id }}">{{ e.episode_id }}</a></td>
+            <td><a href="{{ base }}/series/{{ s.id }}/episodes/{{ e.episode_id }}">{{ e.episode_id }}</a></td>
             <td>{% if e.ok %}<span class="pill ok">valid</span>
                 {% elif e.ok is none %}<span class="pill mute">no brief</span>
                 {% else %}<span class="pill bad">invalid</span>{% endif %}</td>
@@ -53,7 +53,7 @@
         {% for e in episodes %}
           <tr>
             <td class="muted">{{ e.number }}</td>
-            <td><a href="/series/{{ s.id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
+            <td><a href="{{ base }}/series/{{ s.id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
             <td>{{ e.title or '—' }}</td>
             <td><span class="pill {{ 'ok' if e.status in ('complete','published') else ('bad' if 'failed' in (e.status or '') else 'mute') }}">{{ e.status }}</span></td>
             <td>{{ e.spent_usd|money }}</td>
@@ -65,7 +65,7 @@
 
     <hr class="sep">
     <h3>Add episode</h3>
-    <form method="post" action="/series/{{ s.id }}/episodes">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes">
       <div class="row">
         <div class="field"><label>Episode id</label><input type="text" name="episode_id" placeholder="s01e01" required></div>
         <div class="field"><label>Season</label>
@@ -91,7 +91,7 @@
     </table></div>
     <hr class="sep">
     <h3>Add season</h3>
-    <form method="post" action="/series/{{ s.id }}/seasons">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/seasons">
       <div class="row">
         <div class="field"><label>Season id</label><input type="text" name="season_id" placeholder="s02" required></div>
         <div class="field"><label>Number</label><input type="number" name="number" value="{{ seasons|length + 1 }}"></div>
@@ -104,7 +104,7 @@
 
 <div class="card">
   <h2>Series settings and visual style</h2>
-  <form method="post" action="/series/{{ s.id }}/settings">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/settings">
     <div class="row">
       <div class="field"><label>Title</label><input type="text" name="title" value="{{ s.title }}" required></div>
       <div class="field"><label>Genre</label><input type="text" name="genre" value="{{ s.genre }}"></div>

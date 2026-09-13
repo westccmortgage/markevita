@@ -38,6 +38,9 @@ class Settings:
     # Offline by default: connection tests check credential presence/shape only.
     allow_connection_tests: bool = False
     store_driver: str = "local"
+    # Public path prefix the panel is served under, e.g. "/studio" when a CDN
+    # proxies markevita.com/studio to this service. Empty when served at root.
+    base_path: str = ""
     admin_email: str = ""
     admin_password: str = ""
     supabase_url: str = ""
@@ -59,6 +62,7 @@ class Settings:
             allow_paid=_bool("STUDIO_ALLOW_PAID", False),
             allow_connection_tests=_bool("STUDIO_ALLOW_CONNECTION_TESTS", False),
             store_driver=_env("STUDIO_STORE", "local").lower(),
+            base_path=_env("STUDIO_BASE_PATH", ""),
             admin_email=_env("STUDIO_ADMIN_EMAIL"),
             admin_password=_env("STUDIO_ADMIN_PASSWORD"),
             supabase_url=_env("SUPABASE_URL"),
@@ -72,9 +76,17 @@ class Settings:
             s.session_secret = _secrets.token_hex(32)
         if s.store_driver == "supabase" and not (s.supabase_url and s.supabase_service_key):
             s.store_driver = "local"
+        # Normalise: no trailing slash, always a leading slash when set.
+        s.base_path = "/" + s.base_path.strip().strip("/") if s.base_path.strip().strip("/") else ""
         s.data_dir.mkdir(parents=True, exist_ok=True)
         s.package_dir.mkdir(parents=True, exist_ok=True)
         return s
+
+    def url(self, path: str = "/") -> str:
+        """A browser-facing URL: the public prefix plus an internal path."""
+        if not path.startswith("/"):
+            path = "/" + path
+        return f"{self.base_path}{path}" if self.base_path else path
 
     @property
     def supabase_configured(self) -> bool:

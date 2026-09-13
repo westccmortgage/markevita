@@ -16,7 +16,7 @@
 <div class="notice info">
   {{ missing|length }} of {{ providers|length }} integrations are not configured
   ({{ missing|map(attribute='label')|join(', ') }}). Mock production runs without them —
-  they are required only for live generation. <a href="/integrations">Review integrations →</a>
+  they are required only for live generation. <a href="{{ base }}/integrations">Review integrations →</a>
 </div>
 {% endif %}
 
@@ -36,11 +36,11 @@
     {% for j in active_jobs %}
       <tr>
         <td>{{ j.series_id }}</td>
-        <td><a href="/series/{{ j.series_id }}/episodes/{{ j.episode_id }}">{{ j.episode_id }}</a></td>
+        <td><a href="{{ base }}/series/{{ j.series_id }}/episodes/{{ j.episode_id }}">{{ j.episode_id }}</a></td>
         <td><span class="pill {{ 'gold' if j.state == 'running' else 'warn' }}">{{ j.state }}</span></td>
         <td class="mono">{{ (j.progress or {}).get('stage') or '—' }}</td>
         <td class="muted small">{{ j.started_at|time }}</td>
-        <td><a class="btn btn-sm" href="/jobs/{{ j.id }}">Log</a></td>
+        <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">Log</a></td>
       </tr>
     {% endfor %}
     </tbody>
@@ -57,7 +57,7 @@
         <tbody>
         {% for x in series %}
           <tr>
-            <td><a href="/series/{{ x.id }}">{{ x.title }}</a></td>
+            <td><a href="{{ base }}/series/{{ x.id }}">{{ x.title }}</a></td>
             <td><code>{{ x.id }}</code></td>
             <td>{{ episodes|selectattr('series_id','equalto',x.id)|list|length }}</td>
             <td>
@@ -75,7 +75,7 @@
 
   <div class="card">
     <h2>New series</h2>
-    <form method="post" action="/series">
+    <form method="post" action="{{ base }}/series">
       <div class="field"><label>Title</label><input type="text" name="title" required placeholder="Island of No Witnesses"></div>
       <div class="field"><label>Series id</label><input type="text" name="series_id" placeholder="island_of_no_witnesses">
         <p class="hint">Lowercase letters, digits and underscores. Left blank, it is derived from the title.</p></div>

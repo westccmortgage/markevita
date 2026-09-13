@@ -41,7 +41,7 @@
   <h2>Approve the pack</h2>
   <p class="hint" style="margin-top:-8px">Required before keyframes and video may use these references.
     The decision is recorded against the exact bible version.</p>
-  <form method="post" action="/series/{{ s.id }}/references/approve">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/references/approve">
     <div class="field" style="max-width:460px"><label>Note</label><input type="text" name="note" placeholder="optional"></div>
     <button class="btn-primary" type="submit" {{ 'disabled' if not total }}>Approve reference pack</button>
   </form>

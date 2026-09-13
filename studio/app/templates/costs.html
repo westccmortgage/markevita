@@ -22,7 +22,7 @@
       <thead><tr><th>Series</th><th>Episode</th><th>Calls</th><th>Estimated</th><th>Actual</th></tr></thead>
       <tbody>{% for e in by_episode %}
         <tr><td>{{ e.series_id }}</td>
-            <td><a href="/series/{{ e.series_id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
+            <td><a href="{{ base }}/series/{{ e.series_id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
             <td>{{ e.calls }}</td><td>{{ e.estimated_usd|money }}</td><td><b>{{ e.actual_usd|money }}</b></td></tr>
       {% endfor %}</tbody>
     </table></div>

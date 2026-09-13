@@ -29,7 +29,8 @@ app.include_router(web_router)
 async def unauthorized(request: Request, exc):
     if request.url.path.startswith("/api/"):
         return JSONResponse({"error": "Sign in required"}, status_code=401)
-    return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+    target = settings.url(request.url.path)
+    return RedirectResponse(settings.url(f"/login?next={target}"), status_code=303)
 
 
 @app.get("/healthz", include_in_schema=False)

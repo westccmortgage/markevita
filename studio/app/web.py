@@ -52,12 +52,14 @@ def _jsonlist(raw: str) -> list:
 
 
 def _redirect(path: str, ok: str = "", err: str = "") -> RedirectResponse:
+    """Redirect the browser. `path` is an internal path; the public prefix
+    (STUDIO_BASE_PATH) is added here so one call site cannot forget it."""
     sep = "&" if "?" in path else "?"
     if ok:
         path = f"{path}{sep}ok={ok}"
     elif err:
         path = f"{path}{sep}err={err}"
-    return RedirectResponse(path, status_code=303)
+    return RedirectResponse(settings.url(path), status_code=303)
 
 
 def render(request: Request, template: str, **ctx) -> HTMLResponse:
@@ -73,10 +75,10 @@ def render(request: Request, template: str, **ctx) -> HTMLResponse:
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
     if current_admin(request):
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse(settings.url("/"), status_code=303)
     return templates.TemplateResponse(request, "login.html", {
         "err": request.query_params.get("err"),
-        "next": request.query_params.get("next", "/"),
+        "next": request.query_params.get("next") or settings.url("/"),
         "admin": None, "all_series": [],
     })
 
@@ -88,18 +90,20 @@ def login(request: Request, email: str = Form(...), password: str = Form(...),
         session = auth.sign_in(email, password)
     except auth.AuthError as e:
         return _redirect("/login", err=str(e))
-    response = RedirectResponse(next or "/", status_code=303)
+    # `next` arrives already public-prefixed from the sign-in form.
+    response = RedirectResponse(next or settings.url("/"), status_code=303)
     response.set_cookie(
         auth.COOKIE, auth.serialize(session), max_age=auth.MAX_AGE,
-        httponly=True, samesite="lax", secure=not settings.host.startswith("127."),
+        httponly=True, samesite="lax", path=settings.base_path or "/",
+        secure=not settings.host.startswith("127."),
     )
     return response
 
 
 @router.get("/logout")
 def logout():
-    response = RedirectResponse("/login", status_code=303)
-    response.delete_cookie(auth.COOKIE)
+    response = RedirectResponse(settings.url("/login"), status_code=303)
+    response.delete_cookie(auth.COOKIE, path=settings.base_path or "/")
     return response
 
 

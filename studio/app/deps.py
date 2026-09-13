@@ -45,6 +45,7 @@ def fmt_time(v) -> str:
 
 templates.env.filters["money"] = fmt_money
 templates.env.filters["time"] = fmt_time
+templates.env.globals["base"] = settings.base_path
 templates.env.globals["mode"] = settings.mode
 templates.env.globals["store_driver"] = settings.store_driver
 templates.env.globals["auth_backend"] = auth.auth_backend()

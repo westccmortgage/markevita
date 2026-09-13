@@ -18,7 +18,7 @@
       </div>
       {% if l.immutable %}<div class="small muted" style="margin-top:5px"><b>Immutable:</b> {{ l.immutable|join('; ') }}</div>{% endif %}
       <details style="margin-top:8px"><summary>Edit</summary>
-        <form method="post" action="/series/{{ s.id }}/locations" style="margin-top:10px">
+        <form method="post" action="{{ base }}/series/{{ s.id }}/locations" style="margin-top:10px">
           <input type="hidden" name="location_id" value="{{ l.location_id }}">
           <div class="field"><label>Name</label><input type="text" name="name" value="{{ l.name }}" required></div>
           <div class="field"><label>Description — English, 80–150 words: geometry, materials, fixtures, view</label>
@@ -30,7 +30,7 @@
           <div class="field"><label>Immutable — one per line</label><textarea name="immutable" rows="2">{{ (l.immutable or [])|join('\n') }}</textarea></div>
           <button class="btn-primary" type="submit">Save</button>
         </form>
-        <form method="post" action="/series/{{ s.id }}/locations/{{ l.location_id }}/delete" style="margin-top:9px">
+        <form method="post" action="{{ base }}/series/{{ s.id }}/locations/{{ l.location_id }}/delete" style="margin-top:9px">
           <button class="btn-danger btn-sm" type="submit">Remove location</button></form>
       </details>
     </div>
@@ -39,7 +39,7 @@
 
   <hr class="sep">
   <h3>Add location</h3>
-  <form method="post" action="/series/{{ s.id }}/locations">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/locations">
     <div class="row">
       <div class="field"><label>Location id</label><input type="text" name="location_id" placeholder="villa_terrace" required></div>
       <div class="field"><label>Name</label><input type="text" name="name" required></div>
@@ -60,13 +60,13 @@
       <thead><tr><th>Id</th><th>Description</th><th></th></tr></thead>
       <tbody>{% for p in props %}
         <tr><td><code>{{ p.prop_id }}</code></td><td class="small">{{ p.description }}</td>
-        <td><form method="post" action="/series/{{ s.id }}/props/{{ p.prop_id }}/delete">
+        <td><form method="post" action="{{ base }}/series/{{ s.id }}/props/{{ p.prop_id }}/delete">
           <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
       {% endfor %}</tbody>
     </table></div>
   {% else %}<p class="hint">No props. Props are optional — add them when an object must stay consistent between clips.</p>{% endif %}
   <hr class="sep">
-  <form method="post" action="/series/{{ s.id }}/props">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/props">
     <div class="row">
       <div class="field"><label>Prop id</label><input type="text" name="prop_id" placeholder="passenger_list" required></div>
       <div class="field"><label>Description</label><input type="text" name="description"></div>

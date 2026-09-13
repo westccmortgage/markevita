@@ -18,14 +18,14 @@
               <td class="small">{{ r.type }}{% if r.is_public %} <span class="pill mute">public</span>{% endif %}</td>
               <td><span class="pill gold">{{ r.state }}</span>
                   {% if r.allowed_states %}<div class="hint">{{ r.allowed_states|join(' · ') }}</div>{% endif %}</td>
-              <td><form method="post" action="/series/{{ s.id }}/relationships/{{ r.rel_id }}/delete">
+              <td><form method="post" action="{{ base }}/series/{{ s.id }}/relationships/{{ r.rel_id }}/delete">
                 <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
         {% endfor %}</tbody>
       </table></div>
     {% else %}<div class="empty">No relationships defined.</div>{% endif %}
     <hr class="sep">
     <h3>Add relationship</h3>
-    <form method="post" action="/series/{{ s.id }}/relationships">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/relationships">
       <div class="row">
         <div class="field"><label>Id</label><input type="text" name="rel_id" placeholder="rel_a_b" required></div>
         <div class="field"><label>Character A</label>
@@ -54,14 +54,14 @@
         <tbody>{% for x in secrets %}
           <tr><td><code>{{ x.secret_id }}</code></td><td class="small">{{ x.description }}</td>
               <td class="small muted">{{ (x.holders_initial or [])|join(', ') or 'nobody' }}</td>
-              <td><form method="post" action="/series/{{ s.id }}/secrets/{{ x.secret_id }}/delete">
+              <td><form method="post" action="{{ base }}/series/{{ s.id }}/secrets/{{ x.secret_id }}/delete">
                 <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
         {% endfor %}</tbody>
       </table></div>
     {% else %}<div class="empty">No secrets defined.</div>{% endif %}
     <hr class="sep">
     <h3>Add secret</h3>
-    <form method="post" action="/series/{{ s.id }}/secrets">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/secrets">
       <div class="field"><label>Secret id</label><input type="text" name="secret_id" placeholder="secret_x" required></div>
       <div class="field"><label>Description</label><textarea name="description" rows="2"></textarea></div>
       <div class="field"><label>Who knows it at series start — one id per line</label><textarea name="holders_initial" rows="2"></textarea></div>

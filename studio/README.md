@@ -184,6 +184,49 @@ is promoted there without approval. Without R2 configured the media stays under
 
 ---
 
+## Deploying to markevita.com/studio
+
+The studio is a stateful Python service with background workers and ffmpeg, so
+it **cannot run on Netlify's static hosting**. The public site stays on Netlify
+exactly as it is; the studio runs on its own host and Netlify proxies the
+`/studio` path to it.
+
+**1. Host the service.** Any platform that runs a container works — Fly.io,
+Railway, Render, Cloudflare Containers, a VPS:
+
+```bash
+docker build -f studio/Dockerfile -t markevita-studio .   # from the repo root
+```
+
+The image sets `STUDIO_BASE_PATH=/studio` already. Supply the rest of `.env`
+as the platform's environment variables — secrets never go in the image.
+
+**2. Point Netlify at it.** In [`../_redirects`](../_redirects), uncomment the
+rule and replace the host:
+
+```
+/studio/*  https://your-backend-host/:splat  200
+/*  /index.html  200
+```
+
+The `/studio` rule must stay **above** the catch-all, which would otherwise
+swallow it. Netlify strips the prefix, the service answers at its own root, and
+`STUDIO_BASE_PATH` puts the prefix back into every link, redirect and cookie.
+
+**3. Persist state.** The container filesystem is ephemeral. Before deploying,
+switch `STUDIO_STORE=supabase` and configure R2 — otherwise records and media
+are lost on every restart.
+
+Two caveats worth knowing before you rely on this:
+
+- Run **one** worker. Production jobs are in-process background threads, so a
+  second worker would keep its own job table. Scaling out means moving the
+  queue into Supabase first.
+- The admin panel is an internal tool. On a public domain it is protected only
+  by the sign-in; consider IP restriction or an access proxy in front of it.
+
+---
+
 ## Tests
 
 ```bash

@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>{{ ep.title or ep.episode_id }}</h1>
-    <p class="sub"><a href="/series/{{ s.id }}">{{ s.title }}</a> · <code>{{ ep.episode_id }}</code>
+    <p class="sub"><a href="{{ base }}/series/{{ s.id }}">{{ s.title }}</a> · <code>{{ ep.episode_id }}</code>
       · episode {{ ep.number }} · {{ scenes|length }} scenes</p>
   </div>
   <div class="btn-row">
@@ -39,7 +39,7 @@
     <div class="notice info">
       Job <code>{{ active_job.id[:8] }}</code> is <b>{{ active_job.state }}</b>{% if (active_job.progress or {}).get('stage') %}
       at stage <code>{{ active_job.progress.stage }}</code>{% endif %}.
-      <a href="/jobs/{{ active_job.id }}">Open log →</a>
+      <a href="{{ base }}/jobs/{{ active_job.id }}">Open log →</a>
     </div>
   {% endif %}
 
@@ -51,7 +51,7 @@
       {% if ep_validation.warnings %}<br>Warnings: {{ ep_validation.warnings|join('; ') }}{% endif %}</div>
   {% endif %}
 
-  <form method="post" action="/series/{{ s.id }}/episodes/{{ ep.episode_id }}/production">
+  <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/production">
     <fieldset><legend>Stages to run</legend>
       <div class="checks">
         {% for st in default_stages %}
@@ -79,7 +79,7 @@
     <hr class="sep">
     <div class="notice mode"><b>Budget cap reached.</b> The run stopped rather than continuing silently.
       An override is recorded with actor, time, old value, new value and reason.</div>
-    <form method="post" action="/series/{{ s.id }}/episodes/{{ ep.episode_id }}/override">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/override">
       <div class="row">
         <div class="field"><label>Limit</label>
           <select name="key"><option>MAX_EPISODE_BUDGET_USD</option></select></div>
@@ -102,7 +102,7 @@
   {% endif %}
   <details {{ 'open' if not scenes }}>
     <summary>Paste or upload a script</summary>
-    <form method="post" action="/series/{{ s.id }}/episodes/{{ ep.episode_id }}/script" enctype="multipart/form-data" style="margin-top:12px">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/script" enctype="multipart/form-data" style="margin-top:12px">
       <div class="field">
         <label>Script text — structured format or a full JSON brief</label>
         <textarea name="content" rows="16" placeholder="SCENE sc01 | 6s | villa_terrace | night
@@ -173,7 +173,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
                   <td>{{ t.actual_usd|money }}</td>
                   <td>{% if t.selected %}<span class="pill ok">selected</span>{% else %}<span class="pill mute">alternate</span>{% endif %}</td>
                   <td>{% if not t.selected %}
-                    <form method="post" action="/series/{{ s.id }}/takes/{{ t.take_id }}/select">
+                    <form method="post" action="{{ base }}/series/{{ s.id }}/takes/{{ t.take_id }}/select">
                       <input type="hidden" name="back" value="/series/{{ s.id }}/episodes/{{ ep.episode_id }}">
                       <button class="btn-sm" type="submit">Select</button></form>
                   {% endif %}</td>
@@ -223,7 +223,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
     {% else %}
       <p class="hint" style="margin-top:-8px">Approval is only possible once the episode reaches <code>complete</code>.
         Approving records the decision; it does not publish. Instagram publishing is disabled in this build.</p>
-      <form method="post" action="/series/{{ s.id }}/episodes/{{ ep.episode_id }}/approve">
+      <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/approve">
         <div class="field"><label>Note</label><input type="text" name="note" placeholder="optional"></div>
         <button class="btn-primary" type="submit" {{ 'disabled' if runtime.status != 'complete' }}>Approve episode</button>
       </form>
@@ -244,7 +244,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
 
     <hr class="sep">
     <h3>Episode details</h3>
-    <form method="post" action="/series/{{ s.id }}/episodes/{{ ep.episode_id }}/settings">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/settings">
       <div class="row">
         <div class="field"><label>Title</label><input type="text" name="title" value="{{ ep.title }}"></div>
         <div class="field"><label>Number</label><input type="number" name="number" value="{{ ep.number }}"></div>
@@ -298,7 +298,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
           <td class="small muted">{{ j.started_at|time }}</td>
           <td class="small muted">{{ j.finished_at|time }}</td>
           <td class="small" style="max-width:260px;color:var(--bad)">{{ j.error or '' }}</td>
-          <td><a class="btn btn-sm" href="/jobs/{{ j.id }}">Log</a></td></tr>
+          <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">Log</a></td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>

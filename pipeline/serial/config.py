@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from dotenv import load_dotenv
+from .fal_auth import normalize_key
 
 
 def _bool(v, default: bool) -> bool:
@@ -81,7 +82,7 @@ class Config:
         c = cls(
             anthropic_api_key=_env("ANTHROPIC_API_KEY"),
             anthropic_model=_env("ANTHROPIC_MODEL", "claude-sonnet-5"),
-            fal_key=_env("FAL_KEY"),
+            fal_key=normalize_key(_env("FAL_KEY")),
             fal_video_model=_env("FAL_VIDEO_MODEL", "fal-ai/veo3.1/fast/image-to-video"),
             fal_image_model=_env("FAL_IMAGE_MODEL", "fal-ai/nano-banana-2/edit"),
             fal_lipsync_model=_env("FAL_LIPSYNC_MODEL", "fal-ai/sync-lipsync/v2"),

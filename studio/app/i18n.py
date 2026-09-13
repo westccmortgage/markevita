@@ -47,6 +47,7 @@ def notice(context, value):
     # Only known application wording is rewritten. This filter must not be used
     # for scripts, prompts, descriptions, user titles, or dialogue.
     replacements = [
+        (r'^fal.ai metadata check returned HTTP (\d+)\. Authentication was not confirmed\.$', r'Проверка служебного API fal.ai вернула HTTP \1. Авторизация не подтверждена.'),
         (r'^Configure before production: (.+)$', r'До запуска настройте: \1'),
         (r'^Assign ElevenLabs voices for (.+), or choose Native scene audio\.$', r'Назначьте голоса ElevenLabs персонажам: \1. Либо выберите встроенную речь.'),
         (r'^(FAL_\w+): this production adapter requires (.+)\. Other models need a separate integration\.$', r'\1: текущая интеграция рассчитана на \2. Другую модель нужно подключать отдельно.'),

@@ -4,6 +4,7 @@ import os
 import shutil
 
 from serial.costs import PRICE
+from serial.fal_auth import key_problem
 
 
 DEPENDENCIES = {
@@ -27,6 +28,9 @@ def problems(cfg, stages, pkg):
         missing.append('R2 storage credentials')
     if missing:
         errors.append('Configure before production: ' + ', '.join(dict.fromkeys(missing)))
+    if {'references', 'keyframes', 'video', 'lipsync'}.intersection(needed) and cfg.fal_key:
+        if error := key_problem(cfg.fal_key):
+            errors.append(error)
     # The current adapters and prices implement these exact endpoints. A new
     # model needs its own payload/price adapter, not just a changed env value.
     supported = [({'references', 'keyframes'}, 'FAL_IMAGE_MODEL', cfg.fal_image_model, 'fal-ai/nano-banana-2/edit'),

@@ -14,7 +14,7 @@ from test_i18n import language_ui
 
 
 def configured():
-    cfg = Config(mode='live', allow_paid_env=True, anthropic_api_key='test', fal_key='test',
+    cfg = Config(mode='live', allow_paid_env=True, anthropic_api_key='test', fal_key='test:secret',
                  elevenlabs_api_key='test', r2_account_id='test', r2_access_key_id='test',
                  r2_secret_access_key='test', r2_bucket='test')
     cfg.native_dialogue = True

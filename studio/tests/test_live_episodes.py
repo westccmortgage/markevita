@@ -347,7 +347,7 @@ def test_live_orchestration_pauses_for_refs_resumes_and_delivers_32s(short_packa
     monkeypatch.setattr(settings, 'store_driver', 'supabase')
     monkeypatch.setattr(runner, 'RUNS_ROOT', tmp_path / 'runs')
     store.update('series', {'id': sid}, {'format': {'aspect_ratio': '9:16', 'width': 180, 'height': 320, 'captions': 'srt'}})
-    cfg = Config(mode='live', allow_paid_env=True, anthropic_api_key='offline-test', fal_key='offline-test',
+    cfg = Config(mode='live', allow_paid_env=True, anthropic_api_key='offline-test', fal_key='offline-test:secret',
                  r2_account_id='offline', r2_bucket='private', r2_access_key_id='offline', r2_secret_access_key='offline')
     monkeypatch.setattr(Config, 'load', lambda *a, **k: cfg)
     r2client = R2Fake()

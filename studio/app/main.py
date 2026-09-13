@@ -64,6 +64,10 @@ async def report_configuration() -> None:
     problems = settings.config_problems()
     print(f"[studio] mode={settings.mode} store={settings.store_driver} "
           f"base_path={settings.base_path or '/'} deployed={settings.deployed}")
+    from serial.fal_auth import key_id_prefix, key_problem
+    fal_value = os.getenv('FAL_KEY')
+    print(f"[studio] fal key ID prefix={key_id_prefix(fal_value) or 'unavailable'}; "
+          f"format={key_problem(fal_value) or 'OK'}; provider access not checked")
     if not problems:
         print("[studio] configuration OK")
         return

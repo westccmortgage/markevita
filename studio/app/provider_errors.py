@@ -44,7 +44,7 @@ def fal_diagnostic(exc, request_id=None, phase="collect"):
     advice = _TYPES.get(kind)
     if advice is None:
         if status == 401:
-            advice = "fal.ai authentication failed. Check the API key in Render."
+            advice = "fal.ai authentication failed. Open Integrations to compare the loaded key ID and check authentication without generation."
         elif status == 402:
             advice = "fal.ai requires a billing check. Check the fal.ai account balance and billing status."
         elif status == 403:

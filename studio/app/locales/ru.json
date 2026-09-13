@@ -609,5 +609,17 @@
   "Set PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE for your plan, or choose Native scene audio.": "Укажите стоимость ElevenLabs для своего тарифа в PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE. Либо выберите встроенную речь.",
   "Video aspect ratio: the configured video model supports 16:9 or 9:16.": "Формат видео: выбранная модель поддерживает 16:9 или 9:16.",
   "Episode budget: enter a finite amount greater than zero.": "Бюджет эпизода: укажите корректную сумму больше нуля.",
-  "Choose production stages from the episode form; publishing is separate.": "Выберите этапы в форме эпизода. Публикация выполняется отдельно."
+  "Choose production stages from the episode form; publishing is separate.": "Выберите этапы в форме эпизода. Публикация выполняется отдельно.",
+  "FAL_KEY is missing.": "FAL_KEY не задан.",
+  "FAL_KEY contains a header or variable prefix. Paste only the full key_id:key_secret value.": "В FAL_KEY попал префикс заголовка или имя переменной. Вставьте только полное значение key_id:key_secret.",
+  "FAL_KEY contains quotes or masking characters. Paste the full value copied when the key was created.": "В FAL_KEY есть кавычки или символы маскировки. Вставьте полное значение, скопированное при создании ключа.",
+  "FAL_KEY contains whitespace or non-ASCII characters. Copy the complete key again.": "Внутри FAL_KEY есть пробелы или посторонние символы. Скопируйте полный ключ ещё раз.",
+  "FAL_KEY must contain both key_id and key_secret separated by a colon. The dashboard ID alone is not a key.": "FAL_KEY должен содержать ID и секретную часть через двоеточие. Одного ID из списка ключей недостаточно.",
+  "Authentication checked — generation not tested": "Авторизация проверена — генерация не проверялась",
+  "Loaded key ID starts with": "ID загруженного ключа начинается с",
+  "Local check only. Enable STUDIO_ALLOW_CONNECTION_TESTS=true in Render for an authentication check without generation.": "Сейчас проверяется только формат. Для проверки авторизации без генерации включите STUDIO_ALLOW_CONNECTION_TESTS=true в Render.",
+  "fal.ai rejected the key loaded by this server (HTTP 401). Check the full FAL_KEY value in Render.": "fal.ai отклонил ключ, загруженный этим сервером (HTTP 401). Проверьте полное значение FAL_KEY в Render.",
+  "fal.ai returned an unexpected metadata response. Authentication was not confirmed.": "fal.ai вернул неожиданный ответ служебного API. Авторизация не подтверждена.",
+  "These checks confirm configuration, not permission to generate with every model. fal.ai, ElevenLabs, Supabase and R2 can also test metadata access when connection tests are enabled. No generation is started.": "Эта проверка подтверждает настройки. Доступ к генерации каждой модели проверяется отдельно. Для fal.ai, ElevenLabs, Supabase и R2 доступна проверка служебного API, если она включена. Генерация не запускается.",
+  "fal.ai authentication failed. Open Integrations to compare the loaded key ID and check authentication without generation.": "fal.ai не принял авторизацию. Откройте «Интеграции»: там можно сверить ID загруженного ключа и проверить авторизацию без генерации."
 }

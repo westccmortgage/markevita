@@ -862,7 +862,7 @@ def test_integration_form(request: Request, provider: str):
     history("", "", "integration.test", entity_type="integration", entity_id=provider,
             actor=a["email"], detail={"connected": result["connected"]})
     if result["connected"]:
-        return _redirect("/integrations", ok=f"{result['label']}: connected.")
+        return _redirect("/integrations", ok=f"{result['label']}: {result['state']}")
     return _redirect("/integrations", err=f"{result['label']}: {result['last_error']}")
 
 

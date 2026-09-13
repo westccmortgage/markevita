@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Jobs — Series Studio{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Production jobs</h1>
+<p class="sub">Each job runs the engine's stages in a background worker. Pausing stops at the next stage boundary; resuming skips completed stages.</p></div></div>
+<div class="card">
+  {% if jobs %}
+    <div class="table-scroll"><table>
+      <thead><tr><th>Job</th><th>Series</th><th>Episode</th><th>State</th><th>Stage</th><th>Mode</th><th>Requested by</th><th>Created</th><th></th></tr></thead>
+      <tbody>{% for j in jobs %}
+        <tr><td><code>{{ j.id[:8] }}</code></td><td class="small">{{ j.series_id }}</td>
+            <td class="small"><a href="/series/{{ j.series_id }}/episodes/{{ j.episode_id }}">{{ j.episode_id }}</a></td>
+            <td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else ('gold' if j.state == 'running' else 'mute')) }}">{{ j.state }}</span></td>
+            <td class="small mono">{{ (j.progress or {}).get('stage') or '—' }}</td>
+            <td class="small muted">{{ j.mode }}</td>
+            <td class="small muted">{{ j.requested_by }}</td>
+            <td class="small muted">{{ j.created_at|time }}</td>
+            <td><a class="btn btn-sm" href="/jobs/{{ j.id }}">Open</a></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  {% else %}<div class="empty">No jobs yet.</div>{% endif %}
+</div>
+{% endblock %}

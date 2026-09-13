@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Production dashboard</h1>
+    <p class="sub">MarkeVita operates this studio. Each series below is an independent production with its own bible, budget and approvals.</p>
+  </div>
+</div>
+
+<div class="notice mode">
+  <b>Mock mode.</b> Every provider call is simulated, no money is spent, and nothing is published.
+  Records are held in the <b>{{ store_driver }}</b> store; sign-in uses <b>{{ auth_backend }}</b>.
+</div>
+
+{% if missing %}
+<div class="notice info">
+  {{ missing|length }} of {{ providers|length }} integrations are not configured
+  ({{ missing|map(attribute='label')|join(', ') }}). Mock production runs without them —
+  they are required only for live generation. <a href="/integrations">Review integrations →</a>
+</div>
+{% endif %}
+
+<div class="grid g4" style="margin-bottom:20px">
+  <div class="stat"><div class="k">Series</div><div class="v">{{ series|length }}</div></div>
+  <div class="stat"><div class="k">Episodes</div><div class="v">{{ episodes|length }}</div></div>
+  <div class="stat"><div class="k">Active jobs</div><div class="v {{ 'gold' if active_jobs }}">{{ active_jobs|length }}</div></div>
+  <div class="stat"><div class="k">Simulated spend</div><div class="v">{{ total_cost|money }}</div></div>
+</div>
+
+{% if active_jobs %}
+<div class="card">
+  <h2>Running now</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Series</th><th>Episode</th><th>State</th><th>Stage</th><th>Started</th><th></th></tr></thead>
+    <tbody>
+    {% for j in active_jobs %}
+      <tr>
+        <td>{{ j.series_id }}</td>
+        <td><a href="/series/{{ j.series_id }}/episodes/{{ j.episode_id }}">{{ j.episode_id }}</a></td>
+        <td><span class="pill {{ 'gold' if j.state == 'running' else 'warn' }}">{{ j.state }}</span></td>
+        <td class="mono">{{ (j.progress or {}).get('stage') or '—' }}</td>
+        <td class="muted small">{{ j.started_at|time }}</td>
+        <td><a class="btn btn-sm" href="/jobs/{{ j.id }}">Log</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Series</h2>
+    {% if series %}
+      <div class="table-scroll"><table>
+        <thead><tr><th>Title</th><th>Id</th><th>Episodes</th><th>Approval</th></tr></thead>
+        <tbody>
+        {% for x in series %}
+          <tr>
+            <td><a href="/series/{{ x.id }}">{{ x.title }}</a></td>
+            <td><code>{{ x.id }}</code></td>
+            <td>{{ episodes|selectattr('series_id','equalto',x.id)|list|length }}</td>
+            <td>
+              {% set st = (x.approval or {}).get('status', 'draft') %}
+              <span class="pill {{ 'ok' if st == 'approved' else 'mute' }}">{{ st }}</span>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      <div class="empty">No series yet. Create the first one on the right.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>New series</h2>
+    <form method="post" action="/series">
+      <div class="field"><label>Title</label><input type="text" name="title" required placeholder="Island of No Witnesses"></div>
+      <div class="field"><label>Series id</label><input type="text" name="series_id" placeholder="island_of_no_witnesses">
+        <p class="hint">Lowercase letters, digits and underscores. Left blank, it is derived from the title.</p></div>
+      <div class="field"><label>Logline</label><input type="text" name="logline" placeholder="One sentence."></div>
+      <div class="row">
+        <div class="field"><label>Genre</label><input type="text" name="genre" placeholder="mystery thriller"></div>
+        <div class="field"><label>Language</label><input type="text" name="language" value="en-US"></div>
+        <div class="field"><label>Aspect ratio</label>
+          <select name="aspect_ratio"><option value="9:16">9:16 vertical</option><option value="16:9">16:9 landscape</option></select>
+        </div>
+      </div>
+      <button class="btn-primary" type="submit">Create series</button>
+    </form>
+  </div>
+</div>
+
+{% if recent %}
+<div class="card">
+  <h2>Recent activity</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>When</th><th>Event</th><th>Entity</th><th>Actor</th></tr></thead>
+    <tbody>
+    {% for h in recent %}
+      <tr><td class="muted small">{{ h.created_at|time }}</td>
+          <td class="mono">{{ h.event }}</td>
+          <td class="muted">{{ h.entity_type }} {{ h.entity_id }}</td>
+          <td class="muted small">{{ h.actor }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

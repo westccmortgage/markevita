@@ -1,0 +1,9 @@
+# MarkeVita AI Series Studio — backend service + admin panel.
+# The v0.3 engine's own dependencies come from ../pipeline/requirements.txt.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+jinja2>=3.1
+python-multipart>=0.0.9
+itsdangerous>=2.2
+httpx>=0.27
+supabase>=2.10

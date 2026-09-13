@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}MarkeVita AI Series Studio{% endblock %}</title>
+<link rel="stylesheet" href="/static/studio.css">
+</head>
+<body>
+{% if admin %}
+<header class="topbar">
+  <div class="brand">MARKE<span>VITA</span> · Series Studio</div>
+  <nav class="topnav">
+    <a href="/" class="{{ 'on' if request.url.path == '/' }}">Dashboard</a>
+    {% if s is defined and s %}
+      <a href="/series/{{ s.id }}" class="{{ 'on' if request.url.path == '/series/' ~ s.id }}">{{ s.title }}</a>
+      <a href="/series/{{ s.id }}/characters" class="{{ 'on' if 'characters' in request.url.path }}">Characters</a>
+      <a href="/series/{{ s.id }}/locations" class="{{ 'on' if 'locations' in request.url.path }}">Locations</a>
+      <a href="/series/{{ s.id }}/world" class="{{ 'on' if 'world' in request.url.path }}">World</a>
+      <a href="/series/{{ s.id }}/references" class="{{ 'on' if 'references' in request.url.path }}">References</a>
+    {% endif %}
+    <a href="/jobs" class="{{ 'on' if request.url.path.startswith('/jobs') }}">Jobs</a>
+    <a href="/costs" class="{{ 'on' if request.url.path == '/costs' }}">Costs</a>
+    <a href="/integrations" class="{{ 'on' if request.url.path == '/integrations' }}">Integrations</a>
+  </nav>
+  <div class="topbar-right">
+    <span class="pill {{ 'warn' if mode == 'mock' else 'bad' }}"><i class="dot"></i>{{ mode }} mode</span>
+    <span>{{ admin.email }}</span>
+    <a href="/logout">Sign out</a>
+  </div>
+</header>
+{% endif %}
+
+<main class="wrap {% block wrapclass %}{% endblock %}">
+  {% if ok %}<div class="notice ok">{{ ok }}</div>{% endif %}
+  {% if err %}<div class="notice err">{{ err }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

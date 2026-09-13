@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}References — {{ s.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Reference pack</h1>
+  <p class="sub">One pack per bible version: headshots, expressions, a full-body reference per wardrobe variant, locations and props.
+    Any change to the bible invalidates the approval and the pack is regenerated.</p>
+</div></div>
+
+{% set approved = approvals and approvals[-1] %}
+{% if approved %}
+  <div class="notice ok">Approved for bible <code>{{ approved.subject_id }}</code>
+    by <b>{{ approved.actor }}</b> on {{ approved.created_at|time }}.
+    {% if s.bible_version and s.bible_version != approved.subject_id %}
+      <br><b>The bible has changed since</b> (now <code>{{ s.bible_version }}</code>) — regenerate and re-approve.
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="card">
+  <h2>{{ total }} reference asset{{ '' if total == 1 else 's' }}</h2>
+  {% if grouped %}
+    {% for kind, items in grouped.items() %}
+      <h3 style="margin-top:16px">{{ kind }}</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Owner</th><th>Asset</th><th>Approval</th><th>Object key</th><th>Checksum</th></tr></thead>
+        <tbody>{% for r in items %}
+          <tr><td><code>{{ r.owner_id }}</code></td><td class="small">{{ r.name }}</td>
+              <td><span class="pill {{ 'ok' if r.approval == 'approved' else 'warn' }}">{{ r.approval }}</span></td>
+              <td class="small muted mono">{{ r.r2_key or '(local, R2 not configured)' }}</td>
+              <td class="small muted mono">{{ (r.checksum or '')[:12] }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">No references yet. Run the <code>references</code> stage on any episode of this series.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Approve the pack</h2>
+  <p class="hint" style="margin-top:-8px">Required before keyframes and video may use these references.
+    The decision is recorded against the exact bible version.</p>
+  <form method="post" action="/series/{{ s.id }}/references/approve">
+    <div class="field" style="max-width:460px"><label>Note</label><input type="text" name="note" placeholder="optional"></div>
+    <button class="btn-primary" type="submit" {{ 'disabled' if not total }}>Approve reference pack</button>
+  </form>
+</div>
+{% endblock %}

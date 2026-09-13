@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}World — {{ s.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Relationships, secrets and knowledge</h1>
+  <p class="sub">The engine simulates these across scenes and episodes. A brief where someone acts on a secret nobody told them is rejected before any generation starts.</p>
+</div></div>
+
+<div class="grid g2">
+  <div class="card">
+    <h2>Relationships</h2>
+    {% if relationships %}
+      <div class="table-scroll"><table>
+        <thead><tr><th>Id</th><th>Between</th><th>Type</th><th>State</th><th></th></tr></thead>
+        <tbody>{% for r in relationships %}
+          <tr><td><code>{{ r.rel_id }}</code></td>
+              <td class="small">{{ r.a }} ↔ {{ r.b }}</td>
+              <td class="small">{{ r.type }}{% if r.is_public %} <span class="pill mute">public</span>{% endif %}</td>
+              <td><span class="pill gold">{{ r.state }}</span>
+                  {% if r.allowed_states %}<div class="hint">{{ r.allowed_states|join(' · ') }}</div>{% endif %}</td>
+              <td><form method="post" action="/series/{{ s.id }}/relationships/{{ r.rel_id }}/delete">
+                <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% else %}<div class="empty">No relationships defined.</div>{% endif %}
+    <hr class="sep">
+    <h3>Add relationship</h3>
+    <form method="post" action="/series/{{ s.id }}/relationships">
+      <div class="row">
+        <div class="field"><label>Id</label><input type="text" name="rel_id" placeholder="rel_a_b" required></div>
+        <div class="field"><label>Character A</label>
+          <select name="a_char">{% for c in characters %}<option value="{{ c.character_id }}">{{ c.character_id }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Character B</label>
+          <select name="b_char">{% for c in characters %}<option value="{{ c.character_id }}">{{ c.character_id }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Type</label><input type="text" name="type" placeholder="romantic"></div>
+        <div class="field"><label>Initial state</label><input type="text" name="state" placeholder="secret_love"></div>
+        <div class="field"><label>Public</label><select name="is_public"><option value="">no</option><option value="yes">yes</option></select></div>
+      </div>
+      <div class="field"><label>Allowed states — one per line (the validator enforces these)</label>
+        <textarea name="allowed_states" rows="2"></textarea></div>
+      <div class="field"><label>Note</label><input type="text" name="note"></div>
+      <button class="btn-primary" type="submit">Add relationship</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Secrets</h2>
+    <p class="hint" style="margin-top:-8px">Story secrets — who knows what. Not credentials.</p>
+    {% if secrets %}
+      <div class="table-scroll"><table>
+        <thead><tr><th>Id</th><th>Description</th><th>Known at start</th><th></th></tr></thead>
+        <tbody>{% for x in secrets %}
+          <tr><td><code>{{ x.secret_id }}</code></td><td class="small">{{ x.description }}</td>
+              <td class="small muted">{{ (x.holders_initial or [])|join(', ') or 'nobody' }}</td>
+              <td><form method="post" action="/series/{{ s.id }}/secrets/{{ x.secret_id }}/delete">
+                <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% else %}<div class="empty">No secrets defined.</div>{% endif %}
+    <hr class="sep">
+    <h3>Add secret</h3>
+    <form method="post" action="/series/{{ s.id }}/secrets">
+      <div class="field"><label>Secret id</label><input type="text" name="secret_id" placeholder="secret_x" required></div>
+      <div class="field"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+      <div class="field"><label>Who knows it at series start — one id per line</label><textarea name="holders_initial" rows="2"></textarea></div>
+      <div class="field"><label>Stakes</label><input type="text" name="stakes"></div>
+      <button class="btn-primary" type="submit">Add secret</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Knowledge state after each episode</h2>
+  <p class="hint" style="margin-top:-8px">Recorded by the engine when an episode runs. Each episode starts from the previous episode's end state.</p>
+  {% if knowledge %}
+    <div class="table-scroll"><table>
+      <thead><tr><th>Episode</th><th>Kind</th><th>Subject</th><th>Value</th><th>Recorded</th></tr></thead>
+      <tbody>{% for k in knowledge %}
+        <tr><td><code>{{ k.episode_id }}</code></td><td class="small">{{ k.kind }}</td>
+            <td><code>{{ k.subject_id }}</code></td>
+            <td class="small">{{ k.value if k.value is string else (k.value or [])|join(', ') }}</td>
+            <td class="muted small">{{ k.recorded_at|time }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  {% else %}
+    <div class="empty">Nothing recorded yet. Run an episode's <code>intake</code> stage to build the ledger.</div>
+  {% endif %}
+</div>
+{% endblock %}

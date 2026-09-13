@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Job {{ job.id[:8] }} — Series Studio{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Job {{ job.id[:8] }}</h1>
+  <p class="sub"><a href="/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ job.series_id }} / {{ job.episode_id }}</a></p>
+</div><div>
+  <span class="pill {{ 'ok' if job.state == 'done' else ('bad' if job.state == 'failed' else ('gold' if job.state == 'running' else 'mute')) }}">{{ job.state }}</span>
+</div></div>
+
+<div class="card">
+  <dl class="kv">
+    <dt>Stages requested</dt><dd class="mono small">{{ (job.stages or [])|join(', ') }}</dd>
+    <dt>Completed</dt><dd class="mono small">{{ ((job.progress or {}).get('done') or [])|join(', ') or '—' }}</dd>
+    <dt>Current stage</dt><dd class="mono small">{{ (job.progress or {}).get('stage') or '—' }}</dd>
+    <dt>Mode</dt><dd>{{ job.mode }}</dd>
+    <dt>Force</dt><dd class="mono small">{{ (job.force or [])|join(', ') or '—' }}</dd>
+    <dt>Requested by</dt><dd>{{ job.requested_by }}</dd>
+    <dt>Started</dt><dd>{{ job.started_at|time }}</dd>
+    <dt>Finished</dt><dd>{{ job.finished_at|time }}</dd>
+    <dt>Idempotency key</dt><dd class="mono small">{{ job.idempotency_key }}</dd>
+  </dl>
+  {% if job.error %}<div class="notice err" style="margin-top:16px"><b>Error.</b><pre style="margin-top:8px">{{ job.error }}</pre></div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Job log</h2>
+  {% if job.log %}<pre>{{ job.log }}</pre>{% else %}<div class="empty">No log output.</div>{% endif %}
+</div>
+{% endblock %}

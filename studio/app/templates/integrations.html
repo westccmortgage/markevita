@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Integrations — Series Studio{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Integrations</h1>
+  <p class="sub">Configured through backend environment variables only. This page shows whether a credential is present —
+    never its value. No secret is sent to the browser or stored in the database.</p>
+</div></div>
+
+<div class="notice info">
+  Connection tests are <b>offline</b>: they verify that every required variable is present and not a placeholder,
+  without contacting the provider. That guarantees zero provider traffic while the studio is in mock mode.
+  Setting <code>STUDIO_ALLOW_CONNECTION_TESTS=true</code> permits free metadata probes — never a generation call.
+</div>
+
+<div class="card">
+  <div class="table-scroll"><table>
+    <thead><tr><th>Provider</th><th>State</th><th>Model selected</th><th>Last test</th><th>Last error</th><th></th></tr></thead>
+    <tbody>
+    {% for p in providers %}
+      <tr>
+        <td><b>{{ p.label }}</b><div class="hint">{{ p.powers }}</div></td>
+        <td><span class="pill {{ 'ok' if p.connected else 'warn' }}"><i class="dot"></i>{{ p.state }}</span>
+            {% if p.missing %}<div class="hint">needs {{ p.missing|join(', ') }}</div>{% endif %}</td>
+        <td class="small mono">{{ p.model or '—' }}
+          {% for k, v in (p.extra_models or {}).items() %}<div class="hint mono">{{ v }}</div>{% endfor %}</td>
+        <td class="small muted">{{ p.last_test_at|time }}</td>
+        <td class="small" style="max-width:260px;color:{{ 'var(--bad)' if p.last_error else 'var(--ink-faint)' }}">{{ p.last_error or '—' }}</td>
+        <td><form method="post" action="/integrations/{{ p.provider }}/test">
+          <button class="btn-sm" type="submit">Test</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Where these are set</h2>
+  <p class="hint" style="margin-top:-8px">Copy <code>studio/.env.example</code> to <code>studio/.env</code> and fill it in.
+    The file is git-ignored. Character voice ids use the per-character variable name shown on the Characters page.</p>
+  <dl class="kv">
+    <dt>Anthropic</dt><dd><code>ANTHROPIC_API_KEY</code>, <code>ANTHROPIC_MODEL</code></dd>
+    <dt>OpenAI</dt><dd><code>OPENAI_API_KEY</code>, <code>OPENAI_MODEL</code></dd>
+    <dt>fal.ai</dt><dd><code>FAL_KEY</code>, <code>FAL_IMAGE_MODEL</code>, <code>FAL_VIDEO_MODEL</code>, <code>FAL_LIPSYNC_MODEL</code></dd>
+    <dt>ElevenLabs</dt><dd><code>ELEVENLABS_API_KEY</code>, <code>ELEVENLABS_MODEL_ID</code>, <code>ELEVENLABS_VOICE_ID_&lt;CHARACTER&gt;</code></dd>
+    <dt>Cloudflare R2</dt><dd><code>R2_ACCOUNT_ID</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>R2_BUCKET</code>, <code>R2_S3_ENDPOINT</code>, <code>R2_PUBLIC_BASE_URL</code></dd>
+    <dt>Supabase</dt><dd><code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code></dd>
+    <dt>Instagram</dt><dd>Disabled. <code>INSTAGRAM_PUBLISH_ENABLED</code> stays <code>false</code>.</dd>
+  </dl>
+</div>
+{% endblock %}

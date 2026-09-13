@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Costs — Series Studio{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Cost monitor</h1>
+  <p class="sub">Every paid call is reserved before submission and settled after. A failed but billed request still counts.</p>
+</div></div>
+
+<div class="notice mode"><b>Mock mode.</b> These are simulated amounts from the engine's pricing table.
+  No provider has been charged.</div>
+
+<div class="grid g3" style="margin-bottom:18px">
+  <div class="stat"><div class="k">Total simulated</div><div class="v gold">{{ total|money }}</div></div>
+  <div class="stat"><div class="k">Episodes with cost</div><div class="v">{{ by_episode|length }}</div></div>
+  <div class="stat"><div class="k">Recorded calls</div><div class="v">{{ rows|length }}</div></div>
+</div>
+
+<div class="card">
+  <h2>By episode</h2>
+  {% if by_episode %}
+    <div class="table-scroll"><table>
+      <thead><tr><th>Series</th><th>Episode</th><th>Calls</th><th>Estimated</th><th>Actual</th></tr></thead>
+      <tbody>{% for e in by_episode %}
+        <tr><td>{{ e.series_id }}</td>
+            <td><a href="/series/{{ e.series_id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
+            <td>{{ e.calls }}</td><td>{{ e.estimated_usd|money }}</td><td><b>{{ e.actual_usd|money }}</b></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  {% else %}<div class="empty">No costs recorded yet.</div>{% endif %}
+</div>
+
+{% if rows %}
+<div class="card">
+  <h2>Individual calls</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Episode</th><th>Stage</th><th>Provider</th><th>Endpoint</th><th>Take</th><th>Estimated</th><th>Actual</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="small"><code>{{ r.episode_id }}</code></td><td class="small">{{ r.stage }}</td>
+          <td class="small">{{ r.provider or '—' }}</td><td class="small muted mono">{{ r.endpoint or '—' }}</td>
+          <td class="small muted mono">{{ r.take_id or '—' }}</td>
+          <td>{{ r.estimated_usd|money }}</td><td>{{ r.actual_usd|money }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

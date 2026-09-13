@@ -1,0 +1,5 @@
+.studio-data/
+.studio-packages/
+.env
+__pycache__/
+*.pyc

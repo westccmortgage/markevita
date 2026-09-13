@@ -1,8 +1,8 @@
 """MarkeVita AI Series Studio — application entry point.
 
 Mounts the admin panel (HTML) and the backend API (JSON) over the v0.3
-production engine. Mock mode is enforced: no paid provider call is reachable
-from this service while STUDIO_ALLOW_PAID is false.
+production engine. Full episodes remain simulated. A separate first-clip
+preview router requires its own enablement and explicit spending approval.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api import router as api_router
 from .config import STUDIO_DIR, settings
+from .preview_web import router as preview_router
 from .web import router as web_router
 
 app = FastAPI(
@@ -23,6 +24,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(STUDIO_DIR / "app" / "static")), name="static")
 app.include_router(api_router)
 app.include_router(web_router)
+app.include_router(preview_router)
 
 
 @app.exception_handler(401)
@@ -63,4 +65,5 @@ async def healthz():
         # Count only: the detail is for the operator on the sign-in page and in
         # the logs, not for anonymous callers of a public endpoint.
         "configuration_problems": len(settings.config_problems()),
+        "clip_preview_available": True,
     }

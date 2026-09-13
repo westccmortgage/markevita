@@ -109,6 +109,9 @@ class JobManager:
 
     def start(self, series_id: str, episode_id: str, stages: list[str] | None = None,
               requested_by: str = "", force: list[str] | None = None) -> dict:
+        episode = store.get("episodes", {"series_id": series_id, "episode_id": episode_id}) or {}
+        if episode.get("status") == "preview" or (episode.get("brief") or {}).get("kind") == "clip_preview":
+            raise ValueError("Open First clip to manage this preview; episode production cannot restart it.")
         stages = stages or DEFAULT_STAGES
         unknown = [s for s in stages if s not in STAGES]
         if unknown:
@@ -142,6 +145,9 @@ class JobManager:
         return job
 
     def pause(self, job_id: str, actor: str = "") -> None:
+        job = store.get("production_jobs", {"id": job_id}) or {}
+        if job.get("stages") == ["clip_preview"]:
+            raise ValueError("Use First clip to check this request; preview collection cannot be paused here.")
         control = self._controls.get(job_id)
         if control:
             control.pause.set()
@@ -151,6 +157,9 @@ class JobManager:
                 entity_type="job", entity_id=job_id, actor=actor or "system")
 
     def cancel(self, job_id: str, actor: str = "") -> None:
+        job = store.get("production_jobs", {"id": job_id}) or {}
+        if job.get("stages") == ["clip_preview"]:
+            raise ValueError("This preview has already been submitted; use First clip to retrieve its result.")
         control = self._controls.get(job_id)
         if control:
             control.cancel.set()

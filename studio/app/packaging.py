@@ -51,6 +51,17 @@ def _clean(d: dict) -> dict:
 
 def build_series_json(series: dict) -> dict:
     seasons = store.list("seasons", {"series_id": series["id"]}, order="number")
+    preview_ids = {
+        ep["episode_id"] for ep in store.list("episodes", {"series_id": series["id"]})
+        if ep.get("status") == "preview" or (ep.get("brief") or {}).get("kind") == "clip_preview"
+    }
+    # Standalone camera tests are not part of the full episode package.
+    seasons = [
+        {**s, "episode_order": [eid for eid in (s.get("episode_order") or [])
+                                if eid not in preview_ids]}
+        for s in seasons
+        if not s.get("episode_order") or any(eid not in preview_ids for eid in s["episode_order"])
+    ]
     return {
         "schema_version": SCHEMA_VERSION,
         "series_id": series["id"],
@@ -265,6 +276,8 @@ def materialize(series_id: str, clean: bool = False) -> Path:
             path.unlink()
 
     for ep in store.list("episodes", {"series_id": series_id}, order="number"):
+        if ep.get("status") == "preview" or (ep.get("brief") or {}).get("kind") == "clip_preview":
+            continue
         scenes = store.list("scenes", {"series_id": series_id, "episode_id": ep["episode_id"]})
         if not scenes:
             continue  # brief not written yet; the engine reports it as missing

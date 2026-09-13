@@ -186,12 +186,17 @@ def dashboard(request: Request):
     series = store.list("series", order="title")
     episodes = store.list("episodes", order="number")
     active = [j for j in store.list("production_jobs", order="created_at", desc=True, limit=60)
-              if j.get("state") in ("queued", "running", "paused", "pausing")]
+              if j.get("state") in ("queued", "running", "paused", "pausing", "submitted",
+                                    "storage_pending", "submission_unknown")]
     costs = store.list("costs")
+    preview_costs = [c for c in costs if c.get("stage") == "clip_preview"]
+    simulated_costs = [c for c in costs if c.get("stage") != "clip_preview"]
     providers = integrations.status_all()
     return render(request, "dashboard.html",
                   series=series, episodes=episodes, active_jobs=active,
-                  total_cost=round(sum(float(c.get("actual_usd") or 0) for c in costs), 2),
+                  total_cost=round(sum(float(c.get("actual_usd") or 0) for c in simulated_costs), 2),
+                  preview_estimate=round(sum(float(c.get("estimated_usd") or 0) for c in preview_costs), 2),
+                  has_preview_cost=bool(preview_costs),
                   providers=providers,
                   missing=[p for p in providers if not p["connected"]],
                   recent=store.list("generation_history", order="created_at", desc=True, limit=12))
@@ -545,6 +550,9 @@ def delete_secret(request: Request, series_id: str, secret_id: str):
 @router.get("/series/{series_id}/episodes/{episode_id}", response_class=HTMLResponse)
 def episode_page(request: Request, series_id: str, episode_id: str):
     require_admin(request)
+    episode_jobs = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id})
+    if any(job.get("stages") == ["clip_preview"] for job in episode_jobs):
+        return _redirect("/clip-preview")
     s = store.get("series", {"id": series_id})
     ep = store.get("episodes", {"series_id": series_id, "episode_id": episode_id})
     if not s or not ep:
@@ -718,19 +726,28 @@ def approve_refs(request: Request, series_id: str, note: str = Form("")):
 def costs_page(request: Request, series_id: str | None = None):
     require_admin(request)
     where = {"series_id": series_id} if series_id else None
-    rows = store.list("costs", where)
+    rows = [{**r, "is_preview": r.get("stage") == "clip_preview"}
+            for r in store.list("costs", where)]
     by_episode: dict[str, dict] = {}
     for r in rows:
-        key = f"{r['series_id']}/{r['episode_id']}"
+        # Keep a real preview estimate out of the simulated episode ledger,
+        # even if both kinds of record refer to the same episode identifier.
+        key = f"{r['series_id']}/{r['episode_id']}/{'preview' if r['is_preview'] else 'mock'}"
         agg = by_episode.setdefault(key, {"key": key, "series_id": r["series_id"],
                                           "episode_id": r["episode_id"],
-                                          "estimated_usd": 0.0, "actual_usd": 0.0, "calls": 0})
+                                          "is_preview": r["is_preview"],
+                                          "estimated_usd": 0.0,
+                                          "actual_usd": None if r["is_preview"] else 0.0,
+                                          "calls": 0})
         agg["estimated_usd"] += float(r.get("estimated_usd") or 0)
-        agg["actual_usd"] += float(r.get("actual_usd") or 0)
+        if not r["is_preview"]:
+            agg["actual_usd"] += float(r.get("actual_usd") or 0)
         agg["calls"] += 1
     return render(request, "costs.html", rows=rows[:500],
-                  by_episode=sorted(by_episode.values(), key=lambda x: -x["actual_usd"]),
-                  total=round(sum(float(r.get("actual_usd") or 0) for r in rows), 4),
+                  by_episode=sorted(by_episode.values(), key=lambda x: -x["estimated_usd"]),
+                  total=round(sum(float(r.get("actual_usd") or 0) for r in rows if not r["is_preview"]), 4),
+                  preview_estimate=round(sum(float(r.get("estimated_usd") or 0) for r in rows if r["is_preview"]), 4),
+                  has_preview_cost=any(r["is_preview"] for r in rows),
                   episodes=store.list("episodes", where, order="number"),
                   selected=series_id)
 
@@ -748,6 +765,8 @@ def job_page(request: Request, job_id: str):
     job = store.get("production_jobs", {"id": job_id})
     if not job:
         raise HTTPException(404, "job not found")
+    if job.get("stages") == ["clip_preview"]:
+        return _redirect("/clip-preview")
     return render(request, "job.html", job=job)
 
 

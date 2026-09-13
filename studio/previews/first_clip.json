@@ -1,0 +1,22 @@
+{
+  "id": "first_clip_v1",
+  "series_id": "island_of_no_witnesses",
+  "series_title": "Island of No Witnesses",
+  "episode_id": "preview01",
+  "title": "The Wrong Bride",
+  "summary": "On a private Caribbean island the evening before her wedding, Nora catches her fiance, a rising politician, kissing her younger sister. Her shock turns into quiet resolve.",
+  "dialogue": "Tomorrow he marries me. Why is he kissing my sister?",
+  "prompt": "Create one photorealistic cinematic vertical 9:16 drama shot, exactly eight seconds, with synchronized English dialogue and natural ambient audio. All characters are fictional adults. Setting: the open-air terrace of an elegant private Caribbean island villa at golden hour, turquoise ocean, cream limestone and warm lanterns. This is a romantic betrayal scene, emotionally intimate and visually clear. Start immediately with action: in the middle background, Adrian Vale, 42, a fictional rising politician with short dark hair, a clean-shaven angular face and an ivory linen shirt, kisses Maya, 26, a brunette with a sleek shoulder-length bob in a red silk evening dress. The kiss is brief and non-explicit. In the right foreground stands his fiancee Nora, 28, a woman with hazel eyes and long honey-brown hair tucked behind one ear, small pearl earrings and an ivory satin evening dress. Her face and engagement ring are visible. Use one continuous slow camera push and a smooth rack focus from the unmistakable kiss to Nora's face by second two. Nora sees them, freezes, and lifts her ring hand slightly. From seconds two to six, only Nora speaks in a restrained, wounded American English whisper, with clearly synchronized lips: 'Tomorrow he marries me. Why is he kissing my sister?' Her hurt turns into resolve. Hold her reaction until the end while the couple remain visibly close behind her. No narrator or other speakers. Sound: quiet ocean and terrace ambience, clear whispered dialogue, a subtle low suspense note under the final reaction. Premium contemporary romantic thriller, natural skin texture, believable anatomy, realistic restrained acting, warm highlights and cool ocean shadows, polished 50mm cinema-lens look. No cuts, no black opening or ending, no text, no subtitles, no logos, no nudity, no slow motion.",
+  "endpoint": "fal-ai/veo3.1/fast",
+  "duration_seconds": 8,
+  "aspect_ratio": "9:16",
+  "resolution": "1080p",
+  "generate_audio": true,
+  "auto_fix": false,
+  "estimated_usd": 1.2,
+  "max_usd": 1.2,
+  "pricing_url": "https://fal.ai/models/fal-ai/veo3.1/fast",
+  "price_checked_on": "2026-09-13",
+  "regenerations": 0,
+  "publish": false
+}

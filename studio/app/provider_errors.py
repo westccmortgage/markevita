@@ -47,6 +47,13 @@ def fal_diagnostic(exc, request_id=None, phase="collect"):
             advice = "fal.ai authentication failed. Open Integrations to compare the loaded key ID and check authentication without generation."
         elif status == 402:
             advice = "fal.ai requires a billing check. Check the fal.ai account balance and billing status."
+        elif status == 403 and phase == "collect":
+            # A refusal while READING a request the queue already accepted is
+            # not evidence that a new submission would be refused. Saying so
+            # plainly keeps an operator from rotating a working key.
+            advice = ("fal.ai denied access while reading a request it had already accepted. "
+                      "This is not proof that a new submission would be refused. The saved "
+                      "request is kept, and Resume re-reads it instead of paying again.")
         elif status == 403:
             advice = "fal.ai denied access. Check the key permissions and model access in fal.ai."
         elif status == 429:

@@ -48,12 +48,27 @@ def download(url: str, dest: Path) -> Path:
                 partial.unlink(missing_ok=True)
 
 
+def fal_client_for(key: str):
+    """An SDK client bound to THIS key.
+
+    The module-level fal_client functions share one client that resolves its
+    credential from the environment once and caches it. A process that set
+    FAL_KEY after that first resolution keeps submitting with one key and
+    reading results with another, which surfaces as an HTTP 403 on a request
+    the queue had already accepted. Binding the key explicitly removes the
+    second credential entirely.
+    """
+    from fal_client.client import SyncClient
+    return SyncClient(key=key)
+
+
 class InputPublisher:
     """Локальный файл -> URL, который примет провайдер. r2_presigned (spec §4) или fal_storage."""
 
     def __init__(self, cfg, log, r2, key_prefix: str):
         self.cfg, self.log, self.r2, self.prefix = cfg, log, r2, key_prefix
         self._cache: dict[str, str] = {}
+        self._client = None
 
     def url(self, path: Path, key_hint: str = "inputs") -> str:
         h = sha256(path)
@@ -66,8 +81,9 @@ class InputPublisher:
             self.r2.put(path, key)
             u = self.r2.presign(key, 3600)
         else:
-            import fal_client
-            u = fal_client.upload_file(str(path))
+            if self._client is None:
+                self._client = fal_client_for(self.cfg.fal_key)
+            u = self._client.upload_file(str(path))
         self._cache[h] = u
         return u
 
@@ -76,13 +92,20 @@ class Fal:
     def __init__(self, cfg, log, state, budget, inputs: InputPublisher):
         self.cfg, self.log, self.state, self.budget, self.inputs = cfg, log, state, budget, inputs
 
+    @property
+    def client(self):
+        client = getattr(self, "_client", None)
+        if client is None:
+            client = self._client = fal_client_for(self.cfg.fal_key)
+        return client
+
     def _wait(self, endpoint: str, request_id: str) -> dict:
         import fal_client
         delay = 3
         while True:
-            st = fal_client.status(endpoint, request_id, with_logs=False)
+            st = self.client.status(endpoint, request_id, with_logs=False)
             if isinstance(st, fal_client.Completed):
-                return fal_client.result(endpoint, request_id)
+                return self.client.result(endpoint, request_id)
             time.sleep(delay)
             delay = min(delay + 2, 15)
 
@@ -108,9 +131,8 @@ class Fal:
                 take["request_id"] = f"dry-{take_id}"
                 result = stub()
             else:
-                import fal_client
                 try:
-                    handle = fal_client.submit(endpoint, arguments=args)
+                    handle = self.client.submit(endpoint, arguments=args)
                 except Exception as e:
                     take["status"] = "failed"; take["error"] = str(e)[:500]
                     self.budget.settle(est_cost, 0.0, f"{what} (submit failed)", take_id)

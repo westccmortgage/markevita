@@ -1,5 +1,13 @@
-"""One queue submission per run; only proven pre-queue refusals can be resumed."""
+"""One queue submission per run; only proven pre-queue refusals can be resumed.
+
+Submission and result polling share one credential source and use the queue's
+own request URLs. Polling through the SDK resolved a second key from the raw
+environment and rebuilt the URL itself; a refusal there was indistinguishable
+from a refused submission and impossible to diagnose without the response text.
+"""
 import math
+import re
+import time
 import requests
 
 from serial.providers import Fal
@@ -43,7 +51,80 @@ def _response_refused(exc):
             and not any(body.get(k) for k in ('request_id', 'status_url', 'response_url', 'cancel_url', 'error_type')))
 
 
+_QUEUE = 'https://queue.fal.run/'
+
+
+def _request_base(endpoint, request_id):
+    """Queue URL for a request whose take predates stored request URLs.
+
+    Status and result live under owner/alias; the endpoint's sub-path
+    (e.g. /edit) is not part of the request address.
+    """
+    from fal_client.client import AppId
+    app = AppId.from_endpoint_id(endpoint)
+    prefix = f'{app.namespace}/' if app.namespace else ''
+    return f'{_QUEUE}{prefix}{app.owner}/{app.alias}/requests/{request_id}'
+
+
+def _server_log_provider_text(exc, request_id, secret):
+    """fal.ai's own explanation, to the server log ONLY.
+
+    The persisted diagnostic and the job page deliberately carry codes, never
+    provider text (see provider_errors). But a refusal with no reason sends an
+    operator to rotate keys blindly, so the reason goes where logs already go:
+    stdout, i.e. the host's log stream. URLs and the credential are removed.
+    """
+    response = getattr(exc, 'response', None)
+    if response is None:
+        return
+    try:
+        body = response.json()
+    except (ValueError, TypeError):
+        body = None
+    text = ''
+    if isinstance(body, dict):
+        for key in ('detail', 'message', 'error', 'msg'):
+            value = body.get(key)
+            if isinstance(value, str) and value.strip():
+                text = value
+                break
+            if isinstance(value, list):
+                text = ' | '.join(str(item.get('msg') or item.get('type') or '')
+                                  for item in value if isinstance(item, dict))
+                break
+    text = re.sub(r'https?://\S+', '<url>', text or '')
+    if secret:
+        text = text.replace(secret, '<key>')
+    text = re.sub(r'\s+', ' ', text).strip()[:300]
+    status = getattr(response, 'status_code', '?')
+    print(f'[fal] HTTP {status} request {request_id or "-"}: {text or "(no explanation in response body)"}',
+          flush=True)
+
+
 class DurableFal(Fal):
+    def _auth_headers(self):
+        """The single credential used for submission AND polling."""
+        return {'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'}
+
+    def _wait(self, endpoint, request_id):
+        """Poll the queue's own request URLs with the submission credential."""
+        take = next((t for t in self.state.data.get('takes', {}).values()
+                     if t.get('request_id') == request_id), {})
+        base = _request_base(endpoint, request_id)
+        status_url = take.get('status_url') or base + '/status'
+        response_url = take.get('response_url') or base
+        headers = self._auth_headers()
+        delay = 3
+        while True:
+            status = requests.get(status_url, headers=headers, timeout=60, allow_redirects=False)
+            status.raise_for_status()
+            if (status.json() or {}).get('status') == 'COMPLETED':
+                result = requests.get(response_url, headers=headers, timeout=60, allow_redirects=False)
+                result.raise_for_status()
+                return result.json()
+            time.sleep(delay)
+            delay = min(delay + 2, 15)
+
     def _record_refusal(self, take, take_id):
         amount = take.get('estimated_cost')
         if (type(amount) not in (int, float) or not math.isfinite(amount) or amount < 0
@@ -83,11 +164,11 @@ class DurableFal(Fal):
                 raise
             # requests has no implicit POST retry. Provider retries are disabled too.
             try:
-                response = requests.post('https://queue.fal.run/' + endpoint, json=args,
-                    headers={'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'},
-                    timeout=60, allow_redirects=False)
+                response = requests.post(_QUEUE + endpoint, json=args,
+                    headers=self._auth_headers(), timeout=60, allow_redirects=False)
                 response.raise_for_status()
             except requests.exceptions.RequestException as exc:
+                _server_log_provider_text(exc, None, self.cfg.fal_key)
                 info = fal_diagnostic(exc, phase='submit')
                 info['submission_rejected'] = _response_refused(exc)
                 take['provider_error'] = info
@@ -96,12 +177,19 @@ class DurableFal(Fal):
                 else:
                     self.state.save()
                 raise ProviderFailure(info['message']) from exc
-            take['request_id'] = response.json()['request_id']
+            accepted = response.json()
+            take['request_id'] = accepted['request_id']
+            # The queue's own addresses for this request; polling uses them
+            # verbatim instead of rebuilding the path.
+            for key in ('status_url', 'response_url'):
+                if isinstance(accepted.get(key), str) and accepted[key].startswith(_QUEUE):
+                    take[key] = accepted[key]
             take['status'] = 'submitted'
             self.state.save()  # Includes private R2 checkpoint before waiting.
         try:
             result = self._wait(take.get('endpoint') or endpoint, take['request_id'])
         except Exception as exc:
+            _server_log_provider_text(exc, take['request_id'], self.cfg.fal_key)
             info = fal_diagnostic(exc, take['request_id'])
             take['provider_error'] = info
             self.state.save()

@@ -188,8 +188,13 @@ def request_password_reset(email: str, redirect_to: str) -> None:
         )
     import httpx
     try:
+        # GoTrue reads ``redirect_to`` from the query string.  Putting it in
+        # the JSON body is silently ignored, which makes recovery emails fall
+        # back to the project's Site URL and strand the access token on the
+        # public homepage instead of the studio reset form.
         httpx.post(_auth_url("/recover"), headers=_auth_headers(),
-                   json={"email": email, "redirect_to": redirect_to}, timeout=20)
+                   params={"redirect_to": redirect_to},
+                   json={"email": email}, timeout=20)
     except httpx.HTTPError:
         # A transport failure is still not reported back to the browser, for
         # the same reason: the response must not vary with the address.

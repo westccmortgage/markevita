@@ -1,12 +1,8 @@
 # Admin studio (markevita.com/studio) — proxied to the backend service.
 #
 # The studio is a Python service and cannot run on Netlify's static hosting,
-# so it lives on its own host (Fly.io, Railway, Render, a VPS...). Uncomment
-# the line below and replace STUDIO_BACKEND_HOST once that host exists.
-# It must stay ABOVE the catch-all, which would otherwise swallow /studio.
-#
-# /studio/*  https://STUDIO_BACKEND_HOST/:splat  200
-#
-# Until it is uncommented the public site behaves exactly as before.
+# so it is proxied to the Render backend. This rule must stay above catch-all.
+
+/studio/*  https://markevita.onrender.com/:splat  200
 
 /*  /index.html  200

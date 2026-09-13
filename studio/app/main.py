@@ -6,6 +6,9 @@ preview router requires its own enablement and explicit spending approval.
 """
 from __future__ import annotations
 
+import os
+import re
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -57,6 +60,7 @@ async def report_configuration() -> None:
 
 @app.get("/healthz", include_in_schema=False)
 async def healthz():
+    commit = os.environ.get("RENDER_GIT_COMMIT", "")
     return {
         "ok": True,
         "mode": settings.mode,
@@ -66,4 +70,6 @@ async def healthz():
         # the logs, not for anonymous callers of a public endpoint.
         "configuration_problems": len(settings.config_problems()),
         "clip_preview_available": True,
+        # Identify the deployed build without exposing configuration values.
+        "build_commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None,
     }

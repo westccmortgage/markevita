@@ -145,6 +145,9 @@ def test_preview_get_has_prefixed_approval_form_and_never_calls_provider(ui):
     page = ui.client.get("/studio/clip-preview")
     assert page.status_code == 200
     assert page.headers["cache-control"] == "no-store"
+    # A normal HTML POST under no-referrer sends Origin:null in browsers,
+    # so the form must retain same-origin provenance for the CSRF check.
+    assert page.headers["referrer-policy"] == "same-origin"
     assert 'action="/studio/clip-preview/start"' in page.text
     assert 'href="/studio/' in page.text
     assert _form(page.text)["approved_digest"] == ui.spec["digest"]
@@ -154,7 +157,7 @@ def test_preview_get_has_prefixed_approval_form_and_never_calls_provider(ui):
 
 @pytest.mark.parametrize("change,expected", [
     ("unchecked", 400), ("wrong_checkbox", 400),
-    ("bad_csrf", 403), ("missing_origin", 403),
+    ("bad_csrf", 403), ("missing_origin", 403), ("null_origin", 403),
     ("foreign_origin", 403), ("different_session", 403),
 ])
 def test_preview_submit_requires_exact_approval_and_same_session_origin(ui, change, expected):
@@ -169,6 +172,8 @@ def test_preview_submit_requires_exact_approval_and_same_session_origin(ui, chan
         form["csrf_token"] = "forged"
     elif change == "missing_origin":
         headers = {}
+    elif change == "null_origin":
+        headers["Origin"] = "null"
     elif change == "foreign_origin":
         headers["Origin"] = "https://markevita.com.evil.example"
     elif change == "different_session":
@@ -194,6 +199,7 @@ def test_preview_existing_job_get_never_polls_or_exposes_provider_url(ui):
     ui.job = {"id": "allowed-job", "state": "submitted", "progress": {
         "provider_url": "https://provider.example/private-secret-url"}}
     page = ui.client.get("/studio/clip-preview")
+    assert page.headers["referrer-policy"] == "same-origin"
     assert 'action="/studio/clip-preview/poll"' in page.text
     assert "private-secret-url" not in page.text
     assert ui.starts == ui.polls == ui.media == []

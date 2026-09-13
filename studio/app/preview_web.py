@@ -84,9 +84,12 @@ def _check_form(request: Request, admin: dict, token: str) -> None:
         raise HTTPException(403, "This form expired. Refresh the preview page and try again.")
 
 
-def _private(response):
+def _private(response, *, referrer_policy: str = "same-origin"):
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    # Normal HTML POSTs from a no-referrer document carry Origin: null.
+    # Preserve the same-site origin so the existing form check can verify it.
+    # Media redirects opt out separately before leaving the studio.
+    response.headers["Referrer-Policy"] = referrer_policy
     return response
 
 
@@ -169,4 +172,4 @@ def clip_preview_media(request: Request, job_id: str = ""):
         raise HTTPException(503, "The saved clip is temporarily unavailable.") from None
     if not isinstance(url, str) or not _origin(url) or urlsplit(url).scheme != "https":
         raise HTTPException(503, "The saved clip is temporarily unavailable.")
-    return _private(RedirectResponse(url, status_code=303))
+    return _private(RedirectResponse(url, status_code=303), referrer_policy="no-referrer")

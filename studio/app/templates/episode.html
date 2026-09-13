@@ -78,8 +78,8 @@
     <input type="hidden" name="approved_digest" value="{{ production_digest }}">
     {% if mode == 'live' %}
     <div class="field"><label>{{ _("Audio") }}</label><select name="audio_mode">
-      <option value="native">{{ _("Native scene audio — speech generated with video") }}</option>
-      <option value="voices">{{ _("Assigned character voices — ElevenLabs and lipsync") }}</option>
+      <option value="native" {{ 'selected' if runtime.audio_mode != 'voices' }}>{{ _("Native scene audio — speech generated with video") }}</option>
+      <option value="voices" {{ 'selected' if runtime.audio_mode == 'voices' }}>{{ _("Assigned character voices — ElevenLabs and lipsync") }}</option>
     </select></div>
     <p class="hint">{{ _("Native audio needs no voice IDs. Voice consistency and exact wording need your review; subtitle timing is estimated. Assigned voices use the character's configured voice ID.") }}</p>
     <label><input type="checkbox" name="approve_live" value="yes"> {{ _("Approve this script and live production up to") }} {{ budget|money }} {{ _("in estimated provider charges.") }}</label>
@@ -94,12 +94,13 @@
       <p class="hint">{{ _("Completed stages are skipped and finished takes are reused, so re-running never repeats work.") }}
         <code>publish</code> {{ _("is deliberately absent — it is a separate, approved act and stays disabled in this build.") }}</p>
     </fieldset>
-    <div class="field" style="max-width:420px">
+    {% if mode != 'live' %}<div class="field" style="max-width:420px">
       <label>{{ _("Force regeneration of (scene or stage ids, comma separated)") }}</label>
       <input type="text" name="force" placeholder="sc07, keyframes">
       <p class="hint">{{ _("Forced takes are new immutable takes, flagged and logged; earlier takes are kept.") }}</p>
-    </div>
+    </div>{% endif %}
     <div class="btn-row">
+      {% if mode == 'live' %}<button type="submit" name="action" value="check">{{ _("Check production settings") }}</button>{% endif %}
       <button class="btn-primary" name="action" value="start" type="submit"
         {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>{{ _("Start production") }}</button>
       <button name="action" value="pause" type="submit" {{ '' if active_job and active_job.state == 'running' else 'disabled' }}>{{ _("Pause") }}</button>

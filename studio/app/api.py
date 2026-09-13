@@ -122,8 +122,15 @@ def pause(series_id: str, episode_id: str, a: dict = Depends(admin)):
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/resume")
-def resume(series_id: str, episode_id: str, a: dict = Depends(admin)):
-    return {"job": runner.jobs.resume(series_id, episode_id, a["email"])}
+def resume(series_id: str, episode_id: str, payload: dict = Body(default={}), a: dict = Depends(admin)):
+    try:
+        job = runner.jobs.resume(series_id, episode_id, a['email'],
+            approved_digest=payload.get('approved_digest', ''),
+            approve_live=payload.get('approve_live') is True,
+            audio_mode=payload.get('audio_mode', 'native'))
+    except (ValueError, PermissionError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {'job': job}
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/cancel")

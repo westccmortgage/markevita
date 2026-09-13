@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
@@ -205,9 +206,17 @@ def dashboard(request: Request):
     require_admin(request)
     series = store.list("series", order="title")
     episodes = store.list("episodes", order="number")
-    active = [j for j in store.list("production_jobs", order="created_at", desc=True, limit=60)
-              if j.get("state") in ("queued", "running", "paused", "pausing", "submitted",
-                                    "storage_pending", "submission_unknown")]
+    active, seen_live = [], set()
+    for job in store.list('production_jobs', order='created_at', desc=True, limit=60):
+        if job.get('stages') == ['runtime_lease']:
+            continue
+        if job.get('mode') == 'live' and job.get('stages') != ['clip_preview']:
+            key = (job.get('series_id'), job.get('episode_id'))
+            if key in seen_live:
+                continue
+            seen_live.add(key)
+        if job.get('state') in ('queued', 'running', 'paused', 'pausing', 'submitted', 'storage_pending', 'submission_unknown'):
+            active.append(job)
     costs = store.list("costs")
     preview_costs = [c for c in costs if c.get("stage") == "clip_preview"]
     simulated_costs = [c for c in costs if c.get("stage") != "clip_preview" and not c.get("stage", "").startswith("live/")]
@@ -667,6 +676,9 @@ def production_control(request: Request, series_id: str, episode_id: str,
         _check_form(request, a, csrf_token)
         approval = dict(approve_live=approve_live == "yes", approved_digest=approved_digest, audio_mode=audio_mode)
     try:
+        if action == "check" and settings.allow_paid:
+            live_jobs.check_configuration(series_id, episode_id, stages or runner.DEFAULT_STAGES, audio_mode)
+            return _redirect(back, ok="Local production checks passed. Provider access and saved-request recovery are checked separately; no generation was started.")
         if action == "start":
             job = runner.jobs.start(series_id, episode_id, stages or None, a["email"],
                               [f.strip() for f in force.split(",") if f.strip()], **approval)
@@ -688,6 +700,15 @@ def production_control(request: Request, series_id: str, episode_id: str,
             return _redirect(back, ok="Cancelling.")
     except (ValueError, PermissionError, runner.PackageError) as e:
         return _redirect(back, err=str(e))
+    except Exception as exc:
+        # Storage/lease failures can occur before a job exists. Do not show a
+        # raw 500 (or leak an SDK exception containing a signed URL or token).
+        import logging
+        import traceback
+        frames = traceback.extract_tb(exc.__traceback__)[-5:]
+        logging.getLogger(__name__).error('Production control failed (%s): %s', type(exc).__name__,
+            ' -> '.join(f'{Path(f.filename).name}:{f.lineno} ({f.name})' for f in frames))
+        return _redirect(back, err="Production could not be started or updated. Check Jobs before retrying; saved requests have not been cleared.")
     return _redirect(back, err=f"Unknown action '{action}'.")
 
 

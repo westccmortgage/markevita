@@ -7,7 +7,7 @@
 </div></div>
 
 <div class="notice info">
-  {{ _("Connection tests are") }} <b>{{ _("offline") }}</b>{{ _(": they verify that every required variable is present and not a placeholder, without contacting the provider. That guarantees zero provider traffic while the studio is in mock mode. Setting") }} <code>STUDIO_ALLOW_CONNECTION_TESTS=true</code> {{ _("permits free metadata probes — never a generation call.") }}
+  {{ _("These checks confirm configuration, not permission to generate with every model. ElevenLabs, Supabase and R2 can also test metadata access when connection tests are enabled. No generation is started.") }}
 </div>
 
 <div class="card">
@@ -17,7 +17,7 @@
     {% for p in providers %}
       <tr>
         <td><b>{{ p.label }}</b><div class="hint">{{ (p.powers)|ui }}</div></td>
-        <td><span class="pill {{ 'ok' if p.connected else 'warn' }}"><i class="dot"></i>{{ (p.state)|ui }}</span>
+        <td><span class="pill {{ 'warn' if p.connected else 'bad' }}"><i class="dot"></i>{{ (p.state)|ui }}</span>
             {% if p.missing %}<div class="hint">{{ _("needs") }} {{ p.missing|join(', ') }}</div>{% endif %}</td>
         <td class="small mono">{{ p.model or '—' }}
           {% for k, v in (p.extra_models or {}).items() %}<div class="hint mono">{{ v }}</div>{% endfor %}</td>

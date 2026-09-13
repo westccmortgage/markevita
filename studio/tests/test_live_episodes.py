@@ -278,7 +278,7 @@ def test_voice_admission_reports_missing_voices_after_silent_shots(short_package
         force='', csrf_token='offline', approve_live='yes', approved_digest=digest, audio_mode='voices')
     assert response.status_code == 303
     error = parse_qs(urlsplit(response.headers['location']).query)['err'][0]
-    assert error == 'Assign ElevenLabs voices for lead_a, or choose Native scene audio.'
+    assert 'Assign ElevenLabs voices for lead_a, or choose Native scene audio.' in error
     assert not store.list('production_jobs', {'series_id': sid, 'episode_id': eid})
     assert not store.list('costs', {'series_id': sid, 'episode_id': eid})
 

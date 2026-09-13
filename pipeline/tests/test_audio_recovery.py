@@ -139,3 +139,21 @@ def test_failed_audio_encode_keeps_previous_destination(tmp_path, monkeypatch):
         media.loudnorm(source, dest)
     assert dest.read_bytes() == b'previous complete file'
     assert not list(tmp_path.glob('.loudnorm-*'))
+
+
+def test_resume_does_not_accept_a_saved_voice_that_exceeds_the_clip(tmp_path, monkeypatch):
+    p = object.__new__(Pipeline)
+    p.state = State(tmp_path)
+    p.state.data['episode'] = {'language': 'en-US', 'scenes': [
+        {'scene_id': 'sc01', 'duration': 4, 'dialogue': [{'speaker': 'nora', 'text': 'You knew?'}]}]}
+    p.state.scene('sc01')['voice'] = {'cues': [{'start': 0.4, 'end': 5.1, 'text': 'You knew?'}]}
+    p.state.save()
+    p.cfg = SimpleNamespace(native_dialogue=False, dry_run=True)
+    p.force = set()
+    monkeypatch.setattr(p, '_guard_live', lambda stage: None)
+    monkeypatch.setattr(providers, 'tts', lambda *a, **k: pytest.fail('saved audio must be reused'))
+    for _ in range(2):
+        p.state = State(tmp_path)
+        with pytest.raises(RuntimeError, match='не помещаются'):
+            p.stage_voice()
+        assert not p.state.stage_done('voice')

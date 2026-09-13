@@ -521,7 +521,15 @@ class Pipeline:
         too_long = []
         for s in self.scenes:
             st = self.state.scene(s["scene_id"])
-            if not s["dialogue"] or (st.get("voice") and not self._redo("voice", s["scene_id"])):
+            if not s["dialogue"]:
+                continue
+            if st.get("voice") and not self._redo("voice", s["scene_id"]):
+                # A failed length check also saved its audio. Resume must reuse
+                # it AND enforce the same check, not mark the stage successful.
+                end = max((c['end'] for c in st['voice'].get('cues', [])), default=0)
+                limit = s['duration'] - 0.25
+                if end > limit + 0.05:
+                    too_long.append(f"{s['scene_id']} ({end:.1f}s > {limit:.1f}s)")
                 continue
             vdir = self.work / "voice" / s["scene_id"]
             t, sync_lines, vo_lines, cues = LEAD_IN, [], [], []

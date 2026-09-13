@@ -83,24 +83,29 @@ def status(provider: str) -> dict:
     """Status for one provider. Contains no secret values."""
     spec = PROVIDERS[provider]
     missing = [v for v in spec["required"] if not _present(v)]
+    placeholders = [v for v in spec['required']
+                    if (os.getenv(v) or '').strip().lower() in ('changeme', 'your_key_here', 'xxx')]
     record = store.get("integration_status", {"provider": provider}) or {}
     extra = {}
     for var in spec.get("extra_models", []):
-        val = os.getenv(var, "")
+        defaults = {'FAL_IMAGE_MODEL': 'fal-ai/nano-banana-2/edit', 'FAL_LIPSYNC_MODEL': 'fal-ai/sync-lipsync/v2'}
+        val = os.getenv(var, "") or defaults.get(var, '')
         if val:
             extra[var] = val
     return {
         "provider": provider,
         "label": spec["label"],
         "powers": spec["powers"],
-        "connected": not missing,
-        "state": "Connected" if not missing else "Missing",
+        # Presence is not proof of inference permission. A failed test must
+        # remain visible instead of being overwritten by a green presence flag.
+        "connected": not missing and not placeholders and not record.get('last_error'),
+        "state": 'Missing' if missing else ('Check failed' if placeholders or record.get('last_error') else 'Configured — access not verified'),
         "missing": missing,
         "required": spec["required"],
         "model": _selected_model(spec),
         "extra_models": extra,
         "last_test_at": record.get("last_test_at"),
-        "last_error": record.get("last_error"),
+        "last_error": ('Placeholder value in: ' + ', '.join(placeholders)) if placeholders else record.get("last_error"),
     }
 
 
@@ -156,7 +161,7 @@ def _probe(provider: str) -> str | None:
         if provider == "supabase":
             r = httpx.get(f"{os.environ['SUPABASE_URL'].rstrip('/')}/rest/v1/",
                           headers={"apikey": os.environ["SUPABASE_SERVICE_ROLE_KEY"]}, timeout=10)
-            return None if r.status_code < 500 else f"HTTP {r.status_code}"
+            return None if 200 <= r.status_code < 300 else f"HTTP {r.status_code}"
         if provider == "r2":
             import boto3
             boto3.client(
@@ -171,4 +176,5 @@ def _probe(provider: str) -> str | None:
         # want to depend on. Presence check only.
         return None
     except Exception as e:
-        return f"{type(e).__name__}: {e}"
+        # SDK exceptions can contain keys, capability URLs and headers.
+        return f"Connection check failed ({type(e).__name__})."

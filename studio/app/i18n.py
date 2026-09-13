@@ -36,6 +36,8 @@ def notice(context, value):
     text = str(value or "")
     if language(context["request"]) != "ru":
         return text
+    if '\n' in text:
+        return '\n'.join(notice(context, line) for line in text.split('\n'))
     if re.sub(r"\s+", " ", text.strip()) in RU:
         return translate(text, "ru")
     if ": " in text:
@@ -45,6 +47,14 @@ def notice(context, value):
     # Only known application wording is rewritten. This filter must not be used
     # for scripts, prompts, descriptions, user titles, or dialogue.
     replacements = [
+        (r'^Configure before production: (.+)$', r'До запуска настройте: \1'),
+        (r'^Assign ElevenLabs voices for (.+), or choose Native scene audio\.$', r'Назначьте голоса ElevenLabs персонажам: \1. Либо выберите встроенную речь.'),
+        (r'^(FAL_\w+): this production adapter requires (.+)\. Other models need a separate integration\.$', r'\1: текущая интеграция рассчитана на \2. Другую модель нужно подключать отдельно.'),
+        (r'^IMAGE_RESOLUTION: supported with current reference pricing: (.+)$', r'IMAGE_RESOLUTION: для референсов с текущим расчётом стоимости поддерживаются \1.'),
+        (r'^(VIDEO_RESOLUTION|LIPSYNC_VARIANT|PROVIDER_INPUT_MODE): choose (.+)\.$', r'\1: выберите \2.'),
+        (r'^(ffmpeg|ffprobe): required on the production server before starting\.$', r'\1: до запуска нужно установить на сервере производства.'),
+        (r'^(PRICE_\w+): enter a finite, non-negative price\.$', r'\1: укажите корректную неотрицательную цену.'),
+        (r'^(\w+): include the unfinished prerequisite stages: (.+)$', r'\1: также включите необходимые незавершённые этапы: \2.'),
         (r"episode (\S+) rejected:", r"Эпизод \1 не прошёл проверку:"),
         (r"total (\d+(?:\.\d+)?)s not within (\d+)[–-](\d+)", r"Длительность \1 сек. не входит в диапазон \2–\3 сек."),
         (r"cliffhanger\.hook is empty", "Не заполнена интрига в финале эпизода."),

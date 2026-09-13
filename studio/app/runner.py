@@ -68,8 +68,8 @@ _GUIDANCE = [
     ("budget:", "The episode hit its budget cap. Record an override with a reason to continue."),
     ("не помещаются", "A spoken line is too long for its clip. Shorten it in the script and save again."),
     ("нет voice id", "A character has no voice id in the environment. Check the Characters page for the variable name."),
-    ("не прошли QC", "Generated material failed quality control. Force those scenes to regenerate, or accept them."),
-    ("не прошло QC", "Generated material failed quality control. Force those scenes to regenerate, or accept them."),
+    ("не прошли QC", "Generated material failed quality control. Review the failed scenes in the job log. Existing takes are retained."),
+    ("не прошло QC", "Generated material failed quality control. Review the failed scenes in the job log. Existing takes are retained."),
 ]
 
 
@@ -102,6 +102,9 @@ class JobManager:
                               order="created_at", desc=True):
             if job.get("state") in ("queued", "running", "paused"):
                 return job
+            if job.get('mode') == 'live' and job.get('stages') != ['runtime_lease']:
+                # A newer attempt supersedes an older reference-review pause.
+                return None
         return None
 
     def jobs_for(self, series_id: str, episode_id: str | None = None, limit: int = 50) -> list[dict]:
@@ -444,6 +447,7 @@ def episode_runtime(series_id: str, episode_id: str) -> dict:
                     pass
     return {
         "status": st.data.get("status", "draft"),
+        "audio_mode": st.data.get("audio_mode", "native"),
         "stages": st.data.get("stages", {}),
         "spent_usd": float(st.data.get("spent_usd") or 0.0),
         "reserved_usd": float(st.data.get("reserved_usd") or 0.0),

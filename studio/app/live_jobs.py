@@ -15,6 +15,7 @@ from .packaging import materialize
 from .live_runtime import Checkpoint, SeriesLease, unexpired
 from .live_providers import DurableFal
 from .provider_errors import ProviderFailure
+from . import preflight
 from serial.config import Config
 from serial.package import SeriesPackage, validate_episode
 from serial.pipeline import Pipeline, STAGES
@@ -70,12 +71,6 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     if force:
         raise ValueError('Forced live regeneration is not available in this release. Existing takes are retained.')
     cfg = configuration(audio_mode)
-    needed = [s for s in stages if not (cfg.native_dialogue and s in ('voice', 'lipsync'))]
-    missing = cfg.missing_for(needed)
-    if not cfg.r2_configured:
-        missing.append('R2 storage credentials')
-    if missing:
-        raise ValueError('Configure before production: ' + ', '.join(missing))
     source = materialize(series_id)
     frozen = settings.package_dir / '_live_jobs' / str(uuid.uuid4())
     shutil.copytree(source, frozen)
@@ -83,15 +78,9 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     actual_digest = package_digest(pkg, episode_id)
     if not digest or actual_digest != digest:
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
-    if not cfg.native_dialogue and 'voice' in stages:
-        from serial.costs import PRICE
-        # Dialogue is optional in the package; silent POV/reaction shots omit it.
-        voices = {d['speaker'] for s in pkg.load_episode(episode_id)['scenes'] for d in s.get('dialogue', [])}
-        missing = [c for c in voices if not os.environ.get((pkg.characters[c].get('voice') or {}).get('voice_env', ''), '') and not cfg.voice_ids.get(c)]
-        if missing:
-            raise ValueError('Assign ElevenLabs voices for ' + ', '.join(missing) + ', or choose Native scene audio.')
-        if PRICE['elevenlabs_per_1k_chars_estimate'] <= 0:
-            raise ValueError('Set PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE for your plan, or choose Native scene audio.')
+    errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
+    if errors:
+        raise ValueError('\n'.join(errors))
     lease = SeriesLease(runner.store, series_id, actor)
     try:
         cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)
@@ -102,6 +91,9 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
             raise ValueError('This episode has saved production for a different script/settings version. Keep this episode intact and create a new episode for changed content.')
         if old.data.get('audio_mode', audio_mode) != audio_mode:
             raise ValueError('Keep the original audio mode when resuming this episode.')
+        errors = preflight.recovery_problems(stages, old)
+        if errors:
+            raise ValueError('\n'.join(errors))
         from serial.pipeline import SeriesState
         ss = SeriesState(cp.root / 'series_state.json')
         prev = pkg.previous_episode(episode_id)
@@ -131,6 +123,19 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     except Exception:
         lease.close()
         raise
+
+
+def check_configuration(series_id, episode_id, stages, audio_mode):
+    """Read-only local checks; no lease, checkpoint mutation or paid request."""
+    cfg = configuration(audio_mode)
+    pkg = SeriesPackage(materialize(series_id))
+    errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
+    try:
+        validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
+    except ValueError as exc:
+        errors.append(str(exc))
+    if errors:
+        raise ValueError('\n'.join(errors))
 
 
 def run(manager, job, control, cfg, pkg, cp, lease):

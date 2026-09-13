@@ -435,6 +435,8 @@
   "Open Render environment settings": "Открыть настройки ключей в Render",
   "Provider diagnostics below are shown in their original language.": "Технический журнал провайдеров ниже приведён на исходном языке.",
   "Refresh status": "Обновить статус",
+  "The assembled video failed final quality checks. The job log names the failed checks; generated scenes are saved.": "Собранный ролик не прошёл финальную проверку качества. Неудавшиеся проверки указаны в журнале задачи; созданные сцены сохранены.",
+  "The soundtrack could not be normalized. Source media is saved; review the audio before continuing.": "Не удалось нормализовать звуковую дорожку. Исходные материалы сохранены; проверьте звук перед продолжением.",
   "References are ready for your review": "Референсы готовы — проверьте изображения",
   "Production is paused before video generation. Open the reference images and approve the pack if you are happy with it.": "Производство приостановлено перед созданием видео. Откройте изображения персонажей и локаций и утвердите пакет, если результат вас устраивает.",
   "Open references": "Открыть референсы",

@@ -1,8 +1,10 @@
 """ffmpeg-обвязка для сборки и автоматического QA."""
 
 import json
+import math
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -123,8 +125,35 @@ def add_bed(video: Path, bed: Path, dest: Path, bed_db: float) -> Path:
 
 
 def loudnorm(video: Path, dest: Path, i: float = -14.0, tp: float = -1.5, lra: float = 11.0) -> Path:
-    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-af", f"loudnorm=I={i}:TP={tp}:LRA={lra}",
-          "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", str(dest)])
+    """Measure the entire soundtrack, then normalize using those measurements.
+
+    Video packets are copied unchanged. Write atomically so an interrupted
+    audio encode cannot replace a complete master or leave a partial result.
+    https://ffmpeg.org/ffmpeg-filters.html#loudnorm
+    """
+    target = f"loudnorm=I={i}:TP={tp}:LRA={lra}"
+    report = _run(["ffmpeg", "-hide_banner", "-nostats", "-loglevel", "info", "-i", str(video),
+                   "-map", "0:a:0", "-af", target + ":print_format=json", "-f", "null", "-"])
+    blocks = re.findall(r'\{[^{}]*"input_i"[^{}]*\}', report)
+    if not blocks:
+        raise RuntimeError("Audio normalization could not measure the soundtrack.")
+    measured = json.loads(blocks[-1])
+    fields = {"measured_I": "input_i", "measured_LRA": "input_lra", "measured_TP": "input_tp",
+              "measured_thresh": "input_thresh", "offset": "target_offset"}
+    values = {key: float(measured[source]) for key, source in fields.items()}
+    if not all(math.isfinite(value) for value in values.values()):
+        raise RuntimeError("Audio normalization requires an audible soundtrack; the measured audio is silent or invalid.")
+    filt = target + ":" + ":".join(f"{key}={value}" for key, value in values.items()) + ":linear=true"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(prefix=".loudnorm-", suffix=dest.suffix, dir=dest.parent, delete=False) as f:
+        pending = Path(f.name)
+    try:
+        _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-map", "0:v:0", "-map", "0:a:0",
+              "-af", filt, "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+              "-movflags", "+faststart", str(pending)])
+        pending.replace(dest)
+    finally:
+        pending.unlink(missing_ok=True)
     return dest
 
 

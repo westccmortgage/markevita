@@ -4,6 +4,7 @@ Runtime: runs/<series_id>/series_state.json (референсы, approvals, end-
 import json
 import os
 import shutil
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -618,7 +619,35 @@ class Pipeline:
 
     # ---------- stage: qa ----------
 
-    def stage_qa(self):
+    def _repair_master_audio(self, mdir: Path, loudness: dict) -> bool:
+        """Create one audio-corrected version; retain the original and all takes."""
+        manifest = json.loads((mdir / "manifest.json").read_text(encoding="utf-8"))
+        # A completed correction is never looped, including after Resume.
+        if manifest.get("audio_repair") or self.state.stage_done("deliver"):
+            return False
+        versions = [int(p.name[1:]) for p in mdir.parent.iterdir()
+                    if p.is_dir() and p.name.startswith("v") and p.name[1:].isdigit()]
+        ver = f"v{max(versions) + 1}"
+        destination = mdir.parent / ver
+        self.log(f"qa: correcting soundtrack in {mdir.name} -> {ver}; saved video and takes are reused")
+        with tempfile.TemporaryDirectory(prefix="audio-repair-", dir=self.work) as tmp:
+            staging = Path(tmp)
+            master = media.loudnorm(mdir / "episode.mp4", staging / "episode.mp4")
+            for name in ("episode.srt", "poster.jpg"):
+                shutil.copy2(mdir / name, staging / name)
+            metadata = json.loads((mdir / "metadata.json").read_text(encoding="utf-8"))
+            metadata.update(master_version=ver, duration_seconds=round(media.duration(master), 2), created_at=now())
+            repair = {"method": "loudnorm_two_pass", "source_master_version": mdir.name,
+                      "source_master_sha256": sha256(mdir / "episode.mp4"), "before": loudness, "created_at": now()}
+            manifest.update(master_version=ver, master_sha256=sha256(master), audio_repair=repair, created_at=now())
+            (staging / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+            (staging / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+            staging.rename(destination)
+        self.state.data.update(master_version=int(ver[1:]), master_dir=str(destination))
+        self.state.save()
+        return True
+
+    def stage_qa(self, _repair_audio: bool = True):
         if self._done("qa"):
             self.log("qa: уже сделано"); return
         e = self.episode; L = e["limits"]
@@ -652,7 +681,13 @@ class Pipeline:
         (qdir / "report.json").write_text(json.dumps({"master_version": mdir.name, "pass": passed, "checks": checks, "loudness": ld, "probe": p, "created_at": now()}, ensure_ascii=False, indent=2), encoding="utf-8")
         self.state.data["qa_dir"] = str(qdir)
         if not passed:
-            self.state.set_status("failed_qa"); raise RuntimeError(f"QA failed, отчёт {qdir / 'report.json'}")
+            failed = {c["check"] for c in checks if not c["pass"]}
+            self.state.set_status("failed_qa")
+            if _repair_audio and failed <= {"loudness_target", "true_peak"} and self._repair_master_audio(mdir, ld):
+                # All checks run again on the encoded correction. No thresholds
+                # are relaxed and no image/video/voice providers are called.
+                return self.stage_qa(_repair_audio=False)
+            raise RuntimeError(f"QA failed ({', '.join(sorted(failed))}), отчёт {qdir / 'report.json'}")
         self.state.mark_stage("qa")
         self.state.set_status("complete"); self.log(f"qa: PASS -> {qdir / 'report.json'}")
 

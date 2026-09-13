@@ -54,6 +54,8 @@ class JobCancelled(RuntimeError):
 # instructions. Inside the panel that advice is wrong, so known blockers are
 # restated as the action the producer can actually take here.
 _GUIDANCE = [
+    ("QA failed", "The assembled video failed final quality checks. The job log names the failed checks; generated scenes are saved."),
+    ("Audio normalization", "The soundtrack could not be normalized. Source media is saved; review the audio before continuing."),
     ("ChunkedEncodingError", "The download of an already generated file was interrupted. Resume this episode to retrieve the saved result; do not force regeneration."),
     ("не прошёл QC", "A reference image did not pass quality control. Review the job log and reference images before continuing."),
     ("submission outcome", "A provider submission needs reconciliation; do not force or repeat generation."),

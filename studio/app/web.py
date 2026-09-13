@@ -16,6 +16,8 @@ from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import auth, integrations, runner, scripts as scriptmod
+from . import live_jobs
+from .preview_web import _check_form, _csrf_token
 from .config import settings
 from .deps import current_admin, require_admin, templates
 from .ingest import history
@@ -67,7 +69,13 @@ def render(request: Request, template: str, **ctx) -> HTMLResponse:
     ctx.setdefault("ok", request.query_params.get("ok"))
     ctx.setdefault("err", request.query_params.get("err"))
     ctx.setdefault("all_series", store.list("series", order="title"))
-    return templates.TemplateResponse(request, template, ctx)
+    ctx.setdefault("mode", settings.mode)
+    if settings.allow_paid and "This build is mock-only" in str(ctx.get("err") or ""):
+        ctx["err"] = None
+    response = templates.TemplateResponse(request, template, ctx)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer" if request.url.path in ("/reset", "/forgot") else "same-origin"
+    return response
 
 
 # ── auth ───────────────────────────────────────────────────────────────────
@@ -190,11 +198,13 @@ def dashboard(request: Request):
                                     "storage_pending", "submission_unknown")]
     costs = store.list("costs")
     preview_costs = [c for c in costs if c.get("stage") == "clip_preview"]
-    simulated_costs = [c for c in costs if c.get("stage") != "clip_preview"]
+    simulated_costs = [c for c in costs if c.get("stage") != "clip_preview" and not c.get("stage", "").startswith("live/")]
+    live_costs = [c for c in costs if c.get("stage", "").startswith("live/")]
     providers = integrations.status_all()
     return render(request, "dashboard.html",
                   series=series, episodes=episodes, active_jobs=active,
                   total_cost=round(sum(float(c.get("actual_usd") or 0) for c in simulated_costs), 2),
+                  live_estimate=round(sum(float(c.get("actual_usd") or 0) for c in live_costs), 2),
                   preview_estimate=round(sum(float(c.get("estimated_usd") or 0) for c in preview_costs), 2),
                   has_preview_cost=bool(preview_costs),
                   providers=providers,
@@ -250,7 +260,8 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
                     logline: str = Form(""), genre: str = Form(""), language: str = Form("en-US"),
                     captions: str = Form("both"), budget: str = Form("50"),
                     regenerations: str = Form("2"), min_scenes: str = Form("12"),
-                    max_scenes: str = Form("18"), style_sentence: str = Form(""),
+                    max_scenes: str = Form("18"), min_seconds: str = Form(""),
+                    max_seconds: str = Form(""), style_sentence: str = Form(""),
                     camera_rules: str = Form(""), color_rules: str = Form(""),
                     negative_image: str = Form(""), negative_video: str = Form("")):
     a = require_admin(request)
@@ -265,8 +276,15 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
         limits["maximum_regenerations_per_scene"] = int(regenerations)
         limits["min_scenes"] = int(min_scenes)
         limits["max_scenes"] = int(max_scenes)
+        if min_seconds.strip():
+            limits["min_episode_seconds"] = int(min_seconds)
+        if max_seconds.strip():
+            limits["max_episode_seconds"] = int(max_seconds)
+        if not (1 <= limits["min_scenes"] <= limits["max_scenes"] and
+                1 <= limits["min_episode_seconds"] <= limits["max_episode_seconds"]):
+            raise ValueError("Invalid range")
     except ValueError:
-        return _redirect(f"/series/{series_id}", err="Limits must be numbers.")
+        return _redirect(f"/series/{series_id}", err="Use positive scene counts and durations; minimum must not exceed maximum.")
     store.update("series", {"id": series_id}, {
         "title": title, "logline": logline, "genre": genre, "language": language,
         "format": fmt, "production_limits": limits,
@@ -564,12 +582,14 @@ def episode_page(request: Request, series_id: str, episode_id: str):
     by_scene: dict[str, list] = {}
     for t in takes:
         by_scene.setdefault(t.get("scene_id", ""), []).append(t)
-    return render(request, "episode.html", s=s, ep=ep,
+    return render(request, "episode.html", s=s, ep=ep, mode=settings.mode,
                   scenes=store.list("scenes", {"series_id": series_id, "episode_id": episode_id},
                                     order="sequence"),
                   scripts=scripts_list,
                   latest_script=scripts_list[0] if scripts_list else None,
                   runtime=runtime,
+                  production_digest=live_jobs.review(series_id, episode_id) if settings.allow_paid else "",
+                  csrf_token=_csrf_token(request, require_admin(request)),
                   jobs=runner.jobs.jobs_for(series_id, episode_id, limit=10),
                   active_job=runner.jobs.active_job(series_id, episode_id),
                   takes_by_scene=by_scene,
@@ -625,14 +645,20 @@ async def post_script(request: Request, series_id: str, episode_id: str,
 @router.post("/series/{series_id}/episodes/{episode_id}/production")
 def production_control(request: Request, series_id: str, episode_id: str,
                        action: str = Form(...), stages: list[str] = Form(default=[]),
-                       force: str = Form("")):
+                       force: str = Form(""), csrf_token: str = Form(""),
+                       approve_live: str = Form(""), approved_digest: str = Form(""),
+                       audio_mode: str = Form("native")):
     a = require_admin(request)
     back = f"/series/{series_id}/episodes/{episode_id}"
+    approval = {}
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
+        approval = dict(approve_live=approve_live == "yes", approved_digest=approved_digest, audio_mode=audio_mode)
     try:
         if action == "start":
             runner.jobs.start(series_id, episode_id, stages or None, a["email"],
-                              [f.strip() for f in force.split(",") if f.strip()])
-            return _redirect(back, ok="Production started in mock mode.")
+                              [f.strip() for f in force.split(",") if f.strip()], **approval)
+            return _redirect(back, ok=f"Production started in {settings.mode} mode. Open Jobs for progress.")
         if action == "pause":
             job = runner.jobs.active_job(series_id, episode_id)
             if not job:
@@ -640,7 +666,7 @@ def production_control(request: Request, series_id: str, episode_id: str,
             runner.jobs.pause(job["id"], a["email"])
             return _redirect(back, ok="Pausing at the next stage boundary.")
         if action == "resume":
-            runner.jobs.resume(series_id, episode_id, a["email"])
+            runner.jobs.resume(series_id, episode_id, a["email"], **approval)
             return _redirect(back, ok="Resumed. Completed stages are skipped.")
         if action == "cancel":
             job = runner.jobs.active_job(series_id, episode_id)
@@ -648,7 +674,7 @@ def production_control(request: Request, series_id: str, episode_id: str,
                 return _redirect(back, err="Nothing is running.")
             runner.jobs.cancel(job["id"], a["email"])
             return _redirect(back, ok="Cancelling.")
-    except (ValueError, PermissionError) as e:
+    except (ValueError, PermissionError, runner.PackageError) as e:
         return _redirect(back, err=str(e))
     return _redirect(back, err=f"Unknown action '{action}'.")
 
@@ -705,14 +731,17 @@ def references_page(request: Request, series_id: str):
     for r in refs:
         grouped.setdefault(r.get("kind", "other"), []).append(r)
     return render(request, "references.html", s=s, grouped=grouped, total=len(refs),
+                  csrf_token=_csrf_token(request, require_admin(request)),
                   approvals=store.list("approvals", {"series_id": series_id,
                                                      "subject_type": "references"}))
 
 
 @router.post("/series/{series_id}/references/approve")
-def approve_refs(request: Request, series_id: str, note: str = Form("")):
+def approve_refs(request: Request, series_id: str, note: str = Form(""), csrf_token: str = Form("")):
     a = require_admin(request)
     back = f"/series/{series_id}/references"
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
     try:
         result = runner.approve_references(series_id, a["email"], note)
     except (ValueError, KeyError) as e:
@@ -726,16 +755,16 @@ def approve_refs(request: Request, series_id: str, note: str = Form("")):
 def costs_page(request: Request, series_id: str | None = None):
     require_admin(request)
     where = {"series_id": series_id} if series_id else None
-    rows = [{**r, "is_preview": r.get("stage") == "clip_preview"}
+    rows = [{**r, "is_preview": r.get("stage") == "clip_preview", "is_live": r.get("stage", "").startswith("live/")}
             for r in store.list("costs", where)]
     by_episode: dict[str, dict] = {}
     for r in rows:
         # Keep a real preview estimate out of the simulated episode ledger,
         # even if both kinds of record refer to the same episode identifier.
-        key = f"{r['series_id']}/{r['episode_id']}/{'preview' if r['is_preview'] else 'mock'}"
+        key = f"{r['series_id']}/{r['episode_id']}/{'preview' if r['is_preview'] else ('live' if r['is_live'] else 'mock')}"
         agg = by_episode.setdefault(key, {"key": key, "series_id": r["series_id"],
                                           "episode_id": r["episode_id"],
-                                          "is_preview": r["is_preview"],
+                                          "is_preview": r["is_preview"], "is_live": r["is_live"],
                                           "estimated_usd": 0.0,
                                           "actual_usd": None if r["is_preview"] else 0.0,
                                           "calls": 0})
@@ -745,7 +774,8 @@ def costs_page(request: Request, series_id: str | None = None):
         agg["calls"] += 1
     return render(request, "costs.html", rows=rows[:500],
                   by_episode=sorted(by_episode.values(), key=lambda x: -x["estimated_usd"]),
-                  total=round(sum(float(r.get("actual_usd") or 0) for r in rows if not r["is_preview"]), 4),
+                  total=round(sum(float(r.get("actual_usd") or 0) for r in rows if not r["is_preview"] and not r["is_live"]), 4),
+                  live_estimate=round(sum(float(r.get("actual_usd") or 0) for r in rows if r["is_live"]), 4),
                   preview_estimate=round(sum(float(r.get("estimated_usd") or 0) for r in rows if r["is_preview"]), 4),
                   has_preview_cost=any(r["is_preview"] for r in rows),
                   episodes=store.list("episodes", where, order="number"),
@@ -756,7 +786,7 @@ def costs_page(request: Request, series_id: str | None = None):
 def jobs_page(request: Request):
     require_admin(request)
     return render(request, "jobs.html",
-                  jobs=store.list("production_jobs", order="created_at", desc=True, limit=100))
+                  jobs=[j for j in store.list("production_jobs", order="created_at", desc=True, limit=100) if j.get("stages") != ["runtime_lease"]])
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
@@ -788,3 +818,53 @@ def test_integration_form(request: Request, provider: str):
     if result["connected"]:
         return _redirect("/integrations", ok=f"{result['label']}: connected.")
     return _redirect("/integrations", err=f"{result['label']}: {result['last_error']}")
+
+
+@router.post("/series/{series_id}/episode-duration")
+def episode_duration(request: Request, series_id: str, minimum: int = Form(...), maximum: int = Form(...),
+                     episode_id: str = Form(...), csrf_token: str = Form("")):
+    admin = require_admin(request)
+    _check_form(request, admin, csrf_token)
+    series = store.get("series", {"id": series_id})
+    if not series or not ID_RE.fullmatch(episode_id):
+        raise HTTPException(404, "Series or episode not found")
+    if not 1 <= minimum <= maximum <= 3600:
+        raise HTTPException(400, "Invalid duration range")
+    limits = {**DEFAULT_LIMITS, **(series.get("production_limits") or {})}
+    limits.update(min_episode_seconds=minimum, max_episode_seconds=maximum)
+    store.update("series", {"id": series_id}, {"production_limits": limits, "updated_at": _now()})
+    history(series_id, episode_id, "duration.updated", actor=admin["email"], detail={"minimum": minimum, "maximum": maximum})
+    return _redirect(f"/series/{series_id}/episodes/{episode_id}", ok="Episode duration range saved.")
+
+
+@router.get("/series/{series_id}/references/{asset_id}/image")
+def reference_image(request: Request, series_id: str, asset_id: str):
+    require_admin(request)
+    asset = store.get("reference_assets", {"id": asset_id, "series_id": series_id}) or {}
+    key = asset.get("r2_key", "")
+    if not key.startswith(f"series/{series_id}/bible/"):
+        raise HTTPException(404, "Reference image not found")
+    from .preview import _r2
+    response = RedirectResponse(_r2().presign(key, 900), status_code=303)
+    response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    return response
+
+
+@router.get("/series/{series_id}/episodes/{episode_id}/master/{version}")
+def episode_master(request: Request, series_id: str, episode_id: str, version: str):
+    require_admin(request)
+    if not ID_RE.fullmatch(series_id) or not ID_RE.fullmatch(episode_id) or not re.fullmatch(r"v[0-9]+", version):
+        raise HTTPException(404, "Master not found")
+    runtime = runner.episode_runtime(series_id, episode_id)
+    if not any(m["version"] == version for m in runtime["masters"]):
+        raise HTTPException(404, "Master not found")
+    from .preview import _r2
+    key = f"series/{series_id}/episodes/{episode_id}/masters/{version}/episode.mp4"
+    storage = _r2()
+    try:
+        storage.client.head_object(Bucket=storage.cfg.r2_bucket, Key=key)
+    except Exception:
+        raise HTTPException(409, "Master is not delivered yet") from None
+    response = RedirectResponse(storage.presign(key, 900), status_code=303)
+    response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    return response

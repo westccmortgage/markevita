@@ -3,11 +3,10 @@
 {% block content %}
 <div class="page-head"><div>
   <h1>Cost monitor</h1>
-  <p class="sub">Episode simulations and real preview estimates are tracked separately. A generation estimate is not a verified provider charge.</p>
+  <p class="sub">Simulation costs, live episode estimates and first-clip estimates are tracked separately. A generation estimate is not a verified provider charge.</p>
 </div></div>
 
-<div class="notice mode"><b>Episode simulations.</b> Full episode amounts are simulated.
-  First-clip amounts are estimates reserved for real generation; their provider invoice has not been verified.</div>
+<div class="notice mode"><b>Live episode estimate: {{ live_estimate|money }}.</b> Provider invoices have not been independently verified. Simulated costs are shown separately below.</div>
 
 <div class="grid g4" style="margin-bottom:18px">
   <div class="stat"><div class="k">Simulated episode costs</div><div class="v gold">{{ total|money }}</div></div>
@@ -24,9 +23,9 @@
       <tbody>{% for e in by_episode %}
         <tr><td>{{ e.series_id }}</td>
             <td><a href="{{ base }}/series/{{ e.series_id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
-            <td>{{ 'Real preview' if e.is_preview else 'Episode simulation' }}</td>
+            <td>{{ 'Real preview' if e.is_preview else ('Live episode' if e.is_live else 'Episode simulation') }}</td>
             <td>{{ e.calls }}</td><td>{{ e.estimated_usd|money }}</td>
-            <td>{% if e.is_preview %}<b>Unverified</b>{% else %}<b>{{ e.actual_usd|money }}</b> <span class="hint">(simulated)</span>{% endif %}</td></tr>
+            <td>{% if e.is_preview %}<b>Unverified</b>{% else %}<b>{{ e.actual_usd|money }}</b> <span class="hint">({{ 'estimate' if e.is_live else 'simulated' }})</span>{% endif %}</td></tr>
       {% endfor %}</tbody>
     </table></div>
   {% else %}<div class="empty">No costs recorded yet.</div>{% endif %}
@@ -42,7 +41,7 @@
           <td class="small">{{ r.provider or '—' }}</td><td class="small muted mono">{{ r.endpoint or '—' }}</td>
           <td class="small muted mono">{{ r.take_id or '—' }}</td>
           <td>{{ r.estimated_usd|money }}</td>
-          <td>{% if r.is_preview %}Unverified{% else %}{{ r.actual_usd|money }} <span class="hint">(simulated)</span>{% endif %}</td></tr>
+          <td>{% if r.is_preview %}Unverified{% else %}{{ r.actual_usd|money }} <span class="hint">({{ 'estimate' if r.is_live else 'simulated' }})</span>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>

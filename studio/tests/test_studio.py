@@ -177,10 +177,10 @@ def test_studio_is_in_mock_mode():
     assert settings.mode == "mock"
 
 
-def test_starting_a_job_is_refused_when_paid_calls_are_enabled(monkeypatch):
+def test_starting_live_job_requires_reviewed_approval(monkeypatch):
     from app import runner
     monkeypatch.setattr(runner.settings, "allow_paid", True)
-    with pytest.raises(PermissionError, match="mock-only"):
+    with pytest.raises(PermissionError, match="approve"):
         runner.jobs.start(SERIES, "s01e01", ["intake"], "tester")
 
 

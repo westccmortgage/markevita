@@ -127,8 +127,10 @@
         <div class="field"><label>Regenerations per scene</label><input type="number" name="regenerations" value="{{ lim.get('maximum_regenerations_per_scene', 2) }}"></div>
         <div class="field"><label>Min scenes</label><input type="number" name="min_scenes" value="{{ lim.get('min_scenes', 12) }}"></div>
         <div class="field"><label>Max scenes</label><input type="number" name="max_scenes" value="{{ lim.get('max_scenes', 18) }}"></div>
+        <div class="field"><label>Minimum episode seconds</label><input type="number" min="1" name="min_seconds" value="{{ lim.get('min_episode_seconds', 90) }}" required></div>
+        <div class="field"><label>Maximum episode seconds</label><input type="number" min="1" name="max_seconds" value="{{ lim.get('max_episode_seconds', 120) }}" required></div>
       </div>
-      <p class="hint">A series may only lower these. The environment caps
+      <p class="hint">For four 8-second scenes, choose minimum 30 seconds and maximum 40 seconds, with minimum 4 scenes. Budget and regeneration limits are capped by
         (<code>MAX_EPISODE_BUDGET_USD</code>, <code>MAX_SCENE_REGENERATIONS</code>) are the ceiling.</p>
     </fieldset>
 

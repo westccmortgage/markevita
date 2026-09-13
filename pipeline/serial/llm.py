@@ -27,21 +27,38 @@ class LLM:
         self.calls = 0
         if not cfg.dry_run:
             import anthropic
-            self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
+            self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key, max_retries=0, timeout=180)
+
+    def _create(self, system, content, max_tokens):
+        params = dict(model=self.cfg.anthropic_model, max_tokens=max_tokens, system=system,
+                      messages=[{"role": "user", "content": content}])
+        guard = getattr(self.cfg, "paid_calls", None)
+        if guard:
+            # Token counting is free and gives a pre-call upper cost bound.
+            count = self.client.messages.count_tokens(**{k: v for k, v in params.items() if k != "max_tokens"})
+            rates = {"claude-sonnet-5": (2.0, 10.0)}
+            if self.cfg.anthropic_model not in rates:
+                raise RuntimeError("Live cost accounting currently supports claude-sonnet-5; configure ANTHROPIC_MODEL accordingly.")
+            input_rate, output_rate = rates[self.cfg.anthropic_model]
+            reserve = (count.input_tokens * input_rate + max_tokens * output_rate) / 1_000_000
+            def actual(result):
+                u = result["usage"]
+                return (u["input_tokens"] * input_rate + u["output_tokens"] * output_rate) / 1_000_000
+            result = guard.once("anthropic", params, reserve,
+                                lambda: self.client.messages.create(**params).model_dump(mode="json"), actual)
+            return "".join(b["text"] for b in result["content"] if b.get("type") == "text")
+        resp = self.client.messages.create(**params)
+        return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
 
     def _json(self, system: str, content, max_tokens: int = 8000) -> dict:
         self.calls += 1
-        resp = self.client.messages.create(model=self.cfg.anthropic_model, max_tokens=max_tokens, system=system,
-                                           messages=[{"role": "user", "content": content}])
-        text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        text = self._create(system, content, max_tokens)
         try:
             return json.loads(_strip_fences(text))
         except json.JSONDecodeError:
             self.calls += 1
-            fix = self.client.messages.create(model=self.cfg.anthropic_model, max_tokens=max_tokens,
-                                              system="Return ONLY valid JSON. Fix the following so it parses. No prose.",
-                                              messages=[{"role": "user", "content": text}])
-            return json.loads(_strip_fences("".join(b.text for b in fix.content if getattr(b, "type", "") == "text")))
+            fix = self._create("Return ONLY valid JSON. Fix the following so it parses. No prose.", text, max_tokens)
+            return json.loads(_strip_fences(fix))
 
     # ---------- bible ----------
 

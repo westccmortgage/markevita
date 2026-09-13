@@ -15,7 +15,7 @@ from .state import State, now, sha256
 from .storage import R2, Keys
 
 STAGES = ["intake", "direction", "references", "keyframes", "video", "voice", "lipsync", "assemble", "qa", "deliver", "publish"]
-PAID_STAGES = {"references", "keyframes", "video", "voice", "lipsync"}
+PAID_STAGES = {"direction", "references", "keyframes", "video", "voice", "lipsync"}
 LEAD_IN = 0.4
 GAP = 0.35
 MAX_TEMPO = 1.15
@@ -27,6 +27,7 @@ class SceneFailed(RuntimeError):
 
 class SeriesState:
     def __init__(self, path: Path):
+        self.on_save = None
         self.path = path
         self.data = {"bible_version": None, "references": {"characters": {}, "locations": {}, "props": {}}, "approvals": {}, "episodes": {}}
         if path.exists():
@@ -37,6 +38,8 @@ class SeriesState:
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self.path)
+        if self.on_save:
+            self.on_save()
 
 
 class Pipeline:
@@ -170,6 +173,7 @@ class Pipeline:
     # ---------- stage: direction ----------
 
     def stage_direction(self):
+        self._guard_live("direction")
         if self._done("direction"):
             self.log("direction: уже сделано"); return
         need = [s for s in self.scenes if not s.get("keyframe_prompt")]
@@ -327,6 +331,8 @@ class Pipeline:
                               rdir / "props" / f"{pid}.png", [], "1:1", False, f"ref prop/{pid}", [], "")
             R["props"][pid] = self._ref_record(p, self.keys.bible_prop(pid, bv, f"{pid}.png")); self.sstate.save()
 
+        self.sstate.data["reference_pack_complete"] = self.pkg.bible_version
+        self.sstate.save()
         self.state.mark_stage("references"); self.state.set_status("references_review")
         self.log(f"references: пакет в {rdir}. Утвердить: --approve references --by \"...\"")
 
@@ -427,6 +433,12 @@ class Pipeline:
             prompt = (f"{s['video_prompt']} Camera: {s.get('camera_motion','locked tripod')}, {s.get('lens') or ''}. "
                       f"{'The speaking character talks with natural lip movement; there is NO audible voice.' if speaks else 'Nobody speaks.'} "
                       f"Keep every person identical to the first frame for the whole clip: same face, hair, wardrobe, jewelry. {cam} {style}")
+            if getattr(self.cfg, "native_dialogue", False):
+                dialogue = " ".join(f"{self._char(d['speaker'])['name']} ({d.get('delivery', '')}): {json.dumps(d['text'], ensure_ascii=False)}" for d in s['dialogue'])
+                prompt = (f"{s['video_prompt']} Camera: {s.get('camera_motion','locked tripod')}, {s.get('lens') or ''}. "
+                          f"Keep the exact faces, wardrobe and location from the starting image. {cam} {style} "
+                          f"Natural ambient audio. Language: {self.episode['language']}. "
+                          + (f"Speak these lines exactly once with synchronized lips; all other people remain silent: {dialogue}" if dialogue else "Nobody speaks."))
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_vid_", self._redo("video", s["scene_id"]))
@@ -462,6 +474,18 @@ class Pipeline:
         if self._done("voice"):
             self.log("voice: уже сделано"); return
         self._guard_live("voice")
+        if getattr(self.cfg, "native_dialogue", False):
+            for scene in self.scenes:
+                cues = []
+                lines = scene["dialogue"]
+                available = scene["duration"] - 0.8
+                for i, line in enumerate(lines):
+                    start = 0.4 + available * i / len(lines)
+                    end = 0.4 + available * (i + 1) / len(lines)
+                    cues.append({"start": start, "end": end, "text": line["text"], "speaker": line["speaker"]})
+                self.state.scene(scene["scene_id"])["voice"] = {"cues": cues, "timing_source": "estimated_native_audio"}
+            self.state.mark_stage("voice")
+            return
         speakers = {d["speaker"] for s in self.scenes for d in s["dialogue"]}
         missing = [c for c in speakers if not self._voice_id(c)] if not self.cfg.dry_run else []
         if missing:
@@ -477,8 +501,18 @@ class Pipeline:
             for i, d in enumerate(s["dialogue"]):
                 line_id = f"{s['scene_id']}_l{i:02d}"
                 cvoice = self._char(d["speaker"]).get("voice") or {}
-                prov = providers.tts(self.cfg, self.log, d["text"], d.get("delivery", ""), self._voice_id(d["speaker"]), vdir / f"{line_id}_raw.mp3",
-                                     model_id=cvoice.get("model_id") or self.cfg.elevenlabs_model_id, settings=cvoice.get("settings"))
+                def make_voice():
+                    return providers.tts(self.cfg, self.log, d["text"], d.get("delivery", ""), self._voice_id(d["speaker"]), vdir / f"{line_id}_raw.mp3",
+                                         model_id=cvoice.get("model_id") or self.cfg.elevenlabs_model_id, settings=cvoice.get("settings"))
+                guard = getattr(self.cfg, "paid_calls", None)
+                if guard:
+                    from .costs import PRICE
+                    params = {"line": line_id, "text": d["text"], "delivery": d.get("delivery", ""),
+                              "voice_id": self._voice_id(d["speaker"]), "voice": cvoice}
+                    amount = (len(d["text"]) + len(d.get("delivery", "")) + 3) / 1000 * PRICE["elevenlabs_per_1k_chars_estimate"]
+                    prov = dict(guard.once("elevenlabs", params, amount, make_voice))
+                else:
+                    prov = make_voice()
                 cur = Path(prov["local_path"])
                 if cvoice.get("phone_fx") or (d.get("voice_over") and "phone" in d.get("delivery", "").lower()):
                     cur = media.phone_fx(cur, vdir / f"{line_id}_phone.mp3"); prov["phone_fx"] = True
@@ -612,9 +646,10 @@ class Pipeline:
         passed = all(c["pass"] for c in checks)
         qdir = self.out / "qa" / mdir.name; qdir.mkdir(parents=True, exist_ok=True)
         (qdir / "report.json").write_text(json.dumps({"master_version": mdir.name, "pass": passed, "checks": checks, "loudness": ld, "probe": p, "created_at": now()}, ensure_ascii=False, indent=2), encoding="utf-8")
-        self.state.data["qa_dir"] = str(qdir); self.state.mark_stage("qa")
+        self.state.data["qa_dir"] = str(qdir)
         if not passed:
             self.state.set_status("failed_qa"); raise RuntimeError(f"QA failed, отчёт {qdir / 'report.json'}")
+        self.state.mark_stage("qa")
         self.state.set_status("complete"); self.log(f"qa: PASS -> {qdir / 'report.json'}")
 
     # ---------- stage: deliver ----------
@@ -622,6 +657,8 @@ class Pipeline:
     def stage_deliver(self):
         if self._done("deliver"):
             self.log("deliver: уже сделано"); return
+        if not self.state.stage_done("qa"):
+            raise RuntimeError("Pass QA before delivering an episode.")
         k = self.keys; mdir = Path(self.state.data["master_dir"]); ver = mdir.name
         self.r2.put(self.pkg.episode_dir(self.episode_id) / "brief.json", k.brief())
         self.r2.put(self.ep / "direction.json", f"{k.ep}/direction.json")

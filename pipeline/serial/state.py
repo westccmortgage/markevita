@@ -24,6 +24,7 @@ class State:
     """episodes/<ep>/state.json: статус, сцены, референсы, все takes с provenance, расходы, approvals."""
 
     def __init__(self, episode_dir: Path):
+        self.on_save = None
         self.path = episode_dir / "state.json"
         self.data = {
             "status": "draft", "stages": {}, "scenes": {}, "references": {}, "takes": {},
@@ -37,6 +38,8 @@ class State:
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self.path)
+        if self.on_save:
+            self.on_save()
 
     def set_status(self, status: str):
         self.data["status"] = status

@@ -1,3 +1,5 @@
+> Update: reviewed live episode production and configurable episode duration are now supported. See [Live episodes](docs/LIVE_EPISODES.md) for the current workflow. Mock-only descriptions below document the original build.
+
 # MarkeVita AI Series Studio
 
 Admin panel and production backend for the content-agnostic **v0.3 series

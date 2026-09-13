@@ -118,7 +118,7 @@ def _ingest_takes(series_id: str, episode_id: str, state: dict) -> int:
             attempt = int(parts[-1])
         store.upsert("takes", {
             "series_id": series_id, "episode_id": episode_id, "scene_id": scene_id,
-            "take_id": take_id, "stage": stage, "attempt": attempt,
+            "take_id": ("live:" if state.get("mode") == "live" else "") + take_id, "stage": stage, "attempt": attempt,
             "provider": t.get("provider", ""), "endpoint": t.get("endpoint", ""),
             "request_id": t.get("request_id", ""),
             "prompt": (t.get("params") or {}).get("prompt", "") or t.get("prompt", ""),
@@ -143,16 +143,19 @@ def _ingest_costs(series_id: str, episode_id: str, state: dict) -> None:
     log = state.get("cost_log") or []
     if not log:
         return
-    store.delete("costs", {"series_id": series_id, "episode_id": episode_id})
+    live = state.get("mode") == "live"
+    for row in store.list("costs", {"series_id": series_id, "episode_id": episode_id}):
+        if row.get("stage") != "clip_preview" and row.get("stage", "").startswith("live/") == live:
+            store.delete("costs", {"id": row["id"]})
     takes = state.get("takes") or {}
     for entry in log:
         take_id = entry.get("take_id") or ""
-        t = takes.get(take_id, {})
+        t = takes.get(take_id) or state.get("paid_operations", {}).get(take_id, {})
         store.insert("costs", {
             "series_id": series_id, "episode_id": episode_id,
-            "stage": (entry.get("what") or "").split(" ")[0],
+            "stage": ("live/" if live else "") + (entry.get("what") or "").split(" ")[0],
             "provider": t.get("provider", ""), "endpoint": t.get("endpoint", ""),
-            "take_id": take_id,
+            "take_id": ("live:" if live else "") + take_id,
             "estimated_usd": float(entry.get("estimated") or 0.0),
             "actual_usd": float(entry.get("actual") or 0.0),
             "created_at": _now(),
@@ -167,7 +170,9 @@ def _ingest_manifests(series_id: str, episode_id: str, ep_dir: Path) -> None:
         manifest = _read(version_dir / "manifest.json")
         if not manifest:
             continue
+        previous = store.get("episode_manifests", {"series_id": series_id, "episode_id": episode_id, "version": version_dir.name})
         store.upsert("episode_manifests", {
+            **({"id": previous["id"]} if previous else {}),
             "series_id": series_id, "episode_id": episode_id, "version": version_dir.name,
             "r2_key": manifest.get("r2_key", ""), "manifest": manifest, "created_at": _now(),
         })
@@ -208,7 +213,10 @@ def ingest_series_state(series_id: str, runs_root: Path) -> dict:
             for name, rec in items:
                 if not isinstance(rec, dict):
                     continue
+                previous = store.get("reference_assets", {"series_id": series_id, "bible_version": rec.get("bible_version", bible_version),
+                                                          "kind": singular, "owner_id": owner_id, "name": str(name)})
                 store.upsert("reference_assets", {
+                    **({"id": previous["id"]} if previous else {}),
                     "series_id": series_id, "bible_version": rec.get("bible_version", bible_version),
                     "kind": singular, "owner_id": owner_id, "name": str(name),
                     "r2_key": rec.get("r2_key", ""), "checksum": rec.get("checksum", ""),

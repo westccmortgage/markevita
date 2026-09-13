@@ -14,9 +14,8 @@ in-flight provider request is collected by request id rather than resubmitted.
 The studio adds an idempotency key per job so a double-clicked button cannot
 start a second run.
 
-Mock mode is enforced here, not merely defaulted: `live=False` is passed to the
-engine on every run and a paid run is refused outright unless STUDIO_ALLOW_PAID
-is explicitly turned on.
+Mock jobs use the original local engine path. Reviewed live jobs use the same
+engine with private checkpoints, a durable worker lease and paid-call tracking.
 """
 from __future__ import annotations
 
@@ -55,10 +54,12 @@ class JobCancelled(RuntimeError):
 # instructions. Inside the panel that advice is wrong, so known blockers are
 # restated as the action the producer can actually take here.
 _GUIDANCE = [
+    ("submission outcome", "A provider submission needs reconciliation; do not force or repeat generation."),
+    ("interrupted request", "A paid request was interrupted before its response was saved. Reconcile it with the provider before another attempt."),
     ("approval референсов", "Approve the reference pack on the series' References page, then resume."),
     ("approval 'publish'", "Approve the finished episode on its page, then run the publish stage."),
-    ("series.json approval.status", "The series is not approved for live generation. It stays in mock mode."),
-    ("PIPELINE_ALLOW_PAID", "Paid generation is disabled in this build. Nothing was charged."),
+    ("series.json approval.status", "Approve the current script and budget in the production form."),
+    ("PIPELINE_ALLOW_PAID", "Enable PIPELINE_ALLOW_PAID in the service environment to use live production."),
     ("needs_budget_override", "The episode hit its budget cap. Record an override with a reason to continue."),
     ("budget:", "The episode hit its budget cap. Record an override with a reason to continue."),
     ("не помещаются", "A spoken line is too long for its clip. Shorten it in the script and save again."),
@@ -108,7 +109,8 @@ class JobManager:
     # ── control ────────────────────────────────────────────────────────────
 
     def start(self, series_id: str, episode_id: str, stages: list[str] | None = None,
-              requested_by: str = "", force: list[str] | None = None) -> dict:
+              requested_by: str = "", force: list[str] | None = None, *,
+              approved_digest: str = "", approve_live: bool = False, audio_mode: str = "native") -> dict:
         episode = store.get("episodes", {"series_id": series_id, "episode_id": episode_id}) or {}
         if episode.get("status") == "preview" or (episode.get("brief") or {}).get("kind") == "clip_preview":
             raise ValueError("Open First clip to manage this preview; episode production cannot restart it.")
@@ -116,10 +118,13 @@ class JobManager:
         unknown = [s for s in stages if s not in STAGES]
         if unknown:
             raise ValueError(f"unknown stages: {unknown}")
+        if "publish" in stages:
+            raise PermissionError("Publishing is not available from episode production.")
+        stages = [stage for stage in DEFAULT_STAGES if stage in stages]
         if settings.allow_paid:
-            raise PermissionError(
-                "STUDIO_ALLOW_PAID is true. This build is mock-only: set it back to false."
-            )
+            from .live_jobs import start
+            return start(self, series_id, episode_id, stages, requested_by, force or [],
+                         approved_digest, approve_live, audio_mode)
 
         with self._lock:
             existing = self.active_job(series_id, episode_id)
@@ -168,18 +173,18 @@ class JobManager:
         history(job.get("series_id", ""), job.get("episode_id", ""), "job.cancel",
                 entity_type="job", entity_id=job_id, actor=actor or "system")
 
-    def resume(self, series_id: str, episode_id: str, requested_by: str = "") -> dict:
+    def resume(self, series_id: str, episode_id: str, requested_by: str = "", **approval) -> dict:
         """Resume production. Completed stages are skipped by the engine and
         finished takes are reused, so this never repeats paid work."""
         paused = None
         for job in store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
                               order="created_at", desc=True):
-            if job.get("state") in ("paused", "failed", "cancelled"):
+            if job.get("state") in ("paused", "failed", "cancelled", "interrupted", "running", "queued"):
                 paused = job
                 break
         stages = list(paused.get("stages") or DEFAULT_STAGES) if paused else DEFAULT_STAGES
         force = list(paused.get("force") or []) if paused else []
-        return self.start(series_id, episode_id, stages, requested_by, force)
+        return self.start(series_id, episode_id, stages, requested_by, force, **approval)
 
     # ── worker ─────────────────────────────────────────────────────────────
 
@@ -324,6 +329,9 @@ def approve_references(series_id: str, actor: str, note: str = "") -> dict:
     Mirrors `run_episode.py --approve references`."""
     root = materialize(series_id)
     pkg = SeriesPackage(root)
+    if settings.allow_paid:
+        from .live_jobs import approve_references as approve_live_references
+        return approve_live_references(series_id, actor, note)
     ss = SeriesState(RUNS_ROOT / series_id / "series_state.json")
     if ss.data.get("bible_version") != pkg.bible_version or not ss.data["references"]["characters"]:
         raise ValueError(
@@ -354,7 +362,7 @@ def approve_references(series_id: str, actor: str, note: str = "") -> dict:
 def approve_publish(series_id: str, episode_id: str, actor: str, note: str = "") -> dict:
     """Record final approval of a finished episode. Mirrors
     `run_episode.py --approve publish`. Publishing itself stays disabled."""
-    ep_dir = RUNS_ROOT / series_id / episode_id
+    ep_dir = runtime_root() / series_id / episode_id
     st = State(ep_dir)
     if st.data.get("status") != "complete" and not st.data.get("delivered"):
         raise ValueError(
@@ -394,10 +402,20 @@ def record_override(series_id: str, episode_id: str, key: str, value: str,
     return {"key": key, "new": value}
 
 
+def runtime_root() -> Path:
+    return RUNS_ROOT / "live" if settings.allow_paid else RUNS_ROOT
+
+
 def episode_runtime(series_id: str, episode_id: str) -> dict:
     """Live view of an episode's engine state, for the panel."""
-    ep_dir = RUNS_ROOT / series_id / episode_id
+    ep_dir = runtime_root() / series_id / episode_id
     st = State(ep_dir)
+    if settings.allow_paid and not st.path.exists():
+        from .live_jobs import saved_state
+        try:
+            st.data.update(saved_state(series_id, episode_id))
+        except Exception:
+            st.data["status"] = "checkpoint_unavailable"
     log_path = ep_dir / "log.txt"
     tail = ""
     if log_path.exists():
@@ -407,6 +425,8 @@ def episode_runtime(series_id: str, episode_id: str) -> dict:
     if out.exists():
         for v in sorted(out.iterdir()):
             masters.append({"version": v.name, "files": sorted(f.name for f in v.iterdir() if f.is_file())})
+    if not masters and st.data.get("master_version"):
+        masters = [{"version": "v" + str(st.data["master_version"]), "files": ["episode.mp4", "episode.srt", "poster.jpg"]}]
     qa_reports = []
     qa_dir = ep_dir / "out" / "qa"
     if qa_dir.exists():

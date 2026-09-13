@@ -103,6 +103,9 @@ def start(series_id: str, episode_id: str, payload: dict = Body(default={}), a: 
             stages=payload.get("stages") or None,
             requested_by=a["email"],
             force=payload.get("force") or [],
+            approved_digest=payload.get("approved_digest", ""),
+            approve_live=payload.get("approve_live") is True,
+            audio_mode=payload.get("audio_mode", "native"),
         )
     except (ValueError, PermissionError) as e:
         raise HTTPException(400, str(e)) from e

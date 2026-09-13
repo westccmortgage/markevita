@@ -8,7 +8,8 @@
 </div>
 
 <div class="notice mode">
-  <b>Episode mock mode.</b> Full episode runs use simulated provider calls.
+  {% if mode == 'live' %}<b>Live episode production.</b> Review a script and spending cap on its episode page before starting.
+  {% else %}<b>Episode mock mode.</b> Full episode runs use simulated provider calls.{% endif %}
   The <a href="{{ base }}/clip-preview">first clip preview</a> has a separate approval for one real generation.
   Nothing is published automatically.
   Records are held in the <b>{{ store_driver }}</b> store; sign-in uses <b>{{ auth_backend }}</b>.
@@ -26,7 +27,7 @@
   <div class="stat"><div class="k">Series</div><div class="v">{{ series|length }}</div></div>
   <div class="stat"><div class="k">Episodes</div><div class="v">{{ episodes|length }}</div></div>
   <div class="stat"><div class="k">Active jobs</div><div class="v {{ 'gold' if active_jobs }}">{{ active_jobs|length }}</div></div>
-  <div class="stat"><div class="k">Simulated episode costs</div><div class="v">{{ total_cost|money }}</div></div>
+  <div class="stat"><div class="k">{{ 'Live episode estimate' if mode == 'live' else 'Simulated episode costs' }}</div><div class="v">{{ (live_estimate if mode == 'live' else total_cost)|money }}</div></div>
 </div>
 
 {% if has_preview_cost %}

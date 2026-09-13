@@ -16,7 +16,7 @@
 {% set pct = ((runtime.spent_usd / budget * 100) if budget else 0) %}
 <div class="grid g4" style="margin-bottom:18px">
   <div class="stat"><div class="k">Status</div><div class="v" style="font-size:17px">{{ runtime.status }}</div></div>
-  <div class="stat"><div class="k">Simulated spend</div><div class="v {{ 'gold' if pct < 100 }}">{{ runtime.spent_usd|money }}</div>
+  <div class="stat"><div class="k">{{ "Estimated spend" if mode == "live" else "Simulated spend" }}</div><div class="v {{ 'gold' if pct < 100 }}">{{ runtime.spent_usd|money }}</div>
     <div class="meter {{ 'over' if pct > 100 }}"><i style="width:{{ [pct, 100]|min }}%"></i></div>
     <div class="hint">cap {{ budget|money }}{% if runtime.reserved_usd %} · reserved {{ runtime.reserved_usd|money }}{% endif %}</div>
   </div>
@@ -51,7 +51,30 @@
       {% if ep_validation.warnings %}<br>Warnings: {{ ep_validation.warnings|join('; ') }}{% endif %}</div>
   {% endif %}
 
+  {% if ep_validation and ep_validation.ok is sameas false and 'total ' in ep_validation.message %}
+  <form method="post" action="{{ base }}/series/{{ s.id }}/episode-duration">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="episode_id" value="{{ ep.episode_id }}">
+    <div class="row">
+      <div class="field"><label>Minimum episode seconds</label><input type="number" name="minimum" min="1" value="30" required></div>
+      <div class="field"><label>Maximum episode seconds</label><input type="number" name="maximum" min="1" value="40" required></div>
+    </div>
+    <button type="submit">Save duration range</button>
+    <p class="hint">Applies to this series. Your scenes and dialogue stay as saved.</p>
+  </form>
+  {% endif %}
   <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/production">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="approved_digest" value="{{ production_digest }}">
+    {% if mode == 'live' %}
+    <div class="field"><label>Audio</label><select name="audio_mode">
+      <option value="native">Native scene audio — speech generated with video</option>
+      <option value="voices">Assigned character voices — ElevenLabs and lipsync</option>
+    </select></div>
+    <p class="hint">Native audio needs no voice IDs. Voice consistency and exact wording need your review; subtitle timing is estimated. Assigned voices use the character's configured voice ID.</p>
+    <label><input type="checkbox" name="approve_live" value="yes"> Approve this script and live production up to {{ budget|money }} in estimated provider charges.</label>
+    <p class="hint">Production pauses for reference review before video. Provider billing may differ from estimates. Nothing is published automatically.</p>
+    {% endif %}
     <fieldset><legend>Stages to run</legend>
       <div class="checks">
         {% for st in default_stages %}
@@ -68,9 +91,9 @@
     </div>
     <div class="btn-row">
       <button class="btn-primary" name="action" value="start" type="submit"
-        {{ 'disabled' if active_job and active_job.state in ('running','queued') }}>Start production</button>
+        {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>Start production</button>
       <button name="action" value="pause" type="submit" {{ '' if active_job and active_job.state == 'running' else 'disabled' }}>Pause</button>
-      <button name="action" value="resume" type="submit" {{ 'disabled' if active_job and active_job.state in ('running','queued') }}>Resume</button>
+      <button name="action" value="resume" type="submit" {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>Resume</button>
       <button class="btn-danger" name="action" value="cancel" type="submit" {{ '' if active_job else 'disabled' }}>Cancel</button>
     </div>
   </form>
@@ -197,7 +220,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
       {% for q in runtime.qa %}
         <div class="scene-card">
           <h4>{{ q.version }}
-            <span class="pill {{ 'ok' if q.get('passed') or q.get('ok') else 'bad' }}">{{ 'pass' if q.get('passed') or q.get('ok') else 'check report' }}</span>
+            <span class="pill {{ 'ok' if q.get('pass') or q.get('passed') or q.get('ok') else 'bad' }}">{{ 'pass' if q.get('pass') or q.get('passed') or q.get('ok') else 'check report' }}</span>
           </h4>
           <pre>{{ q | tojson(indent=2) }}</pre>
         </div>
@@ -208,6 +231,7 @@ speak is split automatically into sub-shots, one speaker each.</pre>
       <h3 style="margin-top:16px">Masters</h3>
       {% for m in runtime.masters %}
         <div class="small"><code>{{ m.version }}</code> — {{ m.files|join(', ') }}</div>
+        {% if mode == 'live' %}<p><a class="btn" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ m.version }}">Watch or download episode</a></p>{% endif %}
       {% endfor %}
       <p class="hint">Files are written under <code>{{ runtime.run_dir }}/out/masters</code>.
         With R2 configured the <code>deliver</code> stage copies them to the private namespace.</p>

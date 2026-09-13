@@ -70,6 +70,8 @@ async def healthz():
         # the logs, not for anonymous callers of a public endpoint.
         "configuration_problems": len(settings.config_problems()),
         "clip_preview_available": True,
+        "episode_live_available": True,
+        "episode_duration_configurable": True,
         # Identify the deployed build without exposing configuration values.
         "build_commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None,
     }

@@ -8,8 +8,12 @@ from fastapi.templating import Jinja2Templates
 
 from .config import STUDIO_DIR, settings
 from . import auth
+from . import i18n
 
-templates = Jinja2Templates(directory=str(STUDIO_DIR / "app" / "templates"))
+templates = Jinja2Templates(directory=str(STUDIO_DIR / "app" / "templates"), context_processors=[i18n.context])
+templates.env.globals["_"] = i18n.gettext
+templates.env.filters["ui"] = i18n.gettext
+templates.env.filters["notice"] = i18n.notice
 
 
 def current_admin(request: Request) -> dict | None:

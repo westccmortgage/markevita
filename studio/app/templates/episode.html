@@ -5,50 +5,51 @@
   <div>
     <h1>{{ ep.title or ep.episode_id }}</h1>
     <p class="sub"><a href="{{ base }}/series/{{ s.id }}">{{ s.title }}</a> · <code>{{ ep.episode_id }}</code>
-      · episode {{ ep.number }} · {{ scenes|length }} scenes</p>
+      {{ _("· episode") }} {{ ep.number }} · {{ scenes|length }} {{ _("scenes") }}</p>
   </div>
   <div class="btn-row">
-    <span class="pill {{ 'ok' if runtime.status in ('complete','published') else ('bad' if 'failed' in runtime.status or runtime.status == 'needs_budget_override' else 'mute') }}">{{ runtime.status }}</span>
+    <span class="pill {{ 'ok' if runtime.status in ('complete','published') else ('bad' if 'failed' in runtime.status or runtime.status == 'needs_budget_override' else 'mute') }}">{{ (runtime.status)|ui }}</span>
   </div>
 </div>
 
 {% set budget = (s.production_limits or {}).get('maximum_episode_budget_usd', 50)|float %}
 {% set pct = ((runtime.spent_usd / budget * 100) if budget else 0) %}
 <div class="grid g4" style="margin-bottom:18px">
-  <div class="stat"><div class="k">Status</div><div class="v" style="font-size:17px">{{ runtime.status }}</div></div>
-  <div class="stat"><div class="k">{{ "Estimated spend" if mode == "live" else "Simulated spend" }}</div><div class="v {{ 'gold' if pct < 100 }}">{{ runtime.spent_usd|money }}</div>
+  <div class="stat"><div class="k">{{ _("Status") }}</div><div class="v" style="font-size:17px">{{ (runtime.status)|ui }}</div></div>
+  <div class="stat"><div class="k">{{ (_("Estimated spend") if mode == "live" else _("Simulated spend")) }}</div><div class="v {{ 'gold' if pct < 100 }}">{{ runtime.spent_usd|money }}</div>
     <div class="meter {{ 'over' if pct > 100 }}"><i style="width:{{ [pct, 100]|min }}%"></i></div>
-    <div class="hint">cap {{ budget|money }}{% if runtime.reserved_usd %} · reserved {{ runtime.reserved_usd|money }}{% endif %}</div>
+    <div class="hint">{{ _("cap") }} {{ budget|money }}{% if runtime.reserved_usd %} {{ _("· reserved") }} {{ runtime.reserved_usd|money }}{% endif %}</div>
   </div>
-  <div class="stat"><div class="k">Takes</div><div class="v">{{ runtime.takes|length }}</div></div>
-  <div class="stat"><div class="k">Masters</div><div class="v">{{ runtime.masters|length }}</div></div>
+  <div class="stat"><div class="k">{{ _("Takes") }}</div><div class="v">{{ runtime.takes|length }}</div></div>
+  <div class="stat"><div class="k">{{ _("Masters") }}</div><div class="v">{{ runtime.masters|length }}</div></div>
 </div>
 
 <!-- ── production control ─────────────────────────────────────────────── -->
 <div class="card">
-  <h2>Production</h2>
+  <h2>{{ _("Production") }}</h2>
+  <p class="hint">{{ _("Dialogue language") }}: <b>{{ s.language|ui }}</b>. {{ _("Set in series settings; changing the interface language does not change the voices.") }}</p>
   <div class="stage-track" style="margin-bottom:14px">
     {% for st in all_stages %}
       {% set done = runtime.stages.get(st) == 'done' %}
       {% set running = active_job and (active_job.progress or {}).get('stage') == st %}
-      <span class="stage {{ 'done' if done else ('running' if running else '') }}">{{ st }}</span>
+      <span class="stage {{ 'done' if done else ('running' if running else '') }}">{{ st|ui }}</span>
     {% endfor %}
   </div>
 
   {% if active_job %}
     <div class="notice info">
-      Job <code>{{ active_job.id[:8] }}</code> is <b>{{ active_job.state }}</b>{% if (active_job.progress or {}).get('stage') %}
-      at stage <code>{{ active_job.progress.stage }}</code>{% endif %}.
-      <a href="{{ base }}/jobs/{{ active_job.id }}">Open log →</a>
+      {{ _("Job") }} <code>{{ active_job.id[:8] }}</code> {{ _("is") }} <b>{{ (active_job.state)|ui }}</b>{% if (active_job.progress or {}).get('stage') %}
+      {{ _("at stage") }} <code>{{ (active_job.progress.stage)|ui }}</code>{% endif %}.
+      <a href="{{ base }}/jobs/{{ active_job.id }}">{{ _("Open log →") }}</a>
     </div>
   {% endif %}
 
   {% set ep_validation = (validation.episodes | selectattr('episode_id','equalto',ep.episode_id) | list | first) %}
   {% if ep_validation and ep_validation.ok is sameas false %}
-    <div class="notice err"><b>This episode will not run yet.</b><pre style="margin-top:8px">{{ ep_validation.message }}</pre></div>
+    <div class="notice err"><b>{{ _("This episode will not run yet.") }}</b><pre style="margin-top:8px">{{ (ep_validation.message)|notice }}</pre></div>
   {% elif ep_validation and ep_validation.ok %}
-    <div class="notice ok">Brief valid — {{ ep_validation.clips }} clips, {{ ep_validation.seconds }}s.
-      {% if ep_validation.warnings %}<br>Warnings: {{ ep_validation.warnings|join('; ') }}{% endif %}</div>
+    <div class="notice ok">{{ _("Brief valid —") }} {{ ep_validation.clips }} {{ _("clips,") }} {{ ep_validation.seconds }}{{ _("s.") }}
+      {% if ep_validation.warnings %}<br>{{ _("Warnings:") }} {{ ep_validation.warnings|join('; ') }}{% endif %}</div>
   {% endif %}
 
   {% if ep_validation and ep_validation.ok is sameas false and 'total ' in ep_validation.message %}
@@ -56,78 +57,76 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="episode_id" value="{{ ep.episode_id }}">
     <div class="row">
-      <div class="field"><label>Minimum episode seconds</label><input type="number" name="minimum" min="1" value="30" required></div>
-      <div class="field"><label>Maximum episode seconds</label><input type="number" name="maximum" min="1" value="40" required></div>
+      <div class="field"><label>{{ _("Minimum episode seconds") }}</label><input type="number" name="minimum" min="1" value="30" required></div>
+      <div class="field"><label>{{ _("Maximum episode seconds") }}</label><input type="number" name="maximum" min="1" value="40" required></div>
     </div>
-    <button type="submit">Save duration range</button>
-    <p class="hint">Applies to this series. Your scenes and dialogue stay as saved.</p>
+    <button type="submit">{{ _("Save duration range") }}</button>
+    <p class="hint">{{ _("Applies to this series. Your scenes and dialogue stay as saved.") }}</p>
   </form>
   {% endif %}
   <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/production">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="approved_digest" value="{{ production_digest }}">
     {% if mode == 'live' %}
-    <div class="field"><label>Audio</label><select name="audio_mode">
-      <option value="native">Native scene audio — speech generated with video</option>
-      <option value="voices">Assigned character voices — ElevenLabs and lipsync</option>
+    <div class="field"><label>{{ _("Audio") }}</label><select name="audio_mode">
+      <option value="native">{{ _("Native scene audio — speech generated with video") }}</option>
+      <option value="voices">{{ _("Assigned character voices — ElevenLabs and lipsync") }}</option>
     </select></div>
-    <p class="hint">Native audio needs no voice IDs. Voice consistency and exact wording need your review; subtitle timing is estimated. Assigned voices use the character's configured voice ID.</p>
-    <label><input type="checkbox" name="approve_live" value="yes"> Approve this script and live production up to {{ budget|money }} in estimated provider charges.</label>
-    <p class="hint">Production pauses for reference review before video. Provider billing may differ from estimates. Nothing is published automatically.</p>
+    <p class="hint">{{ _("Native audio needs no voice IDs. Voice consistency and exact wording need your review; subtitle timing is estimated. Assigned voices use the character's configured voice ID.") }}</p>
+    <label><input type="checkbox" name="approve_live" value="yes"> {{ _("Approve this script and live production up to") }} {{ budget|money }} {{ _("in estimated provider charges.") }}</label>
+    <p class="hint">{{ _("Production pauses for reference review before video. Provider billing may differ from estimates. Nothing is published automatically.") }}</p>
     {% endif %}
-    <fieldset><legend>Stages to run</legend>
+    <fieldset><legend>{{ _("Stages to run") }}</legend>
       <div class="checks">
         {% for st in default_stages %}
-          <label><input type="checkbox" name="stages" value="{{ st }}" checked> {{ st }}</label>
+          <label><input type="checkbox" name="stages" value="{{ st }}" checked> {{ st|ui }}</label>
         {% endfor %}
       </div>
-      <p class="hint">Completed stages are skipped and finished takes are reused, so re-running never repeats work.
-        <code>publish</code> is deliberately absent — it is a separate, approved act and stays disabled in this build.</p>
+      <p class="hint">{{ _("Completed stages are skipped and finished takes are reused, so re-running never repeats work.") }}
+        <code>publish</code> {{ _("is deliberately absent — it is a separate, approved act and stays disabled in this build.") }}</p>
     </fieldset>
     <div class="field" style="max-width:420px">
-      <label>Force regeneration of (scene or stage ids, comma separated)</label>
+      <label>{{ _("Force regeneration of (scene or stage ids, comma separated)") }}</label>
       <input type="text" name="force" placeholder="sc07, keyframes">
-      <p class="hint">Forced takes are new immutable takes, flagged and logged; earlier takes are kept.</p>
+      <p class="hint">{{ _("Forced takes are new immutable takes, flagged and logged; earlier takes are kept.") }}</p>
     </div>
     <div class="btn-row">
       <button class="btn-primary" name="action" value="start" type="submit"
-        {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>Start production</button>
-      <button name="action" value="pause" type="submit" {{ '' if active_job and active_job.state == 'running' else 'disabled' }}>Pause</button>
-      <button name="action" value="resume" type="submit" {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>Resume</button>
-      <button class="btn-danger" name="action" value="cancel" type="submit" {{ '' if active_job else 'disabled' }}>Cancel</button>
+        {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>{{ _("Start production") }}</button>
+      <button name="action" value="pause" type="submit" {{ '' if active_job and active_job.state == 'running' else 'disabled' }}>{{ _("Pause") }}</button>
+      <button name="action" value="resume" type="submit" {{ 'disabled' if active_job and active_job.state in ('running','queued') and mode != 'live' }}>{{ _("Resume") }}</button>
+      <button class="btn-danger" name="action" value="cancel" type="submit" {{ '' if active_job else 'disabled' }}>{{ _("Cancel") }}</button>
     </div>
   </form>
 
   {% if runtime.status == 'needs_budget_override' %}
     <hr class="sep">
-    <div class="notice mode"><b>Budget cap reached.</b> The run stopped rather than continuing silently.
-      An override is recorded with actor, time, old value, new value and reason.</div>
+    <div class="notice mode"><b>{{ _("Budget cap reached.") }}</b> {{ _("The run stopped rather than continuing silently. An override is recorded with actor, time, old value, new value and reason.") }}</div>
     <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/override">
       <div class="row">
-        <div class="field"><label>Limit</label>
+        <div class="field"><label>{{ _("Limit") }}</label>
           <select name="key"><option>MAX_EPISODE_BUDGET_USD</option></select></div>
-        <div class="field"><label>New value</label><input type="text" name="value" required></div>
-        <div class="field"><label>Reason</label><input type="text" name="reason" required></div>
+        <div class="field"><label>{{ _("New value") }}</label><input type="text" name="value" required></div>
+        <div class="field"><label>{{ _("Reason") }}</label><input type="text" name="reason" required></div>
       </div>
-      <button type="submit">Record override</button>
+      <button type="submit">{{ _("Record override") }}</button>
     </form>
   {% endif %}
 </div>
 
 <!-- ── script ─────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2>Script</h2>
+  <h2>{{ _("Script") }}</h2>
   {% if latest_script %}
-    <p class="hint" style="margin-top:-8px">Latest: version {{ latest_script.version }}
-      ({{ latest_script.source }}{% if latest_script.filename %} · {{ latest_script.filename }}{% endif %})
-      saved {{ latest_script.created_at|time }} by {{ latest_script.created_by or 'unknown' }}.
-      {{ scripts|length }} version(s) kept.</p>
+    <p class="hint" style="margin-top:-8px">{{ _("Latest: version") }} {{ latest_script.version }}
+      ({{ latest_script.source }}{% if latest_script.filename %} · {{ latest_script.filename }}{% endif %}{{ _(") saved") }} {{ latest_script.created_at|time }} {{ _("by") }} {{ latest_script.created_by or 'unknown' }}.
+      {{ scripts|length }} {{ _("version(s) kept.") }}</p>
   {% endif %}
   <details {{ 'open' if not scenes }}>
-    <summary>Paste or upload a script</summary>
+    <summary>{{ _("Paste or upload a script") }}</summary>
     <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/script" enctype="multipart/form-data" style="margin-top:12px">
       <div class="field">
-        <label>Script text — structured format or a full JSON brief</label>
+        <label>{{ _("Script text — structured format or a full JSON brief") }}</label>
         <textarea name="content" rows="16" placeholder="SCENE sc01 | 6s | villa_terrace | night
 CHARACTERS: char_a
 SHOT: medium close-up | 50mm | slow push-in
@@ -136,8 +135,8 @@ IN: state at the first frame
 OUT: state at the last frame
 char_a (quiet, certain): A spoken line.">{{ latest_script.content if latest_script else '' }}</textarea>
       </div>
-      <div class="field"><label>…or upload a .txt / .json file</label><input type="file" name="upload" accept=".txt,.json,.md"></div>
-      <details style="margin-bottom:12px"><summary>Format reference</summary>
+      <div class="field"><label>{{ _("…or upload a .txt / .json file") }}</label><input type="file" name="upload" accept=".txt,.json,.md"></div>
+      <details style="margin-bottom:12px"><summary>{{ _("Format reference") }}</summary>
         <pre>SCENE &lt;scene_id&gt; | &lt;seconds&gt;s | &lt;location_id&gt; | &lt;lighting_state&gt;
 CHARACTERS: char_a, char_b        # who is in frame
 WARDROBE: char_a=w_evening        # variant per character
@@ -156,49 +155,49 @@ vo narrator: A voice-over line.
 Duration must be 4, 6 or 8 seconds. A scene where two visible characters both
 speak is split automatically into sub-shots, one speaker each.</pre>
       </details>
-      <button class="btn-primary" type="submit">Save script and rebuild scenes</button>
-      <p class="hint">Saving replaces this episode's scenes. Every version is kept.</p>
+      <button class="btn-primary" type="submit">{{ _("Save script and rebuild scenes") }}</button>
+      <p class="hint">{{ _("Saving replaces this episode's scenes. Every version is kept.") }}</p>
     </form>
   </details>
 </div>
 
 <!-- ── scenes ─────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2>Scenes ({{ scenes|length }})</h2>
+  <h2>{{ _("Scenes (") }}{{ scenes|length }})</h2>
   {% if scenes %}
     {% for sc in scenes %}
       <div class="scene-card">
         <h4>
           <code>{{ sc.scene_id }}</code>
-          <span class="muted">#{{ sc.sequence }} · {{ sc.duration_seconds }}s · {{ sc.location or 'no location' }}
+          <span class="muted">#{{ sc.sequence }} · {{ sc.duration_seconds }}{{ _("s ·") }} {{ sc.location or 'no location' }}
             {%- if sc.lighting_state and sc.lighting_state != 'default' %} · {{ sc.lighting_state }}{% endif %}</span>
-          {% if sc.is_cliffhanger %}<span class="pill gold">cliffhanger</span>{% endif %}
-          <span class="pill {{ 'ok' if sc.status == 'complete' else ('bad' if sc.status == 'failed_qa' else 'mute') }}">{{ sc.status }}</span>
+          {% if sc.is_cliffhanger %}<span class="pill gold">{{ _("cliffhanger") }}</span>{% endif %}
+          <span class="pill {{ 'ok' if sc.status == 'complete' else ('bad' if sc.status == 'failed_qa' else 'mute') }}">{{ (sc.status)|ui }}</span>
         </h4>
         <div class="small">{{ sc.action }}</div>
         {% if sc.characters_in_frame %}
-          <div class="small muted" style="margin-top:5px">In frame: {{ sc.characters_in_frame|join(', ') }}
+          <div class="small muted" style="margin-top:5px">{{ _("In frame:") }} {{ sc.characters_in_frame|join(', ') }}
             {%- if sc.shot_type %} · {{ sc.shot_type }}{% endif %}{% if sc.camera_motion %} · {{ sc.camera_motion }}{% endif %}</div>
         {% endif %}
         {% for d in sc.dialogue or [] %}
-          <div class="dlg"><b>{{ d.speaker }}</b>{% if d.delivery %} <span class="muted small">({{ d.delivery }})</span>{% endif %}{% if d.voice_over %} <span class="pill mute">VO</span>{% endif %}: {{ d.text }}</div>
+          <div class="dlg"><b>{{ d.speaker }}</b>{% if d.delivery %} <span class="muted small">({{ d.delivery }})</span>{% endif %}{% if d.voice_over %} <span class="pill mute">{{ _("VO") }}</span>{% endif %}: {{ d.text }}</div>
         {% endfor %}
         {% set st = takes_by_scene.get(sc.scene_id, []) %}
         {% if st %}
-          <details style="margin-top:10px"><summary>{{ st|length }} take(s)</summary>
+          <details style="margin-top:10px"><summary>{{ st|length }} {{ _("take(s)") }}</summary>
             <div class="table-scroll" style="margin-top:8px"><table>
-              <thead><tr><th>Take</th><th>Stage</th><th>Endpoint</th><th>Cost</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>{{ _("Take") }}</th><th>{{ _("Stage") }}</th><th>{{ _("Endpoint") }}</th><th>{{ _("Cost") }}</th><th>{{ _("Status") }}</th><th></th></tr></thead>
               <tbody>{% for t in st %}
                 <tr>
-                  <td><code>{{ t.take_id }}</code>{% if t.forced %} <span class="pill warn">forced</span>{% endif %}</td>
-                  <td class="small">{{ t.stage }}</td>
+                  <td><code>{{ t.take_id }}</code>{% if t.forced %} <span class="pill warn">{{ _("forced") }}</span>{% endif %}</td>
+                  <td class="small">{{ (t.stage)|ui }}</td>
                   <td class="small muted">{{ t.endpoint or '—' }}</td>
                   <td>{{ t.actual_usd|money }}</td>
-                  <td>{% if t.selected %}<span class="pill ok">selected</span>{% else %}<span class="pill mute">alternate</span>{% endif %}</td>
+                  <td>{% if t.selected %}<span class="pill ok">{{ _("selected") }}</span>{% else %}<span class="pill mute">{{ _("alternate") }}</span>{% endif %}</td>
                   <td>{% if not t.selected %}
                     <form method="post" action="{{ base }}/series/{{ s.id }}/takes/{{ t.take_id }}/select">
                       <input type="hidden" name="back" value="/series/{{ s.id }}/episodes/{{ ep.episode_id }}">
-                      <button class="btn-sm" type="submit">Select</button></form>
+                      <button class="btn-sm" type="submit">{{ _("Select") }}</button></form>
                   {% endif %}</td>
                 </tr>
               {% endfor %}</tbody>
@@ -208,14 +207,14 @@ speak is split automatically into sub-shots, one speaker each.</pre>
       </div>
     {% endfor %}
   {% else %}
-    <div class="empty">No scenes yet. Paste a script above.</div>
+    <div class="empty">{{ _("No scenes yet. Paste a script above.") }}</div>
   {% endif %}
 </div>
 
 <!-- ── QA, masters, approval ──────────────────────────────────────────── -->
 <div class="grid g2">
   <div class="card">
-    <h2>QA and deliverables</h2>
+    <h2>{{ _("QA and deliverables") }}</h2>
     {% if runtime.qa %}
       {% for q in runtime.qa %}
         <div class="scene-card">
@@ -225,38 +224,36 @@ speak is split automatically into sub-shots, one speaker each.</pre>
           <pre>{{ q | tojson(indent=2) }}</pre>
         </div>
       {% endfor %}
-    {% else %}<p class="hint">No QA report yet — it is produced by the <code>qa</code> stage.</p>{% endif %}
+    {% else %}<p class="hint">{{ _("No QA report yet — it is produced by the") }} <code>qa</code> {{ _("stage.") }}</p>{% endif %}
 
     {% if runtime.masters %}
-      <h3 style="margin-top:16px">Masters</h3>
+      <h3 style="margin-top:16px">{{ _("Masters") }}</h3>
       {% for m in runtime.masters %}
         <div class="small"><code>{{ m.version }}</code> — {{ m.files|join(', ') }}</div>
-        {% if mode == 'live' %}<p><a class="btn" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ m.version }}">Watch or download episode</a></p>{% endif %}
+        {% if mode == 'live' %}<p><a class="btn" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ m.version }}">{{ _("Watch or download episode") }}</a></p>{% endif %}
       {% endfor %}
-      <p class="hint">Files are written under <code>{{ runtime.run_dir }}/out/masters</code>.
-        With R2 configured the <code>deliver</code> stage copies them to the private namespace.</p>
+      <p class="hint">{{ _("Files are written under") }} <code>{{ runtime.run_dir }}/out/masters</code>{{ _(". With R2 configured the") }} <code>deliver</code> {{ _("stage copies them to the private namespace.") }}</p>
     {% endif %}
   </div>
 
   <div class="card">
-    <h2>Final approval</h2>
+    <h2>{{ _("Final approval") }}</h2>
     {% set pub = (runtime.approvals or {}).get('publish') or {} %}
     {% if pub.get('approved') %}
-      <div class="notice ok" style="margin:0 0 12px">Approved by <b>{{ pub.by }}</b> on {{ pub.at|time }}.
+      <div class="notice ok" style="margin:0 0 12px">{{ _("Approved by") }} <b>{{ pub.by }}</b> {{ _("on") }} {{ pub.at|time }}.
         {% if pub.note %}<br>{{ pub.note }}{% endif %}</div>
     {% else %}
-      <p class="hint" style="margin-top:-8px">Approval is only possible once the episode reaches <code>complete</code>.
-        Approving records the decision; it does not publish. Instagram publishing is disabled in this build.</p>
+      <p class="hint" style="margin-top:-8px">{{ _("Approval is only possible once the episode reaches") }} <code>complete</code>{{ _(". Approving records the decision; it does not publish. Instagram publishing is disabled in this build.") }}</p>
       <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/approve">
-        <div class="field"><label>Note</label><input type="text" name="note" placeholder="optional"></div>
-        <button class="btn-primary" type="submit" {{ 'disabled' if runtime.status != 'complete' }}>Approve episode</button>
+        <div class="field"><label>{{ _("Note") }}</label><input type="text" name="note" placeholder="{{ _('optional') }}"></div>
+        <button class="btn-primary" type="submit" {{ 'disabled' if runtime.status != 'complete' }}>{{ _("Approve episode") }}</button>
       </form>
     {% endif %}
 
     {% if runtime.overrides %}
-      <hr class="sep"><h3>Recorded overrides</h3>
+      <hr class="sep"><h3>{{ _("Recorded overrides") }}</h3>
       <div class="table-scroll"><table>
-        <thead><tr><th>Key</th><th>Old → new</th><th>By</th><th>Reason</th></tr></thead>
+        <thead><tr><th>{{ _("Key") }}</th><th>{{ _("Old → new") }}</th><th>{{ _("By") }}</th><th>{{ _("Reason") }}</th></tr></thead>
         <tbody>{% for o in runtime.overrides %}
           <tr><td class="small"><code>{{ o.key }}</code></td>
               <td class="small">{{ o.get('old') or '—' }} → {{ o.get('new') or o.get('previous_takes') }}</td>
@@ -267,23 +264,23 @@ speak is split automatically into sub-shots, one speaker each.</pre>
     {% endif %}
 
     <hr class="sep">
-    <h3>Episode details</h3>
+    <h3>{{ _("Episode details") }}</h3>
     <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/settings">
       <div class="row">
-        <div class="field"><label>Title</label><input type="text" name="title" value="{{ ep.title }}"></div>
-        <div class="field"><label>Number</label><input type="number" name="number" value="{{ ep.number }}"></div>
+        <div class="field"><label>{{ _("Title") }}</label><input type="text" name="title" value="{{ ep.title }}"></div>
+        <div class="field"><label>{{ _("Number") }}</label><input type="number" name="number" value="{{ ep.number }}"></div>
       </div>
-      <div class="field"><label>Logline</label><input type="text" name="logline" value="{{ ep.logline }}"></div>
-      <fieldset><legend>Cliffhanger (required by the validator)</legend>
+      <div class="field"><label>{{ _("Logline") }}</label><input type="text" name="logline" value="{{ ep.logline }}"></div>
+      <fieldset><legend>{{ _("Cliffhanger (required by the validator)") }}</legend>
         {% set cl = ep.cliffhanger or {} %}
         <div class="row">
-          <div class="field"><label>Final scene id</label><input type="text" name="cliff_scene" value="{{ cl.get('scene_id','') }}"></div>
-          <div class="field"><label>Resolves in</label><input type="text" name="cliff_resolves" value="{{ cl.get('resolves_in','tbd') }}"></div>
+          <div class="field"><label>{{ _("Final scene id") }}</label><input type="text" name="cliff_scene" value="{{ cl.get('scene_id','') }}"></div>
+          <div class="field"><label>{{ _("Resolves in") }}</label><input type="text" name="cliff_resolves" value="{{ cl.get('resolves_in','tbd') }}"></div>
         </div>
-        <div class="field"><label>Hook — the question or image the episode ends on</label>
+        <div class="field"><label>{{ _("Hook — the question or image the episode ends on") }}</label>
           <input type="text" name="cliff_hook" value="{{ cl.get('hook','') }}"></div>
       </fieldset>
-      <button class="btn-primary" type="submit">Save episode</button>
+      <button class="btn-primary" type="submit">{{ _("Save episode") }}</button>
     </form>
   </div>
 </div>
@@ -291,38 +288,38 @@ speak is split automatically into sub-shots, one speaker each.</pre>
 <!-- ── costs and log ──────────────────────────────────────────────────── -->
 <div class="grid g2">
   <div class="card">
-    <h2>Cost log</h2>
+    <h2>{{ _("Cost log") }}</h2>
     {% if runtime.cost_log %}
       <div class="table-scroll"><table>
-        <thead><tr><th>What</th><th>Take</th><th>Estimated</th><th>Actual</th></tr></thead>
+        <thead><tr><th>{{ _("What") }}</th><th>{{ _("Take") }}</th><th>{{ _("Estimated") }}</th><th>{{ _("Actual") }}</th></tr></thead>
         <tbody>{% for c in runtime.cost_log %}
           <tr><td class="small">{{ c.what }}</td><td class="small muted"><code>{{ c.take_id or '—' }}</code></td>
               <td>{{ c.estimated|money }}</td><td>{{ c.actual|money }}</td></tr>
         {% endfor %}</tbody>
       </table></div>
-      <p class="hint">Mock mode — simulated amounts. Reserve happens before a call, settle after; a billed failure still counts.</p>
-    {% else %}<div class="empty">No cost recorded yet.</div>{% endif %}
+      <p class="hint">{{ _("Mock mode — simulated amounts. Reserve happens before a call, settle after; a billed failure still counts.") }}</p>
+    {% else %}<div class="empty">{{ _("No cost recorded yet.") }}</div>{% endif %}
   </div>
 
   <div class="card">
-    <h2>Engine log</h2>
-    {% if runtime.log %}<pre>{{ runtime.log }}</pre>{% else %}<div class="empty">No log yet.</div>{% endif %}
+    <h2>{{ _("Engine log") }}</h2>
+    {% if runtime.log %}<pre>{{ runtime.log }}</pre>{% else %}<div class="empty">{{ _("No log yet.") }}</div>{% endif %}
   </div>
 </div>
 
 {% if jobs %}
 <div class="card">
-  <h2>Job history</h2>
+  <h2>{{ _("Job history") }}</h2>
   <div class="table-scroll"><table>
-    <thead><tr><th>Job</th><th>State</th><th>Stages</th><th>Started</th><th>Finished</th><th>Error</th><th></th></tr></thead>
+    <thead><tr><th>{{ _("Job") }}</th><th>{{ _("State") }}</th><th>{{ _("Stages") }}</th><th>{{ _("Started") }}</th><th>{{ _("Finished") }}</th><th>{{ _("Error") }}</th><th></th></tr></thead>
     <tbody>{% for j in jobs %}
       <tr><td><code>{{ j.id[:8] }}</code></td>
-          <td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else 'mute') }}">{{ j.state }}</span></td>
-          <td class="small muted">{{ (j.stages or [])|join(', ') }}</td>
+          <td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else 'mute') }}">{{ (j.state)|ui }}</span></td>
+          <td class="small muted">{{ (j.stages or [])|map('ui')|join(', ') }}</td>
           <td class="small muted">{{ j.started_at|time }}</td>
           <td class="small muted">{{ j.finished_at|time }}</td>
-          <td class="small" style="max-width:260px;color:var(--bad)">{{ j.error or '' }}</td>
-          <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">Log</a></td></tr>
+          <td class="small" style="max-width:260px;color:var(--bad)">{{ (j.error or '')|notice }}</td>
+          <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">{{ _("Log") }}</a></td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>

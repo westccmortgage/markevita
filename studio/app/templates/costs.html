@@ -1,47 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Costs — Series Studio{% endblock %}
+{% block title %}{{ _("Costs — Series Studio") }}{% endblock %}
 {% block content %}
 <div class="page-head"><div>
-  <h1>Cost monitor</h1>
-  <p class="sub">Simulation costs, live episode estimates and first-clip estimates are tracked separately. A generation estimate is not a verified provider charge.</p>
+  <h1>{{ _("Cost monitor") }}</h1>
+  <p class="sub">{{ _("Simulation costs, live episode estimates and first-clip estimates are tracked separately. A generation estimate is not a verified provider charge.") }}</p>
 </div></div>
 
-<div class="notice mode"><b>Live episode estimate: {{ live_estimate|money }}.</b> Provider invoices have not been independently verified. Simulated costs are shown separately below.</div>
+<div class="notice mode"><b>{{ _("Live episode estimate:") }} {{ live_estimate|money }}.</b> {{ _("Provider invoices have not been independently verified. Simulated costs are shown separately below.") }}</div>
 
 <div class="grid g4" style="margin-bottom:18px">
-  <div class="stat"><div class="k">Simulated episode costs</div><div class="v gold">{{ total|money }}</div></div>
-  <div class="stat"><div class="k">Real preview estimate reserved</div><div class="v">{{ preview_estimate|money }}</div><p class="hint">{% if has_preview_cost %}Actual charge: unverified.{% else %}No preview cost recorded.{% endif %}</p></div>
-  <div class="stat"><div class="k">Episodes with cost</div><div class="v">{{ by_episode|length }}</div></div>
-  <div class="stat"><div class="k">Recorded calls</div><div class="v">{{ rows|length }}</div></div>
+  <div class="stat"><div class="k">{{ _("Simulated episode costs") }}</div><div class="v gold">{{ total|money }}</div></div>
+  <div class="stat"><div class="k">{{ _("Real preview estimate reserved") }}</div><div class="v">{{ preview_estimate|money }}</div><p class="hint">{% if has_preview_cost %}{{ _("Actual charge: unverified.") }}{% else %}{{ _("No preview cost recorded.") }}{% endif %}</p></div>
+  <div class="stat"><div class="k">{{ _("Episodes with cost") }}</div><div class="v">{{ by_episode|length }}</div></div>
+  <div class="stat"><div class="k">{{ _("Recorded calls") }}</div><div class="v">{{ rows|length }}</div></div>
 </div>
 
 <div class="card">
-  <h2>By episode</h2>
+  <h2>{{ _("By episode") }}</h2>
   {% if by_episode %}
     <div class="table-scroll"><table>
-      <thead><tr><th>Series</th><th>Episode</th><th>Type</th><th>Calls</th><th>Estimated</th><th>Amount / billing</th></tr></thead>
+      <thead><tr><th>{{ _("Series") }}</th><th>{{ _("Episode") }}</th><th>{{ _("Type") }}</th><th>{{ _("Calls") }}</th><th>{{ _("Estimated") }}</th><th>{{ _("Amount / billing") }}</th></tr></thead>
       <tbody>{% for e in by_episode %}
         <tr><td>{{ e.series_id }}</td>
             <td><a href="{{ base }}/series/{{ e.series_id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
-            <td>{{ 'Real preview' if e.is_preview else ('Live episode' if e.is_live else 'Episode simulation') }}</td>
+            <td>{{ ('Real preview' if e.is_preview else ('Live episode' if e.is_live else 'Episode simulation'))|ui }}</td>
             <td>{{ e.calls }}</td><td>{{ e.estimated_usd|money }}</td>
-            <td>{% if e.is_preview %}<b>Unverified</b>{% else %}<b>{{ e.actual_usd|money }}</b> <span class="hint">({{ 'estimate' if e.is_live else 'simulated' }})</span>{% endif %}</td></tr>
+            <td>{% if e.is_preview %}<b>{{ _("Unverified") }}</b>{% else %}<b>{{ e.actual_usd|money }}</b> <span class="hint">({{ ('estimate' if e.is_live else 'simulated')|ui }})</span>{% endif %}</td></tr>
       {% endfor %}</tbody>
     </table></div>
-  {% else %}<div class="empty">No costs recorded yet.</div>{% endif %}
+  {% else %}<div class="empty">{{ _("No costs recorded yet.") }}</div>{% endif %}
 </div>
 
 {% if rows %}
 <div class="card">
-  <h2>Individual calls</h2>
+  <h2>{{ _("Individual calls") }}</h2>
   <div class="table-scroll"><table>
-    <thead><tr><th>Episode</th><th>Stage</th><th>Provider</th><th>Endpoint</th><th>Take</th><th>Estimated</th><th>Amount / billing</th></tr></thead>
+    <thead><tr><th>{{ _("Episode") }}</th><th>{{ _("Stage") }}</th><th>{{ _("Provider") }}</th><th>{{ _("Endpoint") }}</th><th>{{ _("Take") }}</th><th>{{ _("Estimated") }}</th><th>{{ _("Amount / billing") }}</th></tr></thead>
     <tbody>{% for r in rows %}
-      <tr><td class="small"><code>{{ r.episode_id }}</code></td><td class="small">{{ r.stage }}</td>
+      <tr><td class="small"><code>{{ r.episode_id }}</code></td><td class="small">{{ (r.stage)|ui }}</td>
           <td class="small">{{ r.provider or '—' }}</td><td class="small muted mono">{{ r.endpoint or '—' }}</td>
           <td class="small muted mono">{{ r.take_id or '—' }}</td>
           <td>{{ r.estimated_usd|money }}</td>
-          <td>{% if r.is_preview %}Unverified{% else %}{{ r.actual_usd|money }} <span class="hint">({{ 'estimate' if r.is_live else 'simulated' }})</span>{% endif %}</td></tr>
+          <td>{% if r.is_preview %}{{ _("Unverified") }}{% else %}{{ r.actual_usd|money }} <span class="hint">({{ ('estimate' if r.is_live else 'simulated')|ui }})</span>{% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>

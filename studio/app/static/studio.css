@@ -38,7 +38,7 @@ a:hover { text-decoration: underline; }
 
 .topbar {
   display: flex; align-items: center; gap: 20px;
-  padding: 0 22px; height: 58px;
+  padding: 10px 22px; min-height: 58px; flex-wrap: wrap;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 20;
@@ -205,3 +205,13 @@ details > summary:hover { color: var(--ink); }
   .wrap { padding: 20px 16px 60px; }
   .kv { grid-template-columns: 1fr; }
 }
+
+/* Language preference is per browser and independent of production content. */
+.topbar .brand { flex-shrink: 0; }
+.topnav { flex: 1 1 440px; min-width: 0; }
+.topbar-right { flex-wrap: wrap; }
+.language-switch { display: inline-flex; margin: 0; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 8px; flex-shrink: 0; }
+.language-switch button { margin: 0; padding: 4px 8px; border: 0; background: transparent; color: var(--ink-dim); font-size: 12px; }
+.language-switch button[aria-pressed="true"] { background: var(--gold-soft); color: var(--gold); }
+.public-language { display: flex; justify-content: flex-end; padding: 16px 22px 0; }
+@media (max-width: 700px) { .topbar { position: static; gap: 10px; } .topbar-right { margin-left: 0; } }

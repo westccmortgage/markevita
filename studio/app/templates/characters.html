@@ -1,117 +1,116 @@
 {% extends "base.html" %}
-{% block title %}Characters — {{ s.title }}{% endblock %}
+{% block title %}{{ _("Characters —") }} {{ s.title }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Characters, clothing and voices</h1>
-  <p class="sub">Appearance and wardrobe text goes to the image models, so it must be English and camera-ready.
-    Voices are bound by environment-variable <em>name</em> — the voice id itself never enters the database.</p></div>
+  <div><h1>{{ _("Characters, clothing and voices") }}</h1>
+  <p class="sub">{{ _("Appearance and wardrobe text goes to the image models, so it must be English and camera-ready. Voices are bound by environment-variable") }} <em>{{ _("name") }}</em> {{ _("— the voice id itself never enters the database.") }}</p></div>
 </div>
 
 {% for c in characters %}
 <div class="card">
   <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     {{ c.name }} <code>{{ c.character_id }}</code>
-    {% if c.visual %}<span class="pill gold">on camera</span>{% else %}<span class="pill mute">voice only</span>{% endif %}
+    {% if c.visual %}<span class="pill gold">{{ _("on camera") }}</span>{% else %}<span class="pill mute">{{ _("voice only") }}</span>{% endif %}
     {% if c.role %}<span class="muted small">{{ c.role }}</span>{% endif %}
   </h2>
 
   <details>
-    <summary>Edit identity</summary>
+    <summary>{{ _("Edit identity") }}</summary>
     <form method="post" action="{{ base }}/series/{{ s.id }}/characters" style="margin-top:12px">
       <input type="hidden" name="character_id" value="{{ c.character_id }}">
       <div class="row">
-        <div class="field"><label>Name</label><input type="text" name="name" value="{{ c.name }}" required></div>
-        <div class="field"><label>On camera</label>
-          <select name="visual"><option value="yes" {{ 'selected' if c.visual }}>yes</option>
-            <option value="no" {{ 'selected' if not c.visual }}>no — voice only</option></select></div>
-        <div class="field"><label>Role</label><input type="text" name="role" value="{{ c.role }}"></div>
-        <div class="field"><label>Age</label><input type="text" name="age" value="{{ c.age }}"></div>
+        <div class="field"><label>{{ _("Name") }}</label><input type="text" name="name" value="{{ c.name }}" required></div>
+        <div class="field"><label>{{ _("On camera") }}</label>
+          <select name="visual"><option value="yes" {{ 'selected' if c.visual }}>{{ _("yes") }}</option>
+            <option value="no" {{ 'selected' if not c.visual }}>{{ _("no — voice only") }}</option></select></div>
+        <div class="field"><label>{{ _("Role") }}</label><input type="text" name="role" value="{{ c.role }}"></div>
+        <div class="field"><label>{{ _("Age") }}</label><input type="text" name="age" value="{{ c.age }}"></div>
       </div>
-      <div class="field"><label>Appearance — English, 80–150 words, camera-ready</label>
+      <div class="field"><label>{{ _("Appearance — English, 80–150 words, camera-ready") }}</label>
         <textarea name="appearance" rows="5">{{ c.appearance }}</textarea></div>
-      <div class="field"><label>Behaviour — gesture and expression style</label>
+      <div class="field"><label>{{ _("Behaviour — gesture and expression style") }}</label>
         <textarea name="behavior" rows="2">{{ c.behavior }}</textarea></div>
-      <div class="field"><label>Immutable rules — one per line</label>
+      <div class="field"><label>{{ _("Immutable rules — one per line") }}</label>
         <textarea name="immutable" rows="3">{{ (c.immutable or [])|join('\n') }}</textarea></div>
-      <div class="btn-row"><button class="btn-primary" type="submit">Save</button></div>
+      <div class="btn-row"><button class="btn-primary" type="submit">{{ _("Save") }}</button></div>
     </form>
     <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/delete" style="margin-top:10px"
-          onsubmit="return confirm('Remove {{ c.character_id }} with its wardrobe and voice binding?')">
-      <button class="btn-danger btn-sm" type="submit">Remove character</button>
+          data-confirm="{{ _('Remove this character with all clothing and voice settings?') }}" onsubmit="return confirm(this.dataset.confirm)">
+      <button class="btn-danger btn-sm" type="submit">{{ _("Remove character") }}</button>
     </form>
   </details>
 
   <hr class="sep">
-  <h3>Wardrobe variants</h3>
+  <h3>{{ _("Wardrobe variants") }}</h3>
   {% if c._clothing %}
     <div class="table-scroll"><table>
-      <thead><tr><th>Variant</th><th>Description</th><th></th><th></th></tr></thead>
+      <thead><tr><th>{{ _("Variant") }}</th><th>{{ _("Description") }}</th><th></th><th></th></tr></thead>
       <tbody>
       {% for w in c._clothing %}
         <tr>
-          <td><code>{{ w.variant_id }}</code>{% if w.is_default %} <span class="pill ok">default</span>{% endif %}</td>
+          <td><code>{{ w.variant_id }}</code>{% if w.is_default %} <span class="pill ok">{{ _("default") }}</span>{% endif %}</td>
           <td class="small">{{ w.description or '—' }}</td>
           <td class="small muted">{{ (w.immutable or [])|join('; ') }}</td>
           <td><form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/clothing/{{ w.variant_id }}/delete">
-            <button class="btn-danger btn-sm" type="submit">Remove</button></form></td>
+            <button class="btn-danger btn-sm" type="submit">{{ _("Remove") }}</button></form></td>
         </tr>
       {% endfor %}
       </tbody>
     </table></div>
   {% else %}
-    <p class="hint">No wardrobe yet. A character on camera needs at least one variant before references can be generated.</p>
+    <p class="hint">{{ _("No wardrobe yet. A character on camera needs at least one variant before references can be generated.") }}</p>
   {% endif %}
-  <details><summary>Add or replace a wardrobe variant</summary>
+  <details><summary>{{ _("Add or replace a wardrobe variant") }}</summary>
     <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/clothing" style="margin-top:12px">
       <div class="row">
-        <div class="field"><label>Variant id</label><input type="text" name="variant_id" placeholder="w_arrival" required></div>
-        <div class="field"><label>Default</label><select name="is_default"><option value="">no</option><option value="yes">yes</option></select></div>
+        <div class="field"><label>{{ _("Variant id") }}</label><input type="text" name="variant_id" placeholder="w_arrival" required></div>
+        <div class="field"><label>{{ _("Default") }}</label><select name="is_default"><option value="">{{ _("no") }}</option><option value="yes">{{ _("yes") }}</option></select></div>
       </div>
-      <div class="field"><label>Description — exact items, colours, materials, shoes, jewellery</label>
+      <div class="field"><label>{{ _("Description — exact items, colours, materials, shoes, jewellery") }}</label>
         <textarea name="description" rows="3"></textarea></div>
-      <div class="field"><label>Immutable rules — one per line</label><textarea name="immutable" rows="2"></textarea></div>
-      <button type="submit">Save variant</button>
+      <div class="field"><label>{{ _("Immutable rules — one per line") }}</label><textarea name="immutable" rows="2"></textarea></div>
+      <button type="submit">{{ _("Save variant") }}</button>
     </form>
   </details>
 
   <hr class="sep">
-  <h3>Voice</h3>
+  <h3>{{ _("Voice") }}</h3>
   {% set v = c._voice or {} %}
   <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/voice">
     <div class="row">
-      <div class="field"><label>Voice id variable name</label>
+      <div class="field"><label>{{ _("Voice id variable name") }}</label>
         <input type="text" name="voice_env" value="{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}"></div>
-      <div class="field"><label>Model</label><input type="text" name="model_id" value="{{ v.get('model_id','eleven_v3') }}"></div>
-      <div class="field"><label>Language</label><input type="text" name="language" value="{{ v.get('language','en-US') }}"></div>
-      <div class="field"><label>Phone effect</label>
-        <select name="phone_fx"><option value="">no</option><option value="yes" {{ 'selected' if v.get('phone_fx') }}>yes</option></select></div>
-      <div class="field"><label>Locked for the season</label>
-        <select name="locked"><option value="">no</option><option value="yes" {{ 'selected' if v.get('locked') }}>yes</option></select></div>
+      <div class="field"><label>{{ _("Model") }}</label><input type="text" name="model_id" value="{{ v.get('model_id','eleven_v3') }}"></div>
+      <div class="field"><label>{{ _("Language") }}</label><input type="text" name="language" value="{{ v.get('language','en-US') }}"></div>
+      <div class="field"><label>{{ _("Phone effect") }}</label>
+        <select name="phone_fx"><option value="">{{ _("no") }}</option><option value="yes" {{ 'selected' if v.get('phone_fx') }}>{{ _("yes") }}</option></select></div>
+      <div class="field"><label>{{ _("Locked for the season") }}</label>
+        <select name="locked"><option value="">{{ _("no") }}</option><option value="yes" {{ 'selected' if v.get('locked') }}>{{ _("yes") }}</option></select></div>
     </div>
-    <div class="field"><label>Style notes — register, pace, delivery</label>
+    <div class="field"><label>{{ _("Style notes — register, pace, delivery") }}</label>
       <input type="text" name="style_notes" value="{{ v.get('style_notes','') }}" placeholder="warm low mezzo, 150 wpm, dry humour"></div>
-    <p class="hint">Put the actual id in <code>studio/.env</code> as
-      <code>{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}=…</code>. It is never stored here.</p>
-    <button type="submit">Save voice binding</button>
+    <p class="hint">{{ _("Put the actual id in") }} <code>studio/.env</code> {{ _("as") }}
+      <code>{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}=…</code>{{ _(". It is never stored here.") }}</p>
+    <button type="submit">{{ _("Save voice binding") }}</button>
   </form>
 </div>
 {% endfor %}
 
 <div class="card">
-  <h2>Add character</h2>
+  <h2>{{ _("Add character") }}</h2>
   <form method="post" action="{{ base }}/series/{{ s.id }}/characters">
     <div class="row">
-      <div class="field"><label>Character id</label><input type="text" name="character_id" placeholder="char_a" required></div>
-      <div class="field"><label>Name</label><input type="text" name="name" required></div>
-      <div class="field"><label>On camera</label>
-        <select name="visual"><option value="yes">yes</option><option value="no">no — voice only</option></select></div>
-      <div class="field"><label>Role</label><input type="text" name="role" placeholder="protagonist"></div>
-      <div class="field"><label>Age</label><input type="text" name="age" placeholder="32"></div>
+      <div class="field"><label>{{ _("Character id") }}</label><input type="text" name="character_id" placeholder="char_a" required></div>
+      <div class="field"><label>{{ _("Name") }}</label><input type="text" name="name" required></div>
+      <div class="field"><label>{{ _("On camera") }}</label>
+        <select name="visual"><option value="yes">{{ _("yes") }}</option><option value="no">{{ _("no — voice only") }}</option></select></div>
+      <div class="field"><label>{{ _("Role") }}</label><input type="text" name="role" placeholder="protagonist"></div>
+      <div class="field"><label>{{ _("Age") }}</label><input type="text" name="age" placeholder="32"></div>
     </div>
-    <div class="field"><label>Appearance — English, camera-ready</label><textarea name="appearance" rows="4"></textarea></div>
-    <div class="field"><label>Behaviour</label><textarea name="behavior" rows="2"></textarea></div>
-    <div class="field"><label>Immutable rules — one per line</label><textarea name="immutable" rows="2"></textarea></div>
-    <button class="btn-primary" type="submit">Add character</button>
+    <div class="field"><label>{{ _("Appearance — English, camera-ready") }}</label><textarea name="appearance" rows="4"></textarea></div>
+    <div class="field"><label>{{ _("Behaviour") }}</label><textarea name="behavior" rows="2"></textarea></div>
+    <div class="field"><label>{{ _("Immutable rules — one per line") }}</label><textarea name="immutable" rows="2"></textarea></div>
+    <button class="btn-primary" type="submit">{{ _("Add character") }}</button>
   </form>
 </div>
 {% endblock %}

@@ -1,36 +1,35 @@
 {% extends "base.html" %}
-{% block title %}First clip · MarkeVita AI Series Studio{% endblock %}
+{% block title %}{{ _("First clip · MarkeVita AI Series Studio") }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <h1>{{ spec.title }}</h1>
-    <p class="sub">{{ spec.series_title }} · First clip preview</p>
+    <p class="sub">{{ spec.series_title }} {{ _("· First clip preview") }}</p>
   </div>
 </div>
 
 <div class="notice mode">
-  <b>One real preview.</b> This page can generate one paid clip after your approval.
-  Full episode production remains in mock mode. Nothing is published automatically.
+  <b>{{ _("One real preview.") }}</b> {{ _("This page can generate one paid clip after your approval. Full episodes are managed on their episode pages. Nothing is published automatically.") }}
 </div>
 
 <div class="grid g4" style="margin-bottom:20px">
-  <div class="stat"><div class="k">Duration</div><div class="v">{{ spec.duration_seconds }} seconds</div></div>
-  <div class="stat"><div class="k">Format</div><div class="v">{{ spec.aspect_ratio }} · {{ spec.resolution }}</div></div>
-  <div class="stat"><div class="k">Sound</div><div class="v">Native audio</div></div>
-  <div class="stat"><div class="k">Maximum approved spend</div><div class="v">{{ spec.max_usd|money }}</div></div>
+  <div class="stat"><div class="k">{{ _("Duration") }}</div><div class="v">{{ spec.duration_seconds }} {{ _("seconds") }}</div></div>
+  <div class="stat"><div class="k">{{ _("Format") }}</div><div class="v">{{ spec.aspect_ratio }} · {{ spec.resolution }}</div></div>
+  <div class="stat"><div class="k">{{ _("Sound") }}</div><div class="v">{{ _("Native audio") }}</div></div>
+  <div class="stat"><div class="k">{{ _("Maximum approved spend") }}</div><div class="v">{{ spec.max_usd|money }}</div></div>
 </div>
 
 <div class="grid g2">
   <section class="card">
-    <h2>The scene</h2>
+    <h2>{{ _("The scene") }}</h2>
     <p>{{ spec.summary }}</p>
-    <h3>Dialogue · English</h3>
+    <h3>{{ _("Dialogue · English") }}</h3>
     <p style="white-space:pre-line">{{ spec.dialogue }}</p>
     <details>
-      <summary>View the exact generation prompt</summary>
+      <summary>{{ _("View the exact generation prompt") }}</summary>
       <p class="small" style="white-space:pre-wrap">{{ spec.prompt }}</p>
     </details>
-    <p class="hint">One submission. No automatic retries, regeneration or publishing.</p>
+    <p class="hint">{{ _("One submission. No automatic retries, regeneration or publishing.") }}</p>
   </section>
 
   <section class="card">
@@ -39,35 +38,34 @@
       {% if job.state == 'done' %}
         <video controls playsinline preload="metadata" style="width:100%;max-height:680px;background:#000"
                src="{{ base }}/clip-preview/media?job_id={{ job.id|urlencode }}">
-          Your browser cannot play this video. Use the link below.
+          {{ _("Your browser cannot play this video. Use the link below.") }}
         </video>
-        <p><a class="btn" href="{{ base }}/clip-preview/media?job_id={{ job.id|urlencode }}">Open or download clip</a></p>
-        <p class="hint">The clip is saved privately. Playback uses a temporary link.</p>
+        <p><a class="btn" href="{{ base }}/clip-preview/media?job_id={{ job.id|urlencode }}">{{ _("Open or download clip") }}</a></p>
+        <p class="hint">{{ _("The clip is saved privately. Playback uses a temporary link.") }}</p>
       {% elif job.may_poll %}
-        <p>The approved request is recorded. You can return to this page without starting another generation.</p>
+        <p>{{ _("The approved request is recorded. You can return to this page without starting another generation.") }}</p>
         <form method="post" action="{{ base }}/clip-preview/poll">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="job_id" value="{{ job.id }}">
-          <button class="btn-primary" type="submit">Check status and save result</button>
+          <button class="btn-primary" type="submit">{{ _("Check status and save result") }}</button>
         </form>
-        <p class="hint">Checking status does not submit another video generation.</p>
+        <p class="hint">{{ _("Checking status does not submit another video generation.") }}</p>
       {% else %}
-        <p>The existing request is retained for review. No replacement will be generated automatically.</p>
+        <p>{{ _("The existing request is retained for review. No replacement will be generated automatically.") }}</p>
       {% endif %}
-      <p class="hint">Approved ceiling: {{ spec.max_usd|money }}. Final provider billing has not been independently verified.</p>
+      <p class="hint">{{ _("Approved ceiling:") }} {{ spec.max_usd|money }}{{ _(". Final provider billing has not been independently verified.") }}</p>
     {% else %}
-      <h2>Approve this preview</h2>
-      <p>Estimated generation cost: <b>{{ spec.estimated_usd|money }}</b> for one clip with native audio.
-         Maximum approved generation spend: <b>{{ spec.max_usd|money }}</b>.</p>
+      <h2>{{ _("Approve this preview") }}</h2>
+      <p>{{ _("Estimated generation cost:") }} <b>{{ spec.estimated_usd|money }}</b> {{ _("for one clip with native audio. Maximum approved generation spend:") }} <b>{{ spec.max_usd|money }}</b>.</p>
       <form method="post" action="{{ base }}/clip-preview/start">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="approved_digest" value="{{ spec.digest }}">
         <input type="hidden" name="approved_max_usd" value="{{ spec.max_usd }}">
         <div class="checks" style="margin-bottom:16px">
           <label><input type="checkbox" name="approve" value="yes" required {% if problems %}disabled{% endif %}>
-            Approve one generation up to {{ spec.max_usd|money }}</label>
+            {{ _("Approve one generation up to") }} {{ spec.max_usd|money }}</label>
         </div>
-        <button class="btn-primary" type="submit" {% if problems %}disabled{% endif %}>Generate first clip</button>
+        <button class="btn-primary" type="submit" {% if problems %}disabled{% endif %}>{{ _("Generate first clip") }}</button>
       </form>
     {% endif %}
   </section>
@@ -75,9 +73,9 @@
 
 {% if problems %}
 <section class="card">
-  <h2>Before generation</h2>
+  <h2>{{ _("Before generation") }}</h2>
   <ul>{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>
-  <a href="{{ base }}/integrations">View integrations →</a>
+  <a href="{{ base }}/integrations">{{ _("View integrations →") }}</a>
 </section>
 {% endif %}
 {% endblock %}

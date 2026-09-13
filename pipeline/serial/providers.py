@@ -3,6 +3,7 @@ reserve -> submit (request_id сохраняется до ожидания) -> r
 повторный запуск забирает результат по request_id, а не создаёт второй платный запрос."""
 
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -13,13 +14,38 @@ from .state import now, sha256
 
 
 def download(url: str, dest: Path) -> Path:
+    """Collect an existing provider asset; never submit another generation.
+
+    A truncated response must not replace a complete file. Retry only this
+    idempotent GET and atomically publish the completed download.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(dest, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-    return dest
+    for attempt in range(3):
+        partial = None
+        try:
+            with requests.get(url, stream=True, timeout=(30, 120)) as r:
+                r.raise_for_status()
+                with tempfile.NamedTemporaryFile(dir=dest.parent, prefix=".download-", suffix=".part", delete=False) as f:
+                    partial = Path(f.name)
+                    size = 0
+                    for chunk in r.iter_content(1 << 20):
+                        f.write(chunk)
+                        size += len(chunk)
+                expected = r.headers.get("Content-Length")
+                if not size or (expected and expected.isdigit() and not r.headers.get("Content-Encoding") and size != int(expected)):
+                    raise requests.exceptions.ChunkedEncodingError("Incomplete provider asset download")
+            partial.replace(dest)
+            return dest
+        except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout, requests.exceptions.HTTPError) as exc:
+            retryable = not isinstance(exc, requests.exceptions.HTTPError) or (
+                exc.response is not None and exc.response.status_code in (408, 429, 500, 502, 503, 504))
+            if not retryable or attempt == 2:
+                raise
+            time.sleep(attempt + 1)
+        finally:
+            if partial is not None:
+                partial.unlink(missing_ok=True)
 
 
 class InputPublisher:
@@ -200,7 +226,7 @@ def lipsync(fal: Fal, take_id: str, video: Path, audio: Path, seconds: float, de
 
 # ---------------- ElevenLabs ----------------
 
-def tts(cfg, log, text: str, delivery: str, voice_id: str, dest: Path, model_id: str | None = None, settings: dict | None = None) -> dict:
+def tts(cfg, log, text: str, delivery: str, voice_id: str, dest: Path, model_id: str | None = None, settings: dict | None = None, language_code: str | None = None) -> dict:
     """Одна реплика -> mp3. Возвращает provenance dict. eleven_v3: delivery как audio tag в квадратных скобках."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     model_id = model_id or cfg.elevenlabs_model_id
@@ -211,6 +237,9 @@ def tts(cfg, log, text: str, delivery: str, voice_id: str, dest: Path, model_id:
         settings.setdefault("speed", 1.0)
     prov = {"provider": "elevenlabs", "model_id": model_id, "voice_id_ref": f"env:{voice_id[:4]}…" if voice_id else "",
             "text": text, "spoken_text": spoken, "voice_settings": settings, "created_at": now()}
+    if language_code:
+        language_code = language_code.replace("_", "-").split("-", 1)[0].lower()
+        prov["language_code"] = language_code
     if cfg.dry_run:
         secs = max(1.0, min(7.5, len(text.split()) / 2.4))
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"sine=frequency=220:duration={secs:.2f}",
@@ -218,6 +247,8 @@ def tts(cfg, log, text: str, delivery: str, voice_id: str, dest: Path, model_id:
     else:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128"
         body = {"text": spoken, "model_id": model_id, "voice_settings": settings}
+        if language_code and model_id != "eleven_multilingual_v2":
+            body["language_code"] = language_code
         r = requests.post(url, json=body, headers={"xi-api-key": cfg.elevenlabs_api_key, "Accept": "audio/mpeg"}, timeout=180)
         if r.status_code >= 400:
             raise RuntimeError(f"ElevenLabs {r.status_code}: {r.text[:300]}")

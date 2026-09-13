@@ -1,77 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Locations — {{ s.title }}{% endblock %}
+{% block title %}{{ _("Locations —") }} {{ s.title }}{% endblock %}
 {% block content %}
 <div class="page-head"><div>
-  <h1>Locations and props</h1>
-  <p class="sub">Descriptions feed the reference and keyframe models. State what must never move — that is what keeps geometry consistent between clips.</p>
+  <h1>{{ _("Locations and props") }}</h1>
+  <p class="sub">{{ _("Descriptions feed the reference and keyframe models. State what must never move — that is what keeps geometry consistent between clips.") }}</p>
 </div></div>
 
 <div class="card">
-  <h2>Locations</h2>
+  <h2>{{ _("Locations") }}</h2>
   {% if locations %}
     {% for l in locations %}
     <div class="scene-card">
       <h4>{{ l.name }} <code>{{ l.location_id }}</code></h4>
       <p class="small muted" style="margin:0 0 8px">{{ l.description or 'No description yet.' }}</p>
-      <div class="small"><b>Lighting:</b>
+      <div class="small"><b>{{ _("Lighting:") }}</b>
         {% for k, v in (l.lighting_states or {}).items() %}<code>{{ k }}</code> {{ v }}{{ '; ' if not loop.last }}{% endfor %}
       </div>
-      {% if l.immutable %}<div class="small muted" style="margin-top:5px"><b>Immutable:</b> {{ l.immutable|join('; ') }}</div>{% endif %}
-      <details style="margin-top:8px"><summary>Edit</summary>
+      {% if l.immutable %}<div class="small muted" style="margin-top:5px"><b>{{ _("Immutable:") }}</b> {{ l.immutable|join('; ') }}</div>{% endif %}
+      <details style="margin-top:8px"><summary>{{ _("Edit") }}</summary>
         <form method="post" action="{{ base }}/series/{{ s.id }}/locations" style="margin-top:10px">
           <input type="hidden" name="location_id" value="{{ l.location_id }}">
-          <div class="field"><label>Name</label><input type="text" name="name" value="{{ l.name }}" required></div>
-          <div class="field"><label>Description — English, 80–150 words: geometry, materials, fixtures, view</label>
+          <div class="field"><label>{{ _("Name") }}</label><input type="text" name="name" value="{{ l.name }}" required></div>
+          <div class="field"><label>{{ _("Description — English, 80–150 words: geometry, materials, fixtures, view") }}</label>
             <textarea name="description" rows="4">{{ l.description }}</textarea></div>
-          <div class="field"><label>Lighting states — one <code>key = description</code> per line</label>
+          <div class="field"><label>{{ _("Lighting states — one") }} <code>key = description</code> {{ _("per line") }}</label>
             <textarea name="lighting_states" rows="3">{% for k, v in (l.lighting_states or {}).items() %}{{ k }} = {{ v }}
 {% endfor %}</textarea></div>
-          <div class="field"><label>Marks — where characters stand by default</label><input type="text" name="marks" value="{{ l.marks }}"></div>
-          <div class="field"><label>Immutable — one per line</label><textarea name="immutable" rows="2">{{ (l.immutable or [])|join('\n') }}</textarea></div>
-          <button class="btn-primary" type="submit">Save</button>
+          <div class="field"><label>{{ _("Marks — where characters stand by default") }}</label><input type="text" name="marks" value="{{ l.marks }}"></div>
+          <div class="field"><label>{{ _("Immutable — one per line") }}</label><textarea name="immutable" rows="2">{{ (l.immutable or [])|join('\n') }}</textarea></div>
+          <button class="btn-primary" type="submit">{{ _("Save") }}</button>
         </form>
         <form method="post" action="{{ base }}/series/{{ s.id }}/locations/{{ l.location_id }}/delete" style="margin-top:9px">
-          <button class="btn-danger btn-sm" type="submit">Remove location</button></form>
+          <button class="btn-danger btn-sm" type="submit">{{ _("Remove location") }}</button></form>
       </details>
     </div>
     {% endfor %}
-  {% else %}<div class="empty">No locations yet.</div>{% endif %}
+  {% else %}<div class="empty">{{ _("No locations yet.") }}</div>{% endif %}
 
   <hr class="sep">
-  <h3>Add location</h3>
+  <h3>{{ _("Add location") }}</h3>
   <form method="post" action="{{ base }}/series/{{ s.id }}/locations">
     <div class="row">
-      <div class="field"><label>Location id</label><input type="text" name="location_id" placeholder="villa_terrace" required></div>
-      <div class="field"><label>Name</label><input type="text" name="name" required></div>
+      <div class="field"><label>{{ _("Location id") }}</label><input type="text" name="location_id" placeholder="villa_terrace" required></div>
+      <div class="field"><label>{{ _("Name") }}</label><input type="text" name="name" required></div>
     </div>
-    <div class="field"><label>Description</label><textarea name="description" rows="4"></textarea></div>
-    <div class="field"><label>Lighting states — one <code>key = description</code> per line</label>
+    <div class="field"><label>{{ _("Description") }}</label><textarea name="description" rows="4"></textarea></div>
+    <div class="field"><label>{{ _("Lighting states — one") }} <code>key = description</code> {{ _("per line") }}</label>
       <textarea name="lighting_states" rows="3" placeholder="default = late afternoon sun&#10;night = warm lanterns, deep blue sky"></textarea></div>
-    <div class="field"><label>Marks</label><input type="text" name="marks"></div>
-    <div class="field"><label>Immutable — one per line</label><textarea name="immutable" rows="2"></textarea></div>
-    <button class="btn-primary" type="submit">Add location</button>
+    <div class="field"><label>{{ _("Marks") }}</label><input type="text" name="marks"></div>
+    <div class="field"><label>{{ _("Immutable — one per line") }}</label><textarea name="immutable" rows="2"></textarea></div>
+    <button class="btn-primary" type="submit">{{ _("Add location") }}</button>
   </form>
 </div>
 
 <div class="card">
-  <h2>Props</h2>
+  <h2>{{ _("Props") }}</h2>
   {% if props %}
     <div class="table-scroll"><table>
-      <thead><tr><th>Id</th><th>Description</th><th></th></tr></thead>
+      <thead><tr><th>{{ _("Id") }}</th><th>{{ _("Description") }}</th><th></th></tr></thead>
       <tbody>{% for p in props %}
         <tr><td><code>{{ p.prop_id }}</code></td><td class="small">{{ p.description }}</td>
         <td><form method="post" action="{{ base }}/series/{{ s.id }}/props/{{ p.prop_id }}/delete">
-          <button class="btn-danger btn-sm" type="submit">Remove</button></form></td></tr>
+          <button class="btn-danger btn-sm" type="submit">{{ _("Remove") }}</button></form></td></tr>
       {% endfor %}</tbody>
     </table></div>
-  {% else %}<p class="hint">No props. Props are optional — add them when an object must stay consistent between clips.</p>{% endif %}
+  {% else %}<p class="hint">{{ _("No props. Props are optional — add them when an object must stay consistent between clips.") }}</p>{% endif %}
   <hr class="sep">
   <form method="post" action="{{ base }}/series/{{ s.id }}/props">
     <div class="row">
-      <div class="field"><label>Prop id</label><input type="text" name="prop_id" placeholder="passenger_list" required></div>
-      <div class="field"><label>Description</label><input type="text" name="description"></div>
+      <div class="field"><label>{{ _("Prop id") }}</label><input type="text" name="prop_id" placeholder="passenger_list" required></div>
+      <div class="field"><label>{{ _("Description") }}</label><input type="text" name="description"></div>
     </div>
-    <button type="submit">Add prop</button>
+    <button type="submit">{{ _("Add prop") }}</button>
   </form>
 </div>
 {% endblock %}

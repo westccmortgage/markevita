@@ -277,6 +277,27 @@ Two caveats worth knowing before you rely on this:
 
 ## Tests
 
+The EN/RU switch changes the panel's labels and known application notices. It is
+saved in a browser cookie scoped to the studio path and never rewrites scripts,
+character descriptions, prompts or production settings. Provider diagnostic logs
+retain their original language. Select the language before opening a password
+recovery link; the recovery form keeps that locale to avoid losing its token.
+
+The separate **Dialogue language** setting belongs to the series. For Russian
+production choose `ru-RU` and write the dialogue in Russian. Native scene audio
+receives that language in its prompt. Assigned ElevenLabs voices receive the
+original dialogue plus `language_code=ru` on models supporting that parameter
+(including `eleven_v3`). `eleven_multilingual_v2` infers the language from the
+original text. Choose a voice with a suitable Russian accent; changing the panel
+language alone does not change speech. Keep settings unchanged when resuming an
+existing production, whose package version is already recorded.
+
+If an existing provider asset download is interrupted, the collector retries
+only the GET (up to three attempts), removes partial files and publishes a file
+only when the download completes. A later Resume reuses the saved provider
+result/request; it does not resubmit that generation. This does not waive normal
+charges for subsequent, as-yet-unproduced scenes.
+
 ```bash
 cd studio && ../.venv/bin/python -m pytest tests -q -m "not slow"   # 19 tests, instant
 cd studio && ../.venv/bin/python -m pytest tests -q -m slow         # full mock run, ~2.5 min

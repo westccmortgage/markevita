@@ -1,50 +1,48 @@
 {% extends "base.html" %}
-{% block title %}References — {{ s.title }}{% endblock %}
+{% block title %}{{ _("References —") }} {{ s.title }}{% endblock %}
 {% block content %}
 <div class="page-head"><div>
-  <h1>Reference pack</h1>
-  <p class="sub">One pack per bible version: headshots, expressions, a full-body reference per wardrobe variant, locations and props.
-    Any change to the bible invalidates the approval and the pack is regenerated.</p>
+  <h1>{{ _("Reference pack") }}</h1>
+  <p class="sub">{{ _("One pack per bible version: headshots, expressions, a full-body reference per wardrobe variant, locations and props. Any change to the bible invalidates the approval and the pack is regenerated.") }}</p>
 </div></div>
 
 {% set approved = approvals and approvals[-1] %}
 {% if approved %}
-  <div class="notice ok">Approved for bible <code>{{ approved.subject_id }}</code>
-    by <b>{{ approved.actor }}</b> on {{ approved.created_at|time }}.
+  <div class="notice ok">{{ _("Approved for bible") }} <code>{{ approved.subject_id }}</code>
+    {{ _("by") }} <b>{{ approved.actor }}</b> {{ _("on") }} {{ approved.created_at|time }}.
     {% if s.bible_version and s.bible_version != approved.subject_id %}
-      <br><b>The bible has changed since</b> (now <code>{{ s.bible_version }}</code>) — regenerate and re-approve.
+      <br><b>{{ _("The bible has changed since") }}</b> {{ _("(now") }} <code>{{ s.bible_version }}</code>{{ _(") — regenerate and re-approve.") }}
     {% endif %}
   </div>
 {% endif %}
 
 <div class="card">
-  <h2>{{ total }} reference asset{{ '' if total == 1 else 's' }}</h2>
+  <h2>{{ _("Reference images: {count}", count=total) }}</h2>
   {% if grouped %}
     {% for kind, items in grouped.items() %}
-      <h3 style="margin-top:16px">{{ kind }}</h3>
+      <h3 style="margin-top:16px">{{ kind|ui }}</h3>
       <div class="table-scroll"><table>
-        <thead><tr><th>Preview</th><th>Owner</th><th>Asset</th><th>Approval</th><th>Object key</th><th>Checksum</th></tr></thead>
+        <thead><tr><th>{{ _("Preview") }}</th><th>{{ _("Owner") }}</th><th>{{ _("Asset") }}</th><th>{{ _("Approval") }}</th><th>{{ _("Object key") }}</th><th>{{ _("Checksum") }}</th></tr></thead>
         <tbody>{% for r in items %}
           <tr><td>{% if r.r2_key %}<a href="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" target="_blank" rel="noopener"><img src="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" alt="{{ r.owner_id }} {{ r.name }}" loading="lazy" style="width:120px;max-height:160px;object-fit:contain"></a>{% endif %}</td><td><code>{{ r.owner_id }}</code></td><td class="small">{{ r.name }}</td>
-              <td><span class="pill {{ 'ok' if r.approval == 'approved' else 'warn' }}">{{ r.approval }}</span></td>
+              <td><span class="pill {{ 'ok' if r.approval == 'approved' else 'warn' }}">{{ (r.approval)|ui }}</span></td>
               <td class="small muted mono">{{ r.r2_key or '(local, R2 not configured)' }}</td>
               <td class="small muted mono">{{ (r.checksum or '')[:12] }}</td></tr>
         {% endfor %}</tbody>
       </table></div>
     {% endfor %}
   {% else %}
-    <div class="empty">No references yet. Run the <code>references</code> stage on any episode of this series.</div>
+    <div class="empty">{{ _("No references yet. Run the") }} <code>references</code> {{ _("stage on any episode of this series.") }}</div>
   {% endif %}
 </div>
 
 <div class="card">
-  <h2>Approve the pack</h2>
-  <p class="hint" style="margin-top:-8px">Required before keyframes and video may use these references.
-    The decision is recorded against the exact bible version.</p>
+  <h2>{{ _("Approve the pack") }}</h2>
+  <p class="hint" style="margin-top:-8px">{{ _("Required before keyframes and video may use these references. The decision is recorded against the exact bible version.") }}</p>
   <form method="post" action="{{ base }}/series/{{ s.id }}/references/approve">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <div class="field" style="max-width:460px"><label>Note</label><input type="text" name="note" placeholder="optional"></div>
-    <button class="btn-primary" type="submit" {{ 'disabled' if not total }}>Approve reference pack</button>
+    <div class="field" style="max-width:460px"><label>{{ _("Note") }}</label><input type="text" name="note" placeholder="{{ _('optional') }}"></div>
+    <button class="btn-primary" type="submit" {{ 'disabled' if not total }}>{{ _("Approve reference pack") }}</button>
   </form>
 </div>
 {% endblock %}

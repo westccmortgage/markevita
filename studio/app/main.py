@@ -72,6 +72,8 @@ async def healthz():
         "clip_preview_available": True,
         "episode_live_available": True,
         "episode_duration_configurable": True,
+        "ui_languages": ["en", "ru"],
+        "asset_download_recovery": True,
         # Identify the deployed build without exposing configuration values.
         "build_commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None,
     }

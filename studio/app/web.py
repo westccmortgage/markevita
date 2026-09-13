@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import auth, integrations, runner, scripts as scriptmod
 from . import live_jobs
+from . import i18n
 from .preview_web import _check_form, _csrf_token
 from .config import settings
 from .deps import current_admin, require_admin, templates
@@ -79,6 +80,17 @@ def render(request: Request, template: str, **ctx) -> HTMLResponse:
 
 
 # ── auth ───────────────────────────────────────────────────────────────────
+
+@router.post("/ui-language")
+def set_ui_language(request: Request, language: str = Form(...), next: str = Form("")):
+    if language not in i18n.LANGUAGES:
+        raise HTTPException(400, "Unsupported interface language")
+    response = RedirectResponse(i18n.safe_return(next, settings.base_path), status_code=303)
+    response.set_cookie(i18n.COOKIE, language, max_age=365 * 24 * 60 * 60,
+                        path=settings.base_path or "/", httponly=True, samesite="lax",
+                        secure=settings.public_url.startswith("https://") or request.url.scheme == "https")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):

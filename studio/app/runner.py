@@ -54,6 +54,8 @@ class JobCancelled(RuntimeError):
 # instructions. Inside the panel that advice is wrong, so known blockers are
 # restated as the action the producer can actually take here.
 _GUIDANCE = [
+    ("ChunkedEncodingError", "The download of an already generated file was interrupted. Resume this episode to retrieve the saved result; do not force regeneration."),
+    ("не прошёл QC", "A reference image did not pass quality control. Review the job log and reference images before continuing."),
     ("submission outcome", "A provider submission needs reconciliation; do not force or repeat generation."),
     ("interrupted request", "A paid request was interrupted before its response was saved. Reconcile it with the provider before another attempt."),
     ("approval референсов", "Approve the reference pack on the series' References page, then resume."),

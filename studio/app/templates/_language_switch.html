@@ -1,0 +1,11 @@
+{# A preference only; it never changes the production language. During reset,
+   retain the current locale so switching cannot discard the recovery token. #}
+{% if not request.url.path.rstrip('/').endswith('/reset') %}
+<form class="language-switch" method="post" action="{{ base }}/ui-language" aria-label="{{ _('Interface language') }}">
+  <input type="hidden" name="next" value="{{ language_next }}">
+  {% for code, label in ui_languages.items() %}
+    <button type="submit" name="language" value="{{ code }}" lang="{{ code }}" title="{{ label }}"
+      aria-pressed="{{ 'true' if ui_language == code else 'false' }}">{{ code|upper }}</button>
+  {% endfor %}
+</form>
+{% endif %}

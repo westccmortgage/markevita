@@ -503,12 +503,16 @@ class Pipeline:
                 cvoice = self._char(d["speaker"]).get("voice") or {}
                 def make_voice():
                     return providers.tts(self.cfg, self.log, d["text"], d.get("delivery", ""), self._voice_id(d["speaker"]), vdir / f"{line_id}_raw.mp3",
-                                         model_id=cvoice.get("model_id") or self.cfg.elevenlabs_model_id, settings=cvoice.get("settings"))
+                                         model_id=cvoice.get("model_id") or self.cfg.elevenlabs_model_id, settings=cvoice.get("settings"), language_code=self.episode["language"])
                 guard = getattr(self.cfg, "paid_calls", None)
                 if guard:
                     from .costs import PRICE
                     params = {"line": line_id, "text": d["text"], "delivery": d.get("delivery", ""),
                               "voice_id": self._voice_id(d["speaker"]), "voice": cvoice}
+                    # Preserve operation IDs of existing English productions.
+                    # Other languages must not reuse an English voice result.
+                    if not self.episode["language"].lower().startswith("en"):
+                        params["language_code"] = self.episode["language"]
                     amount = (len(d["text"]) + len(d.get("delivery", "")) + 3) / 1000 * PRICE["elevenlabs_per_1k_chars_estimate"]
                     prov = dict(guard.once("elevenlabs", params, amount, make_voice))
                 else:

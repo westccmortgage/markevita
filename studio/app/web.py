@@ -809,7 +809,20 @@ def job_page(request: Request, job_id: str):
         raise HTTPException(404, "job not found")
     if job.get("stages") == ["clip_preview"]:
         return _redirect("/clip-preview")
-    return render(request, "job.html", job=job)
+    progress = job.get("progress") or {}
+    # Older paused jobs have the reason only in their log. Recognize that exact
+    # marker so the next action is visible without restarting or changing them.
+    reference_review = job.get("state") == "paused" and job.get("mode") == "live" and (
+        progress.get("waiting_for") == "reference_approval"
+        or (progress.get("stage") == "references" and live_jobs.REFERENCE_APPROVAL_MESSAGE
+            in (job.get("log") or "").splitlines())
+    )
+    completed_stages = list(progress.get("done") or [])
+    if reference_review and "references" in (job.get("stages") or []) and "references" not in completed_stages:
+        completed_stages.append("references")
+    return render(request, "job.html", job=job, reference_review=reference_review,
+                  completed_stages=completed_stages,
+                  s=store.get("series", {"id": job["series_id"]}))
 
 
 @router.get("/integrations", response_class=HTMLResponse)

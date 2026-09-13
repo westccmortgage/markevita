@@ -21,6 +21,9 @@ from serial.paid_calls import PaidCalls
 from serial.state import State, now
 
 
+REFERENCE_APPROVAL_MESSAGE = 'Reference pack ready. Open References, review the images, approve the pack, then Resume.'
+
+
 def runtime_root():
     from .runner import RUNS_ROOT
     return RUNS_ROOT / 'live'
@@ -167,8 +170,9 @@ def run(manager, job, control, cfg, pkg, cp, lease):
                 try:
                     pipeline._require_references_approval()
                 except RuntimeError:
-                    log('Reference pack ready. Open References, review the images, approve the pack, then Resume.')
-                    update(state='paused')
+                    log(REFERENCE_APPROVAL_MESSAGE)
+                    progress.update(stage='references', done=list(done), waiting_for='reference_approval')
+                    update(state='paused', progress=progress)
                     return
             progress.update(stage=stage, done=list(done))
             update(progress=progress)

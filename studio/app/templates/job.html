@@ -8,11 +8,25 @@
   <span class="pill {{ 'ok' if job.state == 'done' else ('bad' if job.state == 'failed' else ('gold' if job.state == 'running' else 'mute')) }}">{{ (job.state)|ui }}</span>
 </div></div>
 
-<p><a class="btn" href="{{ base }}/jobs/{{ job.id }}">{{ _("Refresh status") }}</a></p>
+{% if reference_review %}
+<section class="card" aria-labelledby="reference-review-title">
+  <h2 id="reference-review-title">{{ _("References are ready for your review") }}</h2>
+  <p>{{ _("Production is paused before video generation. Open the reference images and approve the pack if you are happy with it.") }}</p>
+  <div class="btn-row">
+    <a class="btn btn-primary" href="{{ base }}/series/{{ job.series_id }}/references">{{ _("Open references") }}</a>
+    <a class="btn" href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ _("Open episode") }}</a>
+  </div>
+  <p class="hint">{{ _("After approving the references, open the episode and click Resume to continue production.") }}</p>
+</section>
+{% endif %}
+<div class="btn-row">
+  <a class="btn" href="{{ base }}/jobs/{{ job.id }}">{{ _("Refresh status") }}</a>
+  <span class="hint">{{ _("Refreshes this page. It does not resume production.") }}</span>
+</div>
 <div class="card">
   <dl class="kv">
     <dt>{{ _("Stages requested") }}</dt><dd class="mono small">{{ (job.stages or [])|map('ui')|join(', ') }}</dd>
-    <dt>{{ _("Completed") }}</dt><dd class="mono small">{{ ((job.progress or {}).get('done') or [])|map('ui')|join(', ') or '—' }}</dd>
+    <dt>{{ _("Completed") }}</dt><dd class="mono small">{{ completed_stages|map('ui')|join(', ') or '—' }}</dd>
     <dt>{{ _("Current stage") }}</dt><dd class="mono small">{{ ((job.progress or {}).get('stage') or '—')|ui }}</dd>
     <dt>{{ _("Mode") }}</dt><dd>{{ (job.mode)|ui }}</dd>
     <dt>{{ _("Force") }}</dt><dd class="mono small">{{ (job.force or [])|join(', ') or '—' }}</dd>

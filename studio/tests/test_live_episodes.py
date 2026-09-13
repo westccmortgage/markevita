@@ -348,6 +348,8 @@ def test_live_orchestration_pauses_for_refs_resumes_and_delivers_32s(short_packa
         return store.get('production_jobs', {'id': job['id']})
     first = run_once()
     assert first['state'] == 'paused', (first.get('error'), first.get('log'))
+    assert first['progress']['waiting_for'] == 'reference_approval'
+    assert first['progress']['done'] == ['intake', 'direction', 'references']
     refs_count = len(submissions)
     assert refs_count > 0
     # Discard all local production files, as a Render redeploy would.

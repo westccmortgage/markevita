@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from jinja2 import nodes
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app import auth, deps, i18n, integrations, runner, web
+from app import auth, deps, i18n, integrations, runner, web, live_jobs
 from app.config import settings
 from serial import providers
 from test_live_episodes import short_package
@@ -103,6 +103,55 @@ def test_static_translation_keys_exist_and_all_templates_compile():
             if isinstance(call.node,nodes.Name) and call.node.name=='_' and call.args and isinstance(call.args[0],nodes.Const):
                 assert call.args[0].value in i18n.RU,(name,call.args[0].value)
                 assert i18n.RU[call.args[0].value].strip()
+
+
+@pytest.mark.parametrize('language', ['en', 'ru'])
+@pytest.mark.parametrize('legacy', [False, True])
+def test_reference_review_pause_links_to_existing_images_without_changing_job(language_ui, monkeypatch, language, legacy):
+    client, store, sid, eid = language_ui
+    client.cookies.set(i18n.COOKIE, language)
+    progress = {'stage': 'references', 'done': ['intake', 'direction']}
+    if not legacy:
+        progress.update(waiting_for='reference_approval', done=['intake', 'direction', 'references'])
+    store.insert('production_jobs', {
+        'id': 'reviewjob', 'series_id': sid, 'episode_id': eid, 'state': 'paused', 'mode': 'live',
+        'stages': ['intake', 'direction', 'references', 'keyframes', 'video'], 'progress': progress,
+        'log': live_jobs.REFERENCE_APPROVAL_MESSAGE if legacy else '',
+    })
+    before = copy.deepcopy(store.get('production_jobs', {'id': 'reviewjob'}))
+    start = Mock(side_effect=AssertionError('A GET must not start production'))
+    approve = Mock(side_effect=AssertionError('A GET must not approve references'))
+    monkeypatch.setattr(live_jobs, 'start', start)
+    monkeypatch.setattr(live_jobs, 'approve_references', approve)
+    for _ in range(2):
+        page = client.get('/studio/jobs/reviewjob')
+        assert page.status_code == 200
+        assert page.headers['cache-control'] == 'no-store'
+        assert 'id="reference-review-title"' in page.text
+        assert f'class="btn btn-primary" href="/studio/series/{sid}/references"' in page.text
+        assert f'class="btn" href="/studio/series/{sid}/episodes/{eid}"' in page.text
+        assert ('Открыть референсы' if language == 'ru' else 'Open references') in page.text
+        assert ('Проверка сценария, Режиссура, Референсы' if language == 'ru' else 'intake, direction, references') in page.text
+        assert ('нажмите «Продолжить»' if language == 'ru' else 'click Resume') in page.text
+    assert store.get('production_jobs', {'id': 'reviewjob'}) == before
+    start.assert_not_called()
+    approve.assert_not_called()
+
+
+@pytest.mark.parametrize('state,stage,log', [
+    ('paused', 'references', ''),  # A manual pause is not a completed pack.
+    ('failed', 'references', live_jobs.REFERENCE_APPROVAL_MESSAGE),
+    ('running', 'references', live_jobs.REFERENCE_APPROVAL_MESSAGE),
+    ('paused', 'video', live_jobs.REFERENCE_APPROVAL_MESSAGE),
+])
+def test_unrelated_jobs_do_not_claim_references_are_ready(language_ui, state, stage, log):
+    client, store, sid, eid = language_ui
+    store.insert('production_jobs', {
+        'id': 'otherjob', 'series_id': sid, 'episode_id': eid, 'state': state, 'mode': 'live',
+        'stages': ['references', 'video'], 'progress': {'stage': stage, 'done': []}, 'log': log,
+    })
+    page = client.get('/studio/jobs/otherjob')
+    assert page.status_code == 200 and 'id="reference-review-title"' not in page.text
 
 
 def test_russian_tts_uses_explicit_language_and_original_dialogue(tmp_path,monkeypatch):

@@ -280,6 +280,10 @@ def series_page(request: Request, series_id: str):
                   validation=validation, **_video_model_choices())
 
 
+SUBTITLES = {"both": "on the video, plus a separate file", "burned": "on the video",
+             "srt": "separate file only", "none": "off"}
+
+
 def _video_model_choices() -> dict:
     """What the producer picks between, with the rate each one bills at."""
     from serial.config import DEFAULT_VIDEO_MODEL, VIDEO_MODELS
@@ -308,6 +312,8 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
     if not s:
         raise HTTPException(404, "series not found")
     fmt = dict(s.get("format") or {})
+    if captions not in ("both", "burned", "srt", "none"):
+        return _redirect(f"/series/{series_id}", err="Choose one of the subtitle options.")
     fmt["captions"] = captions
     limits = {**DEFAULT_LIMITS, **(s.get("production_limits") or {})}
     from serial.config import VIDEO_MODELS
@@ -443,6 +449,9 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
                   runtime=runtime, active_job=runner.jobs.active_job(series_id, episode_id),
                   jobs=runner.jobs.jobs_for(series_id, episode_id, limit=5),
                   production_digest=live_jobs.review(series_id, episode_id) if settings.allow_paid else "",
+                  subtitles=i18n.translate(
+                      SUBTITLES.get((s.get("format") or {}).get("captions", "both"),
+                                    SUBTITLES["both"]), i18n.language(request)),
                   csrf_token=_csrf_token(request, require_admin(request)),
                   voiceless=[c["id"] for c in memory["characters"]
                              if c["on_camera"] and not c["has_voice"]])

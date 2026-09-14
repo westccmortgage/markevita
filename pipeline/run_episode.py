@@ -57,7 +57,7 @@ def main():
     ap.add_argument("--force", default="", help="стадии и/или id сцен/персонажей/локаций для переделки")
     ap.add_argument("--live", action="store_true", help="реальные провайдеры (платно). Без флага все платные вызовы mock")
     ap.add_argument("--accept-weak", action="store_true")
-    ap.add_argument("--captions", choices=["srt", "burned", "both"], default=None)
+    ap.add_argument("--captions", choices=["srt", "burned", "both", "none"], default=None)
     ap.add_argument("--approve", choices=["references", "publish"])
     ap.add_argument("--by", default="")
     ap.add_argument("--note", default="")

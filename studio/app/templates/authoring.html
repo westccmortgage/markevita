@@ -115,6 +115,8 @@
         <div class="stat"><div class="k">{{ _("Limit") }}</div><div class="v">{{ estimate.cap_usd|money }}</div>
           <div class="hint">{{ _("production stops here") }}</div></div>
       </div>
+      <p class="hint">{{ _("Subtitles:") }} <b>{{ subtitles }}</b> —
+        <a href="{{ base }}/series/{{ s.id }}">{{ _("change in series settings") }}</a></p>
       {% if estimate.warnings %}
         <div class="notice info">{% for w in estimate.warnings %}<div>{{ w }}</div>{% endfor %}</div>
       {% endif %}

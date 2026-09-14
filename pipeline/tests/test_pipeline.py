@@ -290,3 +290,51 @@ def test_a_saved_request_survives_a_change_of_model(fx, cfg, tmp_path):
     after = _video_takes(runs)
     assert {k: t["endpoint"] for k, t in after.items()} == {k: VEO_FAST for k in before}
     assert {k: t["request_id"] for k, t in after.items()} == {k: t["request_id"] for k, t in before.items()}
+
+
+# ---------------- subtitles ----------------
+
+def _deliverable(runs, series="fixture_series", ep="s01e01"):
+    st = State(runs / series / ep)
+    mdir = Path(st.data["master_dir"])
+    return mdir, sorted(f.name for f in mdir.iterdir() if f.is_file())
+
+
+@pytest.mark.parametrize("captions,shipped", [
+    ("both", True), ("burned", True), ("srt", True), ("none", False),
+])
+def test_the_series_decides_whether_subtitles_ship(fx, cfg, tmp_path, captions, shipped):
+    series = json.loads((fx / "series.json").read_text())
+    series["format"]["captions"] = captions
+    (fx / "series.json").write_text(json.dumps(series))
+    pkg = _pkg(fx); runs = tmp_path / "runs"
+    _run(cfg, pkg, runs, stages=["intake", "direction", "references"])
+    _approve_refs(runs, pkg)
+    _run(cfg, pkg, runs)
+    mdir, files = _deliverable(runs)
+    assert ("episode.srt" in files) is shipped
+    assert "episode.mp4" in files
+    meta = json.loads((mdir / "metadata.json").read_text())
+    assert meta["captions"] == captions
+
+
+def test_turning_subtitles_off_does_not_disable_the_subtitle_check(fx, cfg, tmp_path):
+    """Otherwise 'no subtitles' would quietly also mean 'unverified timing'."""
+    series = json.loads((fx / "series.json").read_text())
+    series["format"]["captions"] = "none"
+    (fx / "series.json").write_text(json.dumps(series))
+    pkg = _pkg(fx); runs = tmp_path / "runs"
+    _run(cfg, pkg, runs, stages=["intake", "direction", "references"])
+    _approve_refs(runs, pkg)
+    _run(cfg, pkg, runs)
+    mdir, _ = _deliverable(runs)
+    st = State(runs / "fixture_series" / "s01e01")
+    report = json.loads((Path(st.data["qa_dir"]) / "report.json").read_text())
+    check = next(c for c in report["checks"] if c["check"] == "subtitles_match_dialogue")
+    assert check["pass"] and check["detail"].split("/")[0] != "-1"
+    assert json.loads((mdir / "metadata.json").read_text())["subtitle_cues"] > 0
+    # Delivery and publication must not look for a file that was never written.
+    st.data["approvals"]["publish"] = {"approved": True, "by": "test", "at": now()}; st.save()
+    _run(cfg, pkg, runs, stages=["publish"])
+    published = State(runs / "fixture_series" / "s01e01").data["public"]
+    assert "episode.mp4" in published and "episode.srt" not in published

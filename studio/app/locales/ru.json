@@ -684,5 +684,18 @@
   "Recent runs": "Последние запуски",
   "Video model": "Модель видео",
   "Used for every episode of this series, including the ones the studio writes next. Veo 3.1 costs about twice Fast per second of video; the estimate before each run uses the model chosen here.": "Используется для всех серий этого сериала, включая те, что студия напишет дальше. Обычная Veo 3.1 стоит примерно вдвое дороже Fast за секунду видео; оценка перед запуском считается по выбранной здесь модели.",
-  "Choose one of the supported video models.": "Выберите одну из поддерживаемых моделей видео."
+  "Choose one of the supported video models.": "Выберите одну из поддерживаемых моделей видео.",
+  "Subtitles": "Субтитры",
+  "Subtitles:": "Субтитры:",
+  "On the video, plus a separate subtitle file": "На видео и отдельным файлом",
+  "On the video": "На видео",
+  "Separate subtitle file only — the video stays clean": "Только отдельным файлом — видео без надписей",
+  "No subtitles": "Без субтитров",
+  "Applies to every episode of this series, including the ones the studio writes next.": "Применяется ко всем сериям этого сериала, включая те, что студия напишет дальше.",
+  "change in series settings": "изменить в настройках сериала",
+  "Choose one of the subtitle options.": "Выберите один из вариантов субтитров.",
+  "on the video, plus a separate file": "на видео и отдельным файлом",
+  "on the video": "на видео",
+  "separate file only": "только отдельным файлом",
+  "off": "выключены"
 }

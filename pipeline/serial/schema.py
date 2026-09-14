@@ -21,7 +21,7 @@ SERIES = {
         "format": {
             "type": "object", "required": ["aspect_ratio", "width", "height"],
             "properties": {"aspect_ratio": {"enum": ["9:16", "16:9"]}, "width": {"type": "integer"}, "height": {"type": "integer"},
-                           "captions": {"enum": ["srt", "burned", "both"]}},
+                           "captions": {"enum": ["srt", "burned", "both", "none"]}},
         },
         "seasons": {
             "type": "array", "minItems": 1,

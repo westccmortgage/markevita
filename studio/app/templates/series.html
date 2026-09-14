@@ -121,12 +121,20 @@
         </select>
         <p class="hint">{{ _("For this series: dialogue, speech and subtitles. Interface language is a separate preference. Write dialogue in the selected language.") }}</p>
       </div>
-      <div class="field"><label>{{ _("Captions") }}</label>
+      {# Plain words: "srt" and "burned" told the producer nothing about what
+         they would actually see on the finished video. #}
+      <div class="field"><label>{{ _("Subtitles") }}</label>
         <select name="captions">
-          {% for c in ['both','srt','burned'] %}
-          <option value="{{ c }}" {{ 'selected' if (s.format or {}).get('captions') == c }}>{{ c }}</option>
+          {% set chosen = (s.format or {}).get('captions', 'both') %}
+          {% for value, label in [
+              ('both', _("On the video, plus a separate subtitle file")),
+              ('burned', _("On the video")),
+              ('srt', _("Separate subtitle file only — the video stays clean")),
+              ('none', _("No subtitles")) ] %}
+          <option value="{{ value }}" {{ 'selected' if chosen == value }}>{{ label }}</option>
           {% endfor %}
         </select>
+        <p class="hint">{{ _("Applies to every episode of this series, including the ones the studio writes next.") }}</p>
       </div>
     </div>
     <div class="field"><label>{{ _("Logline") }}</label><input type="text" name="logline" value="{{ s.logline }}"></div>

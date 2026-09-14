@@ -644,16 +644,22 @@ class Pipeline:
             bed = next((p for p in (self.pkg.root / "assets").glob(f"{name}.*")), None)
             if bed:
                 cur = media.add_bed(cur, bed, self.work / f"episode_{name}.mp4", db); self.log(f"assemble: {name} подложен ({db} dB)")
-        srt = media.write_srt(cues, mdir / "episode.srt")
         captions = self.captions_override or e.get("captions", "srt")
+        # "none": ни поверх картинки, ни отдельным файлом. Реплики всё равно
+        # считаются — иначе проверка "субтитры совпадают с диалогом" молча
+        # отключилась бы вместе с субтитрами.
+        srt = media.write_srt(cues, (mdir if captions != "none" else self.work) / "episode.srt")
         if captions in ("burned", "both"):
             cur = media.burn_subtitles(cur, srt, self.work / "episode_subs.mp4"); self.log("assemble: captions вшиты")
+        elif captions == "none":
+            self.log("assemble: субтитры отключены для этого сериала")
         cur = media.loudnorm(cur, self.work / "episode_loud.mp4")
         master = media.encode_master(cur, mdir / "episode.mp4", w, h)
         media.poster_frame(master, 1.0, mdir / "poster.jpg")
         meta = {"series_id": e["series_id"], "season_id": e["season_id"], "episode_id": e["episode_id"], "number": e["number"], "title": e["title"],
                 "series_title": e["series_title"], "language": e["language"], "duration_seconds": round(media.duration(master), 2),
-                "aspect_ratio": e["aspect_ratio"], "captions": captions, "cliffhanger": e["cliffhanger"],
+                "aspect_ratio": e["aspect_ratio"], "captions": captions, "subtitle_cues": len(cues),
+                "cliffhanger": e["cliffhanger"],
                 "caption_text": f"{e['series_title']} · {e['season_id'].upper()}{e['episode_id'].upper()} «{e['title']}»\n{e.get('logline','')}",
                 "hashtags": [], "master_version": ver, "created_at": now()}
         (mdir / "metadata.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -684,7 +690,8 @@ class Pipeline:
             staging = Path(tmp)
             master = media.loudnorm(mdir / "episode.mp4", staging / "episode.mp4")
             for name in ("episode.srt", "poster.jpg"):
-                shutil.copy2(mdir / name, staging / name)
+                if (mdir / name).exists():
+                    shutil.copy2(mdir / name, staging / name)
             metadata = json.loads((mdir / "metadata.json").read_text(encoding="utf-8"))
             metadata.update(master_version=ver, duration_seconds=round(media.duration(master), 2), created_at=now())
             repair = {"method": "loudnorm_two_pass", "source_master_version": mdir.name,
@@ -721,7 +728,10 @@ class Pipeline:
         chk("budget", self.budget.spent <= L["budget"], f"${self.budget.spent:.2f} / ${L['budget']:.2f}")
         prov_missing = [tid for tid, t in self.state.data["takes"].items() if t.get("status") == "succeeded" and not all(k in t for k in ("endpoint", "request_id", "checksum", "estimated_cost"))]
         chk("provenance_complete", not prov_missing, str(prov_missing[:5]) if prov_missing else "")
-        srt_cues = (mdir / "episode.srt").read_text(encoding="utf-8").count("-->")
+        srt_file = mdir / "episode.srt"
+        srt_cues = (srt_file.read_text(encoding="utf-8").count("-->") if srt_file.exists()
+                    else int(json.loads((mdir / "metadata.json").read_text(encoding="utf-8"))
+                             .get("subtitle_cues", -1)))
         n_lines = sum(len(s["dialogue"]) for s in self.scenes)
         chk("subtitles_match_dialogue", srt_cues == n_lines, f"{srt_cues}/{n_lines}")
         last = self.scenes[-1]
@@ -753,7 +763,8 @@ class Pipeline:
         self.r2.put(self.ep / "direction.json", f"{k.ep}/direction.json")
         self.r2.put(self.work / "ledger.json", f"{k.ep}/ledger.json")
         for name in ("episode.mp4", "episode.srt", "poster.jpg", "metadata.json", "manifest.json"):
-            self.r2.put(mdir / name, k.master(ver, name))
+            if (mdir / name).exists():
+                self.r2.put(mdir / name, k.master(ver, name))
         self.r2.put(Path(self.state.data["qa_dir"]) / "report.json", k.qa(ver, "report.json"))
         for tid, t in self.state.data["takes"].items():
             if t.get("local_path") and Path(t["local_path"]).exists() and t.get("scene_id"):
@@ -777,9 +788,10 @@ class Pipeline:
         if not self.state.approved("publish"):
             self.state.set_status("blocked_open_question")
             raise RuntimeError("нужен approval 'publish': run_episode.py ... --approve publish --by \"...\"")
-        k = self.keys; ver = Path(self.state.data["master_dir"]).name; pub = {}
+        k = self.keys; mdir = Path(self.state.data["master_dir"]); ver = mdir.name; pub = {}
         for name in ("episode.mp4", "poster.jpg", "episode.srt", "metadata.json"):
-            pub[name] = self.r2.public_url(self.r2.copy(k.master(ver, name), k.public(name)))
+            if (mdir / name).exists():
+                pub[name] = self.r2.public_url(self.r2.copy(k.master(ver, name), k.public(name)))
         self.state.data["public"] = pub; self.state.set_status("published"); self.state.mark_stage("publish")
         self.sstate.data["episodes"][self.episode_id]["status"] = "published"; self.sstate.save()
         self.log(f"publish: промотировано в /public/: {pub['episode.mp4']}")

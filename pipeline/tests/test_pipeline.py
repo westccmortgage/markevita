@@ -83,7 +83,7 @@ def test_knowledge_ledger_and_end_state(fx, cfg):
     (lambda e: e["scenes"][0]["characters_in_frame"].append("nobody"), "unknown character"),
     (lambda e: e["scenes"][0]["characters_in_frame"].append("char_v"), "voice-only"),
     (lambda e: e["scenes"][0].update(location="loc_zzz"), "unknown location"),
-    (lambda e: e["scenes"][0]["dialogue"].append({"speaker": "char_b", "text": " ".join(["word"] * 40)}), "exceeds"),
+    (lambda e: e["scenes"][0]["dialogue"].append({"speaker": "char_b", "text": " ".join(["word"] * 40)}), "too many for"),
     (lambda e: e["scenes"][3].update(knowledge_required=[{"character": "char_b", "secret": "secret_y"}]), "nobody told them yet"),
     (lambda e: e["cliffhanger"].update(scene_id="sc03"), "must be the last scene"),
     (lambda e: e["cliffhanger"].update(hook="  "), "hook is empty"),

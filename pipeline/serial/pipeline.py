@@ -17,9 +17,10 @@ from .storage import R2, Keys
 
 STAGES = ["intake", "direction", "references", "keyframes", "video", "voice", "lipsync", "assemble", "qa", "deliver", "publish"]
 PAID_STAGES = {"direction", "references", "keyframes", "video", "voice", "lipsync"}
-LEAD_IN = 0.4
-GAP = 0.35
-MAX_TEMPO = 1.15
+# Defined in package.py so validation and production cannot drift apart.
+LEAD_IN = pkgmod.LEAD_IN
+GAP = pkgmod.GAP
+MAX_TEMPO = pkgmod.MAX_TEMPO
 
 
 def _overrun(scene_id: str, spoken: float, limit: float) -> str:
@@ -538,13 +539,13 @@ class Pipeline:
                 # A failed length check also saved its audio. Resume must reuse
                 # it AND enforce the same check, not mark the stage successful.
                 end = max((c['end'] for c in st['voice'].get('cues', [])), default=0)
-                limit = s['duration'] - 0.25
+                limit = s['duration'] - pkgmod.TAIL
                 if end > limit + 0.05:
                     too_long.append(_overrun(s["scene_id"], end, limit))
                 continue
             vdir = self.work / "voice" / s["scene_id"]
             t, sync_lines, vo_lines, cues = LEAD_IN, [], [], []
-            limit = s["duration"] - 0.25
+            limit = s["duration"] - pkgmod.TAIL
             for i, d in enumerate(s["dialogue"]):
                 line_id = f"{s['scene_id']}_l{i:02d}"
                 cvoice = self._char(d["speaker"]).get("voice") or {}

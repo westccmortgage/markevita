@@ -13,6 +13,25 @@ from . import schema
 
 WORDS_PER_SEC_MAX = 2.6
 
+# Timeline constants shared with the voice stage. They lived only in
+# pipeline.py while the validator measured words against the full clip
+# duration, so a brief could pass validation and then prove impossible to
+# voice — after the video for it had already been paid for.
+LEAD_IN = 0.4      # silence before the first line
+GAP = 0.35         # silence between consecutive lines
+TAIL = 0.25        # silence kept at the end of the clip
+MAX_TEMPO = 1.15   # most the voice stage will speed a line up
+
+
+def speech_room(duration: float, lines: int) -> float:
+    """Seconds actually available for speech in a clip of this length."""
+    return duration - TAIL - LEAD_IN - GAP * max(0, lines - 1)
+
+
+def word_budget(duration: float, lines: int) -> int:
+    """Most words that can plausibly be spoken in a clip of this length."""
+    return max(1, int(speech_room(duration, lines) * MAX_TEMPO * WORDS_PER_SEC_MAX))
+
 
 class PackageError(ValueError):
     pass
@@ -252,9 +271,13 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
                 warns.append(f"{sid}: {line['speaker']} speaks but is not in frame; treated as voice-over")
             if not _words(line["text"]):
                 errs.append(f"{sid}: empty dialogue line")
-        words = sum(_words(l["text"]) for l in sc.get("dialogue", []))
-        if words > d * WORDS_PER_SEC_MAX:
-            errs.append(f"{sid}: {words} words in {d}s exceeds {WORDS_PER_SEC_MAX} w/s")
+        dialogue = sc.get("dialogue", [])
+        words = sum(_words(l["text"]) for l in dialogue)
+        budget = word_budget(d, len(dialogue))
+        if words > budget:
+            errs.append(f"{sid}: {words} words is too many for {d}s; at most {budget} "
+                        f"({speech_room(d, len(dialogue)):.2f}s of speech after lead-in, "
+                        f"gaps and tail)")
         for pr in sc.get("props", []):
             if pr["prop_id"] not in pkg.props:
                 errs.append(f"{sid}: unknown prop {pr['prop_id']!r}")

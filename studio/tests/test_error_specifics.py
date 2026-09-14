@@ -108,3 +108,29 @@ def test_overrun_figures_are_language_neutral():
     line = _overrun("sc05", 3.84, 3.75)
     assert all(ch.isascii() for ch in line)
     assert not any(ch.isalpha() for ch in line.replace("sc", "").replace("s", ""))
+
+
+# ── the word budget the validator enforces ─────────────────────────────────
+
+def test_the_budget_matches_the_room_the_voice_stage_leaves():
+    """The validator measured words against the full clip while the voice
+    stage spends part of it on lead-in, gaps and tail. A brief could pass and
+    then prove impossible to voice, after its video had been paid for."""
+    from serial.package import GAP, LEAD_IN, TAIL, speech_room, word_budget
+    assert speech_room(4, 1) == 4 - TAIL - LEAD_IN
+    assert speech_room(4, 2) == 4 - TAIL - LEAD_IN - GAP
+    # More lines, less room, so a smaller budget.
+    assert word_budget(4, 3) < word_budget(4, 2) < word_budget(4, 1)
+
+
+def test_the_budget_never_reaches_zero():
+    from serial.package import word_budget
+    assert word_budget(4, 20) >= 1
+
+
+def test_validation_and_production_share_one_set_of_constants():
+    """They drifted because each module had its own copy."""
+    from serial import package, pipeline
+    assert pipeline.LEAD_IN is package.LEAD_IN
+    assert pipeline.GAP is package.GAP
+    assert pipeline.MAX_TEMPO is package.MAX_TEMPO

@@ -21,7 +21,8 @@ from app import i18n  # noqa: E402
 from app.runner import _GUIDANCE, explain, specifics  # noqa: E402
 
 OVERRUN = ("RuntimeError: реплики не помещаются даже с atempo 1.15: "
-           "['sc05 (4.8s > 3.6s)', 'sc07 (4.2s > 3.6s)']. Сократи текст в brief.json")
+           "['sc05 3.84s > 3.75s (+0.09s)', 'sc08 5.90s > 3.75s (+2.15s)']. "
+           "Сократи текст в brief.json")
 
 
 def _ru(text):
@@ -32,7 +33,8 @@ def _ru(text):
 def test_the_overrunning_scenes_survive_the_guidance():
     message = explain(OVERRUN)
     assert "too long for its clip" in message
-    assert "sc05 (4.8s > 3.6s)" in message and "sc07 (4.2s > 3.6s)" in message
+    assert "sc05 3.84s > 3.75s (+0.09s)" in message
+    assert "sc08 5.90s > 3.75s (+2.15s)" in message
 
 
 def test_the_missing_voice_character_survives():
@@ -72,10 +74,37 @@ def test_russian_translates_the_sentence_and_keeps_the_ids():
     translated = _ru("RuntimeError: " + explain(OVERRUN))
     assert "Реплика не помещается в свой клип" in translated
     # Scene ids and measurements are data, not wording.
-    assert "sc05 (4.8s > 3.6s)" in translated
+    assert "sc05 3.84s > 3.75s (+0.09s)" in translated
     assert "too long" not in translated
 
 
 def test_russian_still_translates_guidance_without_ids():
     translated = _ru("RuntimeError: " + explain("RuntimeError: нужен approval 'publish'"))
     assert "Утвердите готовый эпизод" in translated
+
+
+# ── the overrun figures themselves ─────────────────────────────────────────
+
+def test_a_small_overrun_is_not_printed_as_an_equality():
+    """Production showed "sc05 (3.8s > 3.8s)", which reads as a broken
+    comparison. One decimal rounded both sides to the same value."""
+    from serial.pipeline import _overrun
+    line = _overrun("sc05", 3.84, 3.75)
+    assert "3.8s > 3.8s" not in line
+    assert "3.84s" in line and "3.75s" in line
+
+
+def test_the_overrun_states_how_much_to_cut():
+    """The actionable number is the difference, not the two endpoints."""
+    from serial.pipeline import _overrun
+    assert "(+0.09s)" in _overrun("sc05", 3.84, 3.75)
+    assert "(+2.15s)" in _overrun("sc08", 5.90, 3.75)
+
+
+def test_overrun_figures_are_language_neutral():
+    """They travel inside a Russian engine message into an English or Russian
+    panel, so they must carry no words."""
+    from serial.pipeline import _overrun
+    line = _overrun("sc05", 3.84, 3.75)
+    assert all(ch.isascii() for ch in line)
+    assert not any(ch.isalpha() for ch in line.replace("sc", "").replace("s", ""))

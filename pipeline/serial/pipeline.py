@@ -22,6 +22,17 @@ GAP = 0.35
 MAX_TEMPO = 1.15
 
 
+def _overrun(scene_id: str, spoken: float, limit: float) -> str:
+    """How far a scene's speech exceeds its clip, in numbers that survive.
+
+    One decimal place rounded both sides to the same value: a 0.09s overrun
+    printed as "3.8s > 3.8s", which reads as a broken comparison and tells an
+    operator nothing about how much to cut. Two decimals plus the difference
+    make the edit obvious and stay readable in either interface language.
+    """
+    return f"{scene_id} {spoken:.2f}s > {limit:.2f}s (+{spoken - limit:.2f}s)"
+
+
 class SceneFailed(RuntimeError):
     pass
 
@@ -529,7 +540,7 @@ class Pipeline:
                 end = max((c['end'] for c in st['voice'].get('cues', [])), default=0)
                 limit = s['duration'] - 0.25
                 if end > limit + 0.05:
-                    too_long.append(f"{s['scene_id']} ({end:.1f}s > {limit:.1f}s)")
+                    too_long.append(_overrun(s["scene_id"], end, limit))
                 continue
             vdir = self.work / "voice" / s["scene_id"]
             t, sync_lines, vo_lines, cues = LEAD_IN, [], [], []
@@ -569,7 +580,7 @@ class Pipeline:
                 cues.append({"start": round(t, 3), "end": round(t + dur, 3), "text": d["text"], "speaker": d["speaker"]})
                 t += dur + GAP
             if t - GAP > limit + 0.05:
-                too_long.append(f"{s['scene_id']} ({t - GAP:.1f}s > {limit:.1f}s)")
+                too_long.append(_overrun(s["scene_id"], t - GAP, limit))
             if sync_lines:
                 media.build_timeline(sync_lines, s["duration"], vdir / "sync_track.mp3")
             if vo_lines:

@@ -142,6 +142,30 @@ def test_the_episode_warning_clears_once_recorded(ui):
     assert "Resume will stop on the same refusal" not in page
 
 
+def test_the_job_page_shows_the_scene_ids_in_a_voice_overrun(ui):
+    """End to end: the engine names the scenes, guidance keeps them, and the
+    page prints them. The operator was editing eight scenes blind."""
+    job = ui.store.insert("production_jobs", {
+        "series_id": SERIES, "episode_id": EPISODE, "state": "failed", "mode": "live",
+        "stages": ["voice"], "idempotency_key": "live:miami:s01e01_v2:voice",
+        "progress": {"done": ["video"], "stage": "voice"},
+        "error": "RuntimeError: A spoken line is too long for its clip. "
+                 "Shorten it in the script and save again. (sc05 (4.8s > 3.6s))"})
+    page = ui.client.get(f"/studio/jobs/{job['id']}").text
+    assert "too long for its clip" in page
+    assert "sc05 (4.8s &gt; 3.6s)" in page or "sc05 (4.8s > 3.6s)" in page
+
+
+def test_long_error_text_is_set_to_wrap(ui):
+    """A non-wrapping error scrolls sideways on a phone and hides its own
+    detail; that is how the scene ids stayed invisible after being added."""
+    css = (STUDIO / "app" / "static" / "studio.css").read_text()
+    rule = css[css.index("\npre {"):]
+    rule = rule[:rule.index("}")]
+    assert "white-space: pre-wrap" in rule
+    assert "overflow-wrap: anywhere" in rule
+
+
 def test_signing_out_blocks_the_release(ui):
     ui.client.cookies.clear()
     response = ui.client.post(f"/studio/jobs/{ui.job['id']}/release-request",

@@ -157,6 +157,11 @@ pre {
   padding: 13px 15px; overflow-x: auto; font-family: var(--mono);
   font-size: 12px; line-height: 1.65; color: var(--ink-dim); margin: 0;
   max-height: 460px; overflow-y: auto;
+  /* Errors and logs are read on a phone. Without wrapping, a long line
+     scrolls sideways and only a sliver is visible, which hid the scene ids
+     an operator needed in order to act. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ── notices ────────────────────────────────────────────────────────────── */

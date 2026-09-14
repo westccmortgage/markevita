@@ -133,8 +133,8 @@ def test_request_base_handles_namespaces():
     assert _request_base("workflows/acme/flow", RID) == f"{QUEUE}workflows/acme/flow/requests/{RID}"
 
 
-def test_collect_refusal_explains_itself_in_the_server_log_only(tmp_path, monkeypatch, capsys):
-    """The job page stays scrubbed; the reason goes to stdout (the host's log)."""
+def test_collect_refusal_explains_itself_in_the_logs(tmp_path, monkeypatch, capsys):
+    """The error banner stays scrubbed; the reason reaches the logs."""
     fal, state = _fal(tmp_path)
     state.data["reserved_usd"] = 1
     state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID,
@@ -155,6 +155,42 @@ def test_collect_refusal_explains_itself_in_the_server_log_only(tmp_path, monkey
     out = capsys.readouterr().out
     assert f"[fal] HTTP 403 request {RID}: User is locked. Reason: PRIVATE_REASON." in out
     assert "<url>" in out and "PRIVATE_SECRET" not in out and "https://" not in out
+
+
+def test_the_reason_reaches_the_job_log_operators_actually_read(tmp_path, monkeypatch, capsys):
+    """Asking an operator to open the host's log stream did not work in
+    practice. The job log is on the page they are already looking at."""
+    fal, state = _fal(tmp_path)
+    state.data["reserved_usd"] = 1
+    state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID,
+                                 "status_url": "https://queue.fal.run/s", "response_url": "https://queue.fal.run/r"}
+    state.save()
+    lines = []
+    fal.log = lines.append
+    monkeypatch.setattr("app.live_providers.requests.get",
+                        lambda url, **k: _resp(403, {"detail": f"Exhausted balance. See https://fal.ai/billing?k={KEY}"}, url))
+    with pytest.raises(ProviderFailure):
+        fal.run("fal-ai/nano-banana-2/edit", {}, "t1", 1, "keyframe", None)
+    assert any("Exhausted balance." in line for line in lines)
+    assert not any("PRIVATE_SECRET" in line or "https://" in line for line in lines)
+
+
+def test_a_failing_job_log_does_not_mask_the_provider_error(tmp_path, monkeypatch):
+    """The log sink is best-effort; the ProviderFailure must still surface."""
+    fal, state = _fal(tmp_path)
+    state.data["reserved_usd"] = 1
+    state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID,
+                                 "status_url": "https://queue.fal.run/s", "response_url": "https://queue.fal.run/r"}
+    state.save()
+
+    def broken(_):
+        raise RuntimeError("log sink down")
+
+    fal.log = broken
+    monkeypatch.setattr("app.live_providers.requests.get",
+                        lambda url, **k: _resp(403, {"detail": "denied"}, url))
+    with pytest.raises(ProviderFailure, match="HTTP 403"):
+        fal.run("fal-ai/nano-banana-2/edit", {}, "t1", 1, "keyframe", None)
 
 
 def test_submit_refusal_is_also_logged(tmp_path, monkeypatch, capsys):

@@ -67,13 +67,17 @@ def _request_base(endpoint, request_id):
     return f'{_QUEUE}{prefix}{app.owner}/{app.alias}/requests/{request_id}'
 
 
-def _server_log_provider_text(exc, request_id, secret):
-    """fal.ai's own explanation, to the server log ONLY.
+def _provider_explanation(exc, request_id, secret, log=None):
+    """fal.ai's own explanation of a refusal, scrubbed.
 
-    The persisted diagnostic and the job page deliberately carry codes, never
-    provider text (see provider_errors). But a refusal with no reason sends an
-    operator to rotate keys blindly, so the reason goes where logs already go:
-    stdout, i.e. the host's log stream. URLs and the credential are removed.
+    The persisted diagnostic and the error banner deliberately carry codes
+    only, never provider text (see provider_errors). But a refusal with no
+    reason is unactionable: it sends an operator to rotate a working key,
+    repeatedly. So the provider's own wording goes to the two places built
+    for exactly that — the host's log stream, and the job log, which the page
+    already presents as provider diagnostics in their original language.
+
+    URLs and the credential are removed before either.
     """
     response = getattr(exc, 'response', None)
     if response is None:
@@ -98,8 +102,14 @@ def _server_log_provider_text(exc, request_id, secret):
         text = text.replace(secret, '<key>')
     text = re.sub(r'\s+', ' ', text).strip()[:300]
     status = getattr(response, 'status_code', '?')
-    print(f'[fal] HTTP {status} request {request_id or "-"}: {text or "(no explanation in response body)"}',
-          flush=True)
+    line = (f'[fal] HTTP {status} request {request_id or "-"}: '
+            f'{text or "(no explanation in response body)"}')
+    print(line, flush=True)
+    if log is not None:
+        try:
+            log(line)
+        except Exception:
+            pass   # A log sink must never mask the provider failure itself.
 
 
 class DurableFal(Fal):
@@ -215,7 +225,7 @@ class DurableFal(Fal):
                     headers=self._auth_headers(), timeout=60, allow_redirects=False)
                 response.raise_for_status()
             except requests.exceptions.RequestException as exc:
-                _server_log_provider_text(exc, None, self.cfg.fal_key)
+                _provider_explanation(exc, None, self.cfg.fal_key, self.log)
                 info = fal_diagnostic(exc, phase='submit')
                 info['submission_rejected'] = _response_refused(exc)
                 take['provider_error'] = info
@@ -236,7 +246,7 @@ class DurableFal(Fal):
         try:
             result = self._wait(take.get('endpoint') or endpoint, take['request_id'])
         except Exception as exc:
-            _server_log_provider_text(exc, take['request_id'], self.cfg.fal_key)
+            _provider_explanation(exc, take['request_id'], self.cfg.fal_key, self.log)
             info = fal_diagnostic(exc, take['request_id'])
             take['provider_error'] = info
             self.state.save()

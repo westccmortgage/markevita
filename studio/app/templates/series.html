@@ -142,6 +142,15 @@
         <div class="field"><label>{{ _("Minimum episode seconds") }}</label><input type="number" min="1" name="min_seconds" value="{{ lim.get('min_episode_seconds', 90) }}" required></div>
         <div class="field"><label>{{ _("Maximum episode seconds") }}</label><input type="number" min="1" name="max_seconds" value="{{ lim.get('max_episode_seconds', 120) }}" required></div>
       </div>
+      {# Chosen once here and inherited by every following episode. #}
+      <div class="field" style="max-width:520px"><label>{{ _("Video model") }}</label>
+        <select name="video_model">
+          {% for value, name in video_models %}
+            <option value="{{ value }}" {{ 'selected' if lim.get('video_model', video_model_default) == value }}>{{ name }} — {{ video_model_rates[value] }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ _("Used for every episode of this series, including the ones the studio writes next. Veo 3.1 costs about twice Fast per second of video; the estimate before each run uses the model chosen here.") }}</p>
+      </div>
       <p class="hint">{{ _("For four 8-second scenes, choose minimum 30 seconds and maximum 40 seconds, with minimum 4 scenes. Budget and regeneration limits are capped by (") }}<code>MAX_EPISODE_BUDGET_USD</code>, <code>MAX_SCENE_REGENERATIONS</code>{{ _(") are the ceiling.") }}</p>
     </fieldset>
 

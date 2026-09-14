@@ -16,7 +16,7 @@ from .live_runtime import Checkpoint, SeriesLease, unexpired
 from .live_providers import DurableFal
 from .provider_errors import ProviderFailure
 from . import preflight
-from serial.config import Config
+from serial.config import Config, DEFAULT_VIDEO_MODEL, VIDEO_MODELS
 from serial.package import SeriesPackage, validate_episode
 from serial.pipeline import Pipeline, STAGES
 from serial.paid_calls import PaidCalls
@@ -97,7 +97,19 @@ def review(series_id, episode_id):
         return ''
 
 
-def configuration(audio_mode):
+def video_model(pkg):
+    """The model this series is set to, from its own package.
+
+    Chosen once per series and inherited by every episode: the producer is
+    never asked which video model a scene should use. It travels in the
+    package, so the approval digest covers a change of model exactly as it
+    covers a change of script.
+    """
+    chosen = (pkg.series.get('production_limits') or {}).get('video_model')
+    return chosen or DEFAULT_VIDEO_MODEL
+
+
+def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL):
     if not settings.allow_paid:
         raise PermissionError('STUDIO_ALLOW_PAID must be enabled for live production.')
     cfg = Config.load(PIPELINE_DIR, live=True)
@@ -107,7 +119,12 @@ def configuration(audio_mode):
         raise PermissionError('Live episodes require STUDIO_STORE=supabase for durable job ownership.')
     if audio_mode not in ('native', 'voices'):
         raise ValueError('Choose native audio or assigned character voices.')
+    if model not in VIDEO_MODELS:
+        raise ValueError(f'This series is set to an unsupported video model: {model!r}.')
+    cfg.fal_video_model = model
     cfg.native_dialogue = audio_mode == 'native'
+    # Veo generates its own speech unless told not to. With assigned character
+    # voices that speech would play underneath ElevenLabs and the lipsync take.
     cfg.video_generate_audio = cfg.native_dialogue
     cfg.video_auto_fix = False
     if cfg.anthropic_model != 'claude-sonnet-5':
@@ -123,11 +140,11 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         raise PermissionError('Publishing is a separate action and is not available here.')
     if force:
         raise ValueError('Forced live regeneration is not available in this release. Existing takes are retained.')
-    cfg = configuration(audio_mode)
     source = materialize(series_id)
     frozen = settings.package_dir / '_live_jobs' / str(uuid.uuid4())
     shutil.copytree(source, frozen)
     pkg = SeriesPackage(frozen)
+    cfg = configuration(audio_mode, video_model(pkg))
     actual_digest = package_digest(pkg, episode_id)
     if not digest or actual_digest != digest:
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
@@ -192,8 +209,8 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
 
 def check_configuration(series_id, episode_id, stages, audio_mode):
     """Read-only local checks; no lease, checkpoint mutation or paid request."""
-    cfg = configuration(audio_mode)
     pkg = SeriesPackage(materialize(series_id))
+    cfg = configuration(audio_mode, video_model(pkg))
     errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     try:
         validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
@@ -292,7 +309,7 @@ def run(manager, job, control, cfg, pkg, cp, lease):
 def approve_references(series_id, actor, note):
     from . import runner
     from serial.pipeline import SeriesState
-    cfg = configuration('native')
+    cfg = configuration('native', video_model(SeriesPackage(materialize(series_id))))
     lease = SeriesLease(runner.store, series_id, actor)
     try:
         cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)

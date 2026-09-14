@@ -111,3 +111,49 @@ price rather than on resolution.
 
 Revisit if the master format drops below 1080p, if locked per-character
 voices stop being a requirement, or if Grok exposes a silent-output flag.
+
+---
+
+## Addendum (2026-09-14): standard Veo 3.1 alongside Veo 3.1 Fast
+
+Both endpoints are now supported and the series chooses one:
+
+| | `veo3.1/fast/image-to-video` | `veo3.1/image-to-video` |
+|---|---|---|
+| 720p/1080p, silent | $0.10/s | $0.20/s |
+| 720p/1080p, native audio | $0.15/s | $0.40/s |
+| 4K, silent | $0.30/s | $0.40/s |
+| 4K, native audio | $0.35/s | $0.60/s |
+
+Rates read 2026-09-14 from each model's `llms.txt` on fal.ai.
+
+The two share one request schema — `prompt`, `image_url`, `aspect_ratio`,
+`duration` (4s/6s/8s), `resolution` (720p/1080p/4k), `generate_audio`,
+`negative_prompt`, `auto_fix`, `safety_tolerance`, `seed`. So the keyframe
+already approved for a scene is the input either way, and character
+appearance is carried by the same reference chain.
+
+### What this required beyond a settings string
+
+- A price family per endpoint (`costs.VIDEO_PRICE_FAMILY`). `video_cost()`
+  takes the endpoint as a **required** argument and raises rather than
+  falling back, so no path can bill a Veo 3.1 run at the Fast tariff — that
+  would put a run at half its real cost against an approved budget.
+- The choice lives in `production_limits.video_model` inside the series
+  package, so it is inherited by every following episode and covered by the
+  approval digest: changing the model invalidates a stale approval exactly
+  as changing the script does.
+- `Config.load` refuses an unsupported `FAL_VIDEO_MODEL` at load time
+  rather than at the first paid call.
+- A saved queue request is collected from the endpoint that accepted it
+  (`take["endpoint"]`), not from whatever the series is set to now. Both the
+  mock and the live transport do this.
+- With assigned character voices, `generate_audio` stays false, so Veo's own
+  speech is never laid under the ElevenLabs take.
+
+### Visual quality: not compared
+
+The price and parameter differences above are verified. **Which model looks
+better has not been established here**: that needs two real paid runs on the
+same approved keyframes and the same brief, and then watching both. No paid
+call was made. The standard model is offered, not recommended.

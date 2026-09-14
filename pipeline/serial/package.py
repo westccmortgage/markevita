@@ -392,7 +392,7 @@ def attach_prompts(norm: dict, pp: dict | None) -> list[str]:
 def estimate_first_pass(norm: dict, pkg: SeriesPackage, cfg, refs_needed: bool) -> dict:
     from . import costs
     L = norm["limits"]
-    vid = sum(costs.video_cost(s["duration"], cfg.video_generate_audio, cfg.video_resolution) for s in norm["scenes"])
+    vid = sum(costs.video_cost(s["duration"], cfg.video_generate_audio, cfg.video_resolution, cfg.fal_video_model) for s in norm["scenes"])
     kf = len(norm["scenes"]) * costs.image_cost(False, cfg.image_resolution)
     refs = 0.0
     if refs_needed:

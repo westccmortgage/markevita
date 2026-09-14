@@ -111,7 +111,7 @@
         <div class="stat"><div class="k">{{ _("Length") }}</div><div class="v">{{ estimate.seconds }}{{ _("s") }}</div>
           <div class="hint">{{ estimate.clips }} {{ _("clips") }}</div></div>
         <div class="stat"><div class="k">{{ _("Estimated cost") }}</div><div class="v gold">{{ estimate.estimate_usd|money }}</div>
-          <div class="hint">{{ _("an estimate, not a quote") }}</div></div>
+          <div class="hint">{{ estimate.model }} · {{ _("an estimate, not a quote") }}</div></div>
         <div class="stat"><div class="k">{{ _("Limit") }}</div><div class="v">{{ estimate.cap_usd|money }}</div>
           <div class="hint">{{ _("production stops here") }}</div></div>
       </div>

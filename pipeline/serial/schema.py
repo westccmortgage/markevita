@@ -33,6 +33,8 @@ SERIES = {
             "type": "object",
             "properties": {"maximum_episode_budget_usd": {"type": "number"}, "maximum_regenerations_per_scene": {"type": "integer"},
                            "allowed_clip_seconds": {"type": "array", "items": {"enum": [4, 6, 8]}},
+                           "video_model": {"enum": ["fal-ai/veo3.1/fast/image-to-video",
+                                                   "fal-ai/veo3.1/image-to-video"]},
                            "min_scenes": {"type": "integer"}, "max_scenes": {"type": "integer"},
                            "min_episode_seconds": {"type": "integer"}, "max_episode_seconds": {"type": "integer"}},
         },

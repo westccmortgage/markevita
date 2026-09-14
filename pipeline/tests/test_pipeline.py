@@ -227,3 +227,66 @@ def test_live_mode_guarded(fx, tmp_path, monkeypatch):
     cfg = Config.load(HERE.parent, live=True)
     with pytest.raises(RuntimeError, match="approval.status"):                            # пакет не утверждён
         _run(cfg, pkg, runs, stages=["references"])
+
+
+# ---------------- video model ----------------
+
+VEO_FAST = "fal-ai/veo3.1/fast/image-to-video"
+VEO = "fal-ai/veo3.1/image-to-video"
+
+
+def _video_takes(runs, series="fixture_series", ep="s01e01"):
+    st = State(runs / series / ep)
+    return {k: t for k, t in st.data["takes"].items() if t.get("what", "").startswith("video")}
+
+
+@pytest.mark.parametrize("model", [VEO_FAST, VEO])
+def test_both_video_models_run_through_the_whole_pipeline(fx, cfg, tmp_path, model):
+    """Both endpoints take the same request; only price and quality differ."""
+    cfg.fal_video_model = model
+    pkg = _pkg(fx); runs = tmp_path / "runs"
+    _run(cfg, pkg, runs, stages=["intake", "direction", "references"])
+    _approve_refs(runs, pkg)
+    _run(cfg, pkg, runs)
+    st = State(runs / "fixture_series" / "s01e01")
+    assert st.data["status"] == "complete" and st.data["delivered"]
+    takes = _video_takes(runs)
+    assert takes, "no video takes recorded"
+    for take in takes.values():
+        assert take["endpoint"] == model
+        assert set(take["params"]) >= {"prompt", "aspect_ratio", "duration", "resolution",
+                                       "generate_audio", "negative_prompt"}
+        assert take["params"]["duration"] in ("4s", "6s", "8s")
+        assert take["params"]["resolution"] in ("720p", "1080p", "4k")
+        assert take["estimated_cost"] > 0
+
+
+def test_the_chosen_model_is_what_each_video_take_is_billed_at(fx, cfg, tmp_path):
+    """The same episode under each model, on identical scenes and prompts."""
+    pkg = _pkg(fx)
+    billed = {}
+    for model in (VEO_FAST, VEO):
+        cfg.fal_video_model = model
+        runs = tmp_path / f"runs_{model.count('fast')}"
+        _run(cfg, pkg, runs, stages=["intake", "direction", "references"])
+        _approve_refs(runs, pkg)
+        _run(cfg, pkg, runs)
+        takes = _video_takes(runs)
+        billed[model] = sum(t["estimated_cost"] for t in takes.values())
+        assert {t["prompt"] for t in takes.values()}  # prompts recorded for comparison
+    assert billed[VEO] == pytest.approx(2 * billed[VEO_FAST], rel=1e-6)
+
+
+def test_a_saved_request_survives_a_change_of_model(fx, cfg, tmp_path):
+    """Switching the series must not orphan a request already paid for."""
+    cfg.fal_video_model = VEO_FAST
+    pkg = _pkg(fx); runs = tmp_path / "runs"
+    _run(cfg, pkg, runs, stages=["intake", "direction", "references"])
+    _approve_refs(runs, pkg)
+    _run(cfg, pkg, runs)
+    before = _video_takes(runs)
+    cfg.fal_video_model = VEO
+    _run(cfg, pkg, runs)
+    after = _video_takes(runs)
+    assert {k: t["endpoint"] for k, t in after.items()} == {k: VEO_FAST for k in before}
+    assert {k: t["request_id"] for k, t in after.items()} == {k: t["request_id"] for k, t in before.items()}

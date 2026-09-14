@@ -681,5 +681,8 @@
   "These characters speak but have no voice assigned:": "У этих персонажей есть реплики, но не назначен голос:",
   "Assign voices": "Назначить голоса",
   "Or choose native scene audio below.": "Либо выберите встроенную речь ниже.",
-  "Recent runs": "Последние запуски"
+  "Recent runs": "Последние запуски",
+  "Video model": "Модель видео",
+  "Used for every episode of this series, including the ones the studio writes next. Veo 3.1 costs about twice Fast per second of video; the estimate before each run uses the model chosen here.": "Используется для всех серий этого сериала, включая те, что студия напишет дальше. Обычная Veo 3.1 стоит примерно вдвое дороже Fast за секунду видео; оценка перед запуском считается по выбранной здесь модели.",
+  "Choose one of the supported video models.": "Выберите одну из поддерживаемых моделей видео."
 }

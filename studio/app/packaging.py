@@ -23,6 +23,7 @@ DEFAULT_LIMITS = {
     "maximum_episode_budget_usd": 50,
     "maximum_regenerations_per_scene": 2,
     "allowed_clip_seconds": [4, 6, 8],
+    "video_model": "fal-ai/veo3.1/fast/image-to-video",
     "min_scenes": 12, "max_scenes": 18,
     "min_episode_seconds": 90, "max_episode_seconds": 120,
 }

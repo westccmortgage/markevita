@@ -20,9 +20,27 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
-def video_cost(seconds: int, audio: bool, resolution: str) -> float:
+# Каждая модель видео тарифицируется отдельно. Ключ обязателен: обычная Veo 3.1
+# стоит вдвое дороже Fast, и молчаливый откат на тариф Fast означал бы запуск,
+# который вдвое превышает согласованный бюджет.
+VIDEO_PRICE_FAMILY = {
+    "fal-ai/veo3.1/fast/image-to-video": "veo31_fast",
+    "fal-ai/veo3.1/image-to-video": "veo31",
+}
+
+
+class UnknownVideoModel(ValueError):
+    pass
+
+
+def video_cost(seconds: int, audio: bool, resolution: str, endpoint: str) -> float:
+    family = VIDEO_PRICE_FAMILY.get(endpoint)
+    if not family:
+        raise UnknownVideoModel(
+            f"No published price for video model {endpoint!r}. "
+            f"Known: {', '.join(sorted(VIDEO_PRICE_FAMILY))}.")
     k4 = "_4k" if resolution == "4k" else ""
-    return seconds * PRICE[f"veo31_fast_per_sec{k4}_{'audio' if audio else 'silent'}"]
+    return seconds * PRICE[f"{family}_per_sec{k4}_{'audio' if audio else 'silent'}"]
 
 
 def image_cost(pro: bool, resolution: str) -> float:

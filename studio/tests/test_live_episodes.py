@@ -262,7 +262,7 @@ def test_voice_admission_reports_missing_voices_after_silent_shots(short_package
                  r2_account_id='offline', r2_bucket='private',
                  r2_access_key_id='offline', r2_secret_access_key='offline')
     cfg.native_dialogue = False
-    monkeypatch.setattr(live_jobs, 'configuration', lambda mode: cfg)
+    monkeypatch.setattr(live_jobs, 'configuration', lambda mode, model=None: cfg)
     monkeypatch.setattr(settings, 'allow_paid', True)
     monkeypatch.setattr(web, 'require_admin', lambda request: {'email': 'admin@example.test'})
     monkeypatch.setattr(web, '_check_form', lambda *a: None)

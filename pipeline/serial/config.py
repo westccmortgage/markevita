@@ -16,6 +16,16 @@ def _env(name: str, default: str = "") -> str:
     return default if v is None or v == "" else v
 
 
+# Обе поддерживаемые модели видео принимают одну и ту же схему запроса и
+# отличаются только ценой и качеством. Список — источник истины и для
+# валидации настройки, и для выпадающего списка в студии.
+VIDEO_MODELS = {
+    "fal-ai/veo3.1/fast/image-to-video": "Veo 3.1 Fast",
+    "fal-ai/veo3.1/image-to-video": "Veo 3.1",
+}
+DEFAULT_VIDEO_MODEL = "fal-ai/veo3.1/fast/image-to-video"
+
+
 @dataclass
 class Config:
     # LLM
@@ -23,7 +33,7 @@ class Config:
     anthropic_model: str = "claude-sonnet-5"
     # fal
     fal_key: str = ""
-    fal_video_model: str = "fal-ai/veo3.1/fast/image-to-video"
+    fal_video_model: str = DEFAULT_VIDEO_MODEL
     fal_image_model: str = "fal-ai/nano-banana-2/edit"
     fal_image_t2i_model: str = "fal-ai/nano-banana-2"
     fal_image_pro_model: str = "fal-ai/nano-banana-pro"
@@ -83,7 +93,7 @@ class Config:
             anthropic_api_key=_env("ANTHROPIC_API_KEY"),
             anthropic_model=_env("ANTHROPIC_MODEL", "claude-sonnet-5"),
             fal_key=normalize_key(_env("FAL_KEY")),
-            fal_video_model=_env("FAL_VIDEO_MODEL", "fal-ai/veo3.1/fast/image-to-video"),
+            fal_video_model=_env("FAL_VIDEO_MODEL", DEFAULT_VIDEO_MODEL),
             fal_image_model=_env("FAL_IMAGE_MODEL", "fal-ai/nano-banana-2/edit"),
             fal_lipsync_model=_env("FAL_LIPSYNC_MODEL", "fal-ai/sync-lipsync/v2"),
             lipsync_variant=_env("LIPSYNC_VARIANT", "lipsync-2"),
@@ -110,6 +120,10 @@ class Config:
             allow_paid_env=_bool(os.getenv("PIPELINE_ALLOW_PAID"), False),
             root=root,
         )
+        if c.fal_video_model not in VIDEO_MODELS:
+            raise ValueError(
+                f"FAL_VIDEO_MODEL={c.fal_video_model!r} is not supported. "
+                f"Choose one of: {', '.join(sorted(VIDEO_MODELS))}.")
         if c.fal_key:
             os.environ["FAL_KEY"] = c.fal_key
         return c

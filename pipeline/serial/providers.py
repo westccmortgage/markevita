@@ -115,6 +115,14 @@ class Fal:
         if take.get("status") == "succeeded" and take.get("result"):
             self.log(f"  {take_id}: уже есть результат, пропускаю")
             return take["result"], take
+        submitted_to = take.get("endpoint")
+        if (take.get("request_id") and submitted_to and submitted_to != endpoint
+                and take.get("status") not in ("succeeded",)):
+            # The series may have been switched to the other Veo model since.
+            # A saved request belongs to the model that accepted it: polling
+            # the new one would report nothing and invite a second paid call.
+            self.log(f"  {take_id}: сохранённый запрос принадлежит {submitted_to}, забираю результат оттуда")
+            endpoint = submitted_to
         take.update({"provider": "fal.ai", "endpoint": endpoint, "what": what,
                      "params": {k: v for k, v in args.items() if k not in ("image_url", "image_urls", "video_url", "audio_url")},
                      "input_refs": {k: ("<presigned/transport url omitted>" if isinstance(v, str) else f"{len(v)} urls")
@@ -212,7 +220,7 @@ def gen_video(fal: Fal, take_id: str, keyframe: Path, prompt: str, negative: str
             "duration": f"{seconds}s", "resolution": cfg.video_resolution, "generate_audio": cfg.video_generate_audio,
             "negative_prompt": (negative + ", " if negative else "") + prompts.NEGATIVE_VIDEO,
             "auto_fix": cfg.video_auto_fix, "safety_tolerance": "4"}
-    est = costs.video_cost(seconds, cfg.video_generate_audio, cfg.video_resolution)
+    est = costs.video_cost(seconds, cfg.video_generate_audio, cfg.video_resolution, cfg.fal_video_model)
     result, take = fal.run(cfg.fal_video_model, args, take_id, est, what, stub=lambda: {"video": {"url": "dry://video"}})
     take["prompt"] = prompt; take["negative"] = args["negative_prompt"]
     take["input_checksums"] = [sha256(keyframe)]

@@ -277,7 +277,20 @@ def series_page(request: Request, series_id: str):
                   locations=store.list("locations", {"series_id": series_id}, order="location_id"),
                   relationships=store.list("relationships", {"series_id": series_id}),
                   secrets=store.list("secrets_bible", {"series_id": series_id}),
-                  validation=validation)
+                  validation=validation, **_video_model_choices())
+
+
+def _video_model_choices() -> dict:
+    """What the producer picks between, with the rate each one bills at."""
+    from serial.config import DEFAULT_VIDEO_MODEL, VIDEO_MODELS
+    from serial import costs
+    rates = {}
+    for endpoint in VIDEO_MODELS:
+        silent = costs.video_cost(1, False, "1080p", endpoint)
+        audio = costs.video_cost(1, True, "1080p", endpoint)
+        rates[endpoint] = f"${silent:.2f}/s, ${audio:.2f}/s with native audio"
+    return {"video_models": sorted(VIDEO_MODELS.items(), key=lambda kv: kv[1]),
+            "video_model_default": DEFAULT_VIDEO_MODEL, "video_model_rates": rates}
 
 
 @router.post("/series/{series_id}/settings")
@@ -288,7 +301,8 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
                     max_scenes: str = Form("18"), min_seconds: str = Form(""),
                     max_seconds: str = Form(""), style_sentence: str = Form(""),
                     camera_rules: str = Form(""), color_rules: str = Form(""),
-                    negative_image: str = Form(""), negative_video: str = Form("")):
+                    negative_image: str = Form(""), negative_video: str = Form(""),
+                    video_model: str = Form("")):
     a = require_admin(request)
     s = store.get("series", {"id": series_id})
     if not s:
@@ -296,6 +310,11 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
     fmt = dict(s.get("format") or {})
     fmt["captions"] = captions
     limits = {**DEFAULT_LIMITS, **(s.get("production_limits") or {})}
+    from serial.config import VIDEO_MODELS
+    if video_model:
+        if video_model not in VIDEO_MODELS:
+            return _redirect(f"/series/{series_id}", err="Choose one of the supported video models.")
+        limits["video_model"] = video_model
     try:
         limits["maximum_episode_budget_usd"] = float(budget)
         limits["maximum_regenerations_per_scene"] = int(regenerations)
@@ -379,20 +398,28 @@ def open_next_episode(request: Request, series_id: str):
     return _redirect(f"/series/{series_id}/episodes/{episode['episode_id']}/studio", ok=note)
 
 
-def _estimate(series_id: str, episode_id: str) -> dict:
+def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> dict:
     """Length, an estimated cost and the cap. The figure is an estimate."""
-    from serial.config import Config
+    from serial.config import Config, VIDEO_MODELS
     from serial.package import SeriesPackage, estimate_first_pass, validate_episode
     from .config import PIPELINE_DIR
+    from .live_jobs import video_model
     from .packaging import materialize
     try:
         cfg = Config.load(PIPELINE_DIR, live=False)
         pkg = SeriesPackage(materialize(series_id))
+        # The figure must be the chosen model's, not the server default's:
+        # Veo 3.1 bills about twice what Fast does per second of video.
+        cfg.fal_video_model = video_model(pkg)
+        # Native scene audio is what the form offers first, and Veo bills more
+        # for it. Estimating silent here would understate the usual run.
+        cfg.video_generate_audio = audio_mode != "voices"
         norm = validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
         refs = store.list("reference_assets", {"series_id": series_id})
         est = estimate_first_pass(norm, pkg, cfg, not refs)
         return {"ok": True, "seconds": norm["total_seconds"], "clips": len(norm["scenes"]),
                 "estimate_usd": est["total_first_pass"], "cap_usd": est["budget_cap"],
+                "model": VIDEO_MODELS[cfg.fal_video_model],
                 "warnings": norm.get("warnings") or []}
     except Exception as e:
         return {"ok": False, "message": str(e)}
@@ -411,7 +438,8 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     runtime = runner.episode_runtime(series_id, episode_id)
     return render(request, "authoring.html", s=s, ep=ep, mode=settings.mode,
                   script=authoring.readable(scenes, memory), memory=memory,
-                  estimate=_estimate(series_id, episode_id) if scenes else None,
+                  estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
+                           if scenes else None,
                   runtime=runtime, active_job=runner.jobs.active_job(series_id, episode_id),
                   jobs=runner.jobs.jobs_for(series_id, episode_id, limit=5),
                   production_digest=live_jobs.review(series_id, episode_id) if settings.allow_paid else "",

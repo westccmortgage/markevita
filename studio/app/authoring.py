@@ -44,11 +44,33 @@ def _now() -> str:
 
 # ── opening the next episode ───────────────────────────────────────────────
 
-def _season_of(series_id: str):
+PREVIEW_SEASON = "previews"
+
+
+def _season_of(series_id: str, actor: str = ""):
+    """The season a real episode belongs in, creating the first one if needed.
+
+    The first-clip preview leaves a series holding one season called
+    "previews" at number 0. Continuing from it put real episodes inside that
+    holder and built ids like "previewse02". A preview is a sample, not a
+    season of the show.
+    """
     seasons = store.list("seasons", {"series_id": series_id}, order="number")
-    if not seasons:
-        raise AuthoringError("This series has no season yet. Add one on the series page.")
-    return seasons[-1]
+    real = [s for s in seasons
+            if s["season_id"] != PREVIEW_SEASON and int(s.get("number") or 0) > 0]
+    if real:
+        return real[-1]
+    number = max([int(s.get("number") or 0) for s in seasons], default=0) + 1
+    season_id = f"s{number:02d}"
+    if store.get("seasons", {"series_id": series_id, "season_id": season_id}):
+        raise AuthoringError(f"Season {season_id!r} already exists but is not usable. "
+                             "Check the seasons on the series page.")
+    record = store.upsert("seasons", {
+        "series_id": series_id, "season_id": season_id, "number": number,
+        "title": "", "arc": "", "episode_order": []})
+    history(series_id, "", "season.opened", entity_type="season", entity_id=season_id,
+            actor=actor, detail={"number": number})
+    return record
 
 
 def episode_is_untouched(series_id: str, episode_id: str) -> bool:
@@ -68,7 +90,7 @@ def next_episode(series_id: str, actor: str = "") -> dict:
     series = store.get("series", {"id": series_id})
     if not series:
         raise AuthoringError(f"Series {series_id!r} not found.")
-    season = _season_of(series_id)
+    season = _season_of(series_id, actor)
     existing = store.list("episodes", {"series_id": series_id}, order="number")
 
     for episode in reversed(existing):

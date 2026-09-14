@@ -111,10 +111,12 @@ def test_technical_fields_are_filled_in(db):
                                                        "season_id": "s01"})["episode_order"]
 
 
-def test_a_series_without_a_season_says_so(db):
+def test_a_series_without_a_season_gets_one(db):
+    """Opening a season is bookkeeping, not a decision to put to the producer."""
     db.delete("seasons", {"series_id": MIAMI})
-    with pytest.raises(authoring.AuthoringError, match="no season"):
-        authoring.next_episode(MIAMI)
+    episode = authoring.next_episode(MIAMI, "admin@example.test")
+    assert episode["season_id"] == "s01" and episode["episode_id"] == "s01e01"
+    assert db.get("seasons", {"series_id": MIAMI, "season_id": "s01"})["number"] == 1
 
 
 # ── what the model is told ─────────────────────────────────────────────────
@@ -515,3 +517,37 @@ def test_a_nonsense_id_from_the_model_is_dropped(db, monkeypatch):
     _cast(monkeypatch, {"characters": [{"id": "Not An Id!", "name": "X", "visual": True}],
                         "locations": []})
     assert authoring.fill_bible(MIAMI)["added"] == ["not_an_id"]
+
+
+# ── a preview is a sample, not a season of the show ────────────────────────
+
+def _preview_only(db):
+    db.delete("seasons", {"series_id": MIAMI})
+    db.upsert("seasons", {"series_id": MIAMI, "season_id": "previews", "number": 0,
+                          "title": "Previews", "episode_order": ["preview01"]})
+    db.upsert("episodes", {"series_id": MIAMI, "season_id": "previews",
+                           "episode_id": "preview01", "number": 1, "status": "preview"})
+    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "preview01", **_scene(1)})
+
+
+def test_a_real_episode_never_lands_in_the_preview_season(db):
+    """Continuing from the first clip once produced ids like 'previewse02'."""
+    _preview_only(db)
+    episode = authoring.next_episode(MIAMI, "admin@example.test")
+    assert episode["season_id"] == "s01" and episode["episode_id"] == "s01e02"
+    assert db.get("seasons", {"series_id": MIAMI, "season_id": "s01"})["number"] == 1
+
+
+def test_the_first_real_season_is_opened_once(db):
+    _preview_only(db)
+    authoring.next_episode(MIAMI)
+    authoring.next_episode(MIAMI)
+    assert [s["season_id"] for s in db.list("seasons", {"series_id": MIAMI},
+                                            order="number")] == ["previews", "s01"]
+
+
+def test_an_existing_real_season_is_used_as_it_is(db):
+    _preview_only(db)
+    db.upsert("seasons", {"series_id": MIAMI, "season_id": "s02", "number": 2,
+                          "episode_order": []})
+    assert authoring.next_episode(MIAMI)["season_id"] == "s02"

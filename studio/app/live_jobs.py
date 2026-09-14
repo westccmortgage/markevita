@@ -36,6 +36,59 @@ def package_digest(pkg, episode_id):
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 
+# Voice-dependent work. Rewording a line invalidates these and nothing else:
+# the video prompt carries only visible action, and the engine never sends
+# dialogue text to the video model.
+VOICE_STAGES = ('voice', 'lipsync', 'assemble', 'qa', 'deliver')
+
+# Everything that decides what is generated visually. Compared explicitly
+# rather than by diffing whole scene dicts, because the saved copy carries
+# prompts attached at intake that a freshly validated one does not.
+SCENE_STRUCTURE = ('scene_id', 'sequence', 'duration', 'duration_seconds', 'location',
+                   'lighting_state', 'characters_in_frame', 'wardrobe', 'action',
+                   'shot_type', 'lens', 'camera_motion', 'continuity_in', 'continuity_out',
+                   'props', 'is_cliffhanger', 'split', 'lipsync_speaker')
+LINE_STRUCTURE = ('speaker', 'delivery', 'voice_over')
+
+
+def spoken_words_removed(checksums, scenes, episode_id):
+    """Digest of everything except the WORDS of each spoken line.
+
+    Speaker, delivery, voice-over flag, line count, clip duration and every
+    visual field stay in, as do the bible, style and prompt files. Only this
+    episode's own brief is excluded from the file checksums, since its text is
+    the thing allowed to change.
+
+    Matching therefore means the edit was confined to wording — which is
+    exactly what the voice stage asks for when a line will not fit, and what
+    must be resumable if that instruction is to be followable at all.
+    """
+    files = {k: v for k, v in (checksums or {}).items() if episode_id not in k}
+    shape = [{**{f: scene.get(f) for f in SCENE_STRUCTURE},
+              'dialogue': [{f: line.get(f) for f in LINE_STRUCTURE}
+                           for line in scene.get('dialogue', [])]}
+             for scene in scenes]
+    return hashlib.sha256(json.dumps({'files': files, 'scenes': shape},
+                                     sort_keys=True, default=str).encode()).hexdigest()
+
+
+def drop_voice_work(state):
+    """Forget spoken audio so it is made again from the new wording.
+
+    Reference packs, keyframes and video are untouched: they were generated
+    from the visible action, which has not changed. Nothing paid for is
+    discarded beyond the speech itself.
+    """
+    for stage in VOICE_STAGES:
+        state.data.get('stages', {}).pop(stage, None)
+    for scene in state.data.get('scenes', {}).values():
+        scene.pop('voice', None)
+        scene.pop('lipsync', None)
+    state.data.pop('audio', None)
+    state.data['status'] = 'voice_pending'
+    state.save()
+
+
 def review(series_id, episode_id):
     try:
         pkg = SeriesPackage(materialize(series_id))
@@ -86,18 +139,30 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)
         cp.restore()
         old = State(cp.root / episode_id)
+        from serial.pipeline import SeriesState
+        ss = SeriesState(cp.root / 'series_state.json')
+        prev = pkg.previous_episode(episode_id)
+        norm = validate_episode(pkg, pkg.load_episode(episode_id),
+                                ss.data['episodes'].get(prev, {}).get('end_state') if prev else None, cfg)
         prior = old.data.get('live_input_digest')
         if prior and prior != actual_digest:
-            raise ValueError('This episode has saved production for a different script/settings version. Keep this episode intact and create a new episode for changed content.')
+            saved = (old.data.get('episode') or {}).get('scenes')
+            reworded = bool(saved) and (
+                spoken_words_removed(old.data.get('package_checksums'), saved, episode_id)
+                == spoken_words_removed(pkg.checksums, norm['scenes'], episode_id))
+            if not reworded:
+                raise ValueError('This episode has saved production for a different script or settings. '
+                                 'Only the wording of spoken lines can be changed here. Anything else — a clip '
+                                 'duration, the action, who is in frame — would not match the video already '
+                                 'generated, so it needs a new episode.')
+            # Speech is remade from the new wording. References, keyframes and
+            # video stay: they were generated from the visible action.
+            drop_voice_work(old)
         if old.data.get('audio_mode', audio_mode) != audio_mode:
             raise ValueError('Keep the original audio mode when resuming this episode.')
         errors = preflight.recovery_problems(stages, old)
         if errors:
             raise ValueError('\n'.join(errors))
-        from serial.pipeline import SeriesState
-        ss = SeriesState(cp.root / 'series_state.json')
-        prev = pkg.previous_episode(episode_id)
-        validate_episode(pkg, pkg.load_episode(episode_id), ss.data['episodes'].get(prev, {}).get('end_state') if prev else None, cfg)
         # Prove checkpoint write access before creating any paid operation.
         cp.save()
         # Freeze this job's package. The current editor may subsequently change.
@@ -155,7 +220,8 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         pipeline = Pipeline(cfg, pkg, episode_id, cp.root.parent)
         pipeline.state.on_save = cp.save
         pipeline.sstate.on_save = cp.save
-        pipeline.state.data.update(live_input_digest=progress['input_digest'], audio_mode=progress['audio_mode'], mode='live')
+        pipeline.state.data.update(live_input_digest=progress['input_digest'],
+                                   audio_mode=progress['audio_mode'], mode='live')
         pipeline.state.save()
         cfg.paid_calls = PaidCalls(pipeline.state, pipeline.budget)
         released = {a['subject_id'] for a in runner.store.list('approvals', {

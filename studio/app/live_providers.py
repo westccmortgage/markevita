@@ -10,6 +10,7 @@ import re
 import time
 import requests
 
+from serial.fal_auth import key_id_prefix
 from serial.providers import Fal
 from serial.state import now
 from .provider_errors import ProviderFailure, fal_diagnostic
@@ -102,6 +103,47 @@ def _server_log_provider_text(exc, request_id, secret):
 
 
 class DurableFal(Fal):
+    def __init__(self, cfg, log, state, budget, inputs, released=()):
+        super().__init__(cfg, log, state, budget, inputs)
+        # Request ids an administrator has recorded as unreachable. Each one
+        # permits exactly one fresh submission for that take and nothing else.
+        self.released = frozenset(released)
+
+    def _orphaned(self, take):
+        """True when the saved request belongs to a key this server no longer
+        holds. A rotated key cannot read back a request it did not create, so
+        polling it again can only fail — the take has to be submitted anew."""
+        info = take.get('provider_error') or {}
+        refused = (info.get('provider') == 'fal.ai' and info.get('phase') == 'collect'
+                   and info.get('http_status') in _ACCESS_REFUSALS)
+        recorded, current = take.get('key_id'), key_id_prefix(self.cfg.fal_key)
+        return bool(refused and recorded and current and recorded != current)
+
+    def _release_unreachable(self, take, take_id, reason):
+        """Retire a request that cannot be read back, keeping its id.
+
+        The queue accepted this request, so the provider may have generated and
+        billed it. Charging the estimate keeps the episode budget honest; the
+        alternative — releasing the reservation at zero — would understate
+        spending on work that may well have been done.
+        """
+        amount = take.get('estimated_cost')
+        if (type(amount) not in (int, float) or not math.isfinite(amount) or amount < 0
+                or self.budget.reserved + 0.0001 < amount):
+            raise RuntimeError('Provider reservation needs reconciliation before another submission.')
+        info = take.get('provider_error') or {}
+        take.setdefault('unreachable_requests', []).append({
+            'request_id': take['request_id'], 'key_id': take.get('key_id'),
+            'current_key_id': key_id_prefix(self.cfg.fal_key), 'reason': reason,
+            'http_status': info.get('http_status'), 'phase': info.get('phase'),
+            'released_at': now(), 'charged_usd': amount})
+        for key in ('request_id', 'status_url', 'response_url', 'provider_error'):
+            take.pop(key, None)
+        take['status'] = 'planned'
+        # settle() persists the whole take in one write, so the retired request
+        # and its charge are checkpointed together.
+        self.budget.settle(amount, amount, 'fal.ai request unreachable; assumed billed', take_id)
+
     def _auth_headers(self):
         """The single credential used for submission AND polling."""
         return {'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'}
@@ -148,13 +190,18 @@ class DurableFal(Fal):
             raise RuntimeError(f'{take_id}: submission outcome is unknown. Reconcile this request before another paid attempt.')
         if take.get('status') == 'submission_rejected' and not _known_refusal(take):
             raise RuntimeError(f'{take_id}: submission outcome is unknown. Reconcile this request before another paid attempt.')
+        if take.get('request_id') and take.get('status') == 'submitted':
+            if take['request_id'] in self.released:
+                self._release_unreachable(take, take_id, 'administrator recorded the saved request as unreachable')
+            elif self._orphaned(take):
+                self._release_unreachable(take, take_id, 'submitted with a fal key this server no longer holds')
         if not take.get('request_id'):
             # Clear prior evidence BEFORE reserving. If this attempt loses its
             # response, an earlier 403 cannot authorize a further submission.
             take.pop('provider_error', None)
             take.update(provider='fal.ai', endpoint=endpoint, what=what, estimated_cost=est_cost,
                         params={k: v for k, v in args.items() if k not in ('image_url','image_urls','video_url','audio_url')},
-                        status='reserved', submitted_at=now())
+                        status='reserved', submitted_at=now(), key_id=key_id_prefix(self.cfg.fal_key))
             try:
                 self.budget.reserve(est_cost, what)
             except Exception:

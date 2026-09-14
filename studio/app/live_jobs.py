@@ -158,7 +158,11 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         pipeline.state.data.update(live_input_digest=progress['input_digest'], audio_mode=progress['audio_mode'], mode='live')
         pipeline.state.save()
         cfg.paid_calls = PaidCalls(pipeline.state, pipeline.budget)
-        pipeline.fal = DurableFal(cfg, pipeline.log, pipeline.state, pipeline.budget, pipeline.fal.inputs)
+        released = {a['subject_id'] for a in runner.store.list('approvals', {
+            'series_id': job['series_id'], 'episode_id': job['episode_id'],
+            'subject_type': 'fal_request_unreachable'}) if a.get('decision') == 'released'}
+        pipeline.fal = DurableFal(cfg, pipeline.log, pipeline.state, pipeline.budget,
+                                  pipeline.fal.inputs, released)
         original_log = pipeline.log
         def live_log(message):
             original_log(message)

@@ -29,6 +29,9 @@ from .store import store
 router = APIRouter()
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,63}$")
+# A saved fal request that was refused while being READ back. Only a request id
+# this job itself reported may be retired, so the form cannot name another one.
+REFUSED_REQUEST_RE = re.compile(r"HTTP 40[123] . request ([a-fA-F0-9]{8}-[a-fA-F0-9-]{27,40})")
 
 
 def _now() -> str:
@@ -841,9 +844,44 @@ def job_page(request: Request, job_id: str):
     completed_stages = list(progress.get("done") or [])
     if reference_review and "references" in (job.get("stages") or []) and "references" not in completed_stages:
         completed_stages.append("references")
+    match = REFUSED_REQUEST_RE.search(job.get("error") or "") if job.get("state") == "failed" else None
+    refused_request = match.group(1) if match else None
+    already_released = bool(refused_request and store.list("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "fal_request_unreachable", "subject_id": refused_request}))
     return render(request, "job.html", job=job, reference_review=reference_review,
-                  completed_stages=completed_stages,
+                  completed_stages=completed_stages, refused_request=refused_request,
+                  already_released=already_released,
                   s=store.get("series", {"id": job["series_id"]}))
+
+
+@router.post("/jobs/{job_id}/release-request")
+def release_saved_request(request: Request, job_id: str, request_id: str = Form(...),
+                          note: str = Form("")):
+    """Record that a saved fal request cannot be read back.
+
+    This does not delete the request id and does not relax the resubmission
+    guard anywhere else: the next run retires exactly this one take, charges
+    its estimate as possibly-billed, and submits that single take again.
+    """
+    a = require_admin(request)
+    job = store.get("production_jobs", {"id": job_id})
+    if not job:
+        raise HTTPException(404, "job not found")
+    back = f"/jobs/{job_id}"
+    match = REFUSED_REQUEST_RE.search(job.get("error") or "")
+    if not match or match.group(1) != request_id.strip():
+        return _redirect(back, err="This job did not report that request as refused.")
+    if store.list("approvals", {"series_id": job["series_id"], "episode_id": job["episode_id"],
+                                "subject_type": "fal_request_unreachable", "subject_id": request_id}):
+        return _redirect(back, ok="That request is already recorded as unreachable.")
+    store.insert("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "fal_request_unreachable", "subject_id": request_id,
+        "decision": "released", "actor": a["email"], "note": note, "created_at": _now()})
+    history(job["series_id"], job["episode_id"], "fal.request_released",
+            entity_type="fal_request", entity_id=request_id, actor=a["email"], detail={"note": note})
+    return _redirect(back, ok="Recorded. Open the episode and click Resume to generate that one take again.")
 
 
 @router.get("/integrations", response_class=HTMLResponse)

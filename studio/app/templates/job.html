@@ -19,6 +19,26 @@
   <p class="hint">{{ _("After approving the references, open the episode and click Resume to continue production.") }}</p>
 </section>
 {% endif %}
+{% if refused_request %}
+<section class="card" aria-labelledby="refused-request-title">
+  <h2 id="refused-request-title">{{ _("fal.ai refused a request it had already accepted") }}</h2>
+  <p>{{ _("The queue accepted this request, so it was not rejected on submission. fal.ai then refused to read it back. A request cannot be read back by a key that did not create it, so this happens when the fal key was replaced after the request was submitted.") }}</p>
+  <dl class="kv">
+    <dt>{{ _("Saved request") }}</dt><dd class="mono small">{{ refused_request }}</dd>
+  </dl>
+  {% if already_released %}
+    <p class="hint">{{ _("Already recorded as unreachable. Open the episode and click Resume; only this take is generated again.") }}</p>
+    <a class="btn btn-primary" href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ _("Open episode") }}</a>
+  {% else %}
+    <p>{{ _("Recording it as unreachable keeps the request id in the take history, charges its estimate as possibly billed, and allows one new submission for this take only. Every other saved request stays protected.") }}</p>
+    <form method="post" action="{{ base }}/jobs/{{ job.id }}/release-request">
+      <input type="hidden" name="request_id" value="{{ refused_request }}">
+      <div class="field" style="max-width:460px"><label>{{ _("Note") }}</label><input type="text" name="note" placeholder="{{ _('optional') }}"></div>
+      <button class="btn-primary" type="submit">{{ _("Record as unreachable") }}</button>
+    </form>
+  {% endif %}
+</section>
+{% endif %}
 {% if job.state == 'done' %}
 <p><a class="btn btn-primary" href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}#watch">{{ _("Watch or download episode") if 'deliver' in completed_stages else _("Open episode") }}</a></p>
 {% endif %}

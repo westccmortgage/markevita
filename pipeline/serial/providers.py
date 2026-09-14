@@ -248,12 +248,35 @@ def lipsync(fal: Fal, take_id: str, video: Path, audio: Path, seconds: float, de
 
 # ---------------- ElevenLabs ----------------
 
+# eleven_v3 audio tags are short auditory cues — [whispers], [sighs],
+# [sarcastic]. A sentence of stage direction in brackets is not a tag: the
+# model reads it out. "You knew?" — two words — was voiced as 5.86 seconds
+# because sixteen words of direction went in with it.
+MAX_TAG_WORDS = 4
+
+
+def audio_tag(delivery: str) -> str:
+    """The bracketed cue for a delivery note, or '' when it is prose.
+
+    Direction written for a human ("clearly articulated American English; a
+    question addressed to Adrian, hurt turning into suspicion") is kept in the
+    package and shown to the director, but never spoken.
+    """
+    cue = " ".join((delivery or "").split())
+    if not cue or len(cue.split()) > MAX_TAG_WORDS or any(c in cue for c in ".;:"):
+        return ""
+    return cue
+
+
 def tts(cfg, log, text: str, delivery: str, voice_id: str, dest: Path, model_id: str | None = None, settings: dict | None = None, language_code: str | None = None) -> dict:
     """Одна реплика -> mp3. Возвращает provenance dict. eleven_v3: delivery как audio tag в квадратных скобках."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     model_id = model_id or cfg.elevenlabs_model_id
     is_v3 = model_id.startswith("eleven_v3")
-    spoken = f"[{delivery}] {text}" if (is_v3 and delivery) else text
+    tag = audio_tag(delivery) if is_v3 else ""
+    spoken = f"[{tag}] {text}" if tag else text
+    if is_v3 and delivery and not tag:
+        log(f"voice: delivery is direction, not an audio tag; not spoken: {delivery[:60]}…")
     settings = dict(settings or {"stability": 0.5, "similarity_boost": 0.8, "style": 0.2})
     if not is_v3:
         settings.setdefault("speed", 1.0)

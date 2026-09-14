@@ -556,7 +556,10 @@ class Pipeline:
                 if guard:
                     from .costs import PRICE
                     params = {"line": line_id, "text": d["text"], "delivery": d.get("delivery", ""),
-                              "voice_id": self._voice_id(d["speaker"]), "voice": cvoice}
+                              "voice_id": self._voice_id(d["speaker"]), "voice": cvoice,
+                              # Audio generated while stage direction was being
+                              # read aloud is not reusable.
+                              "tag_policy": 2}
                     # Preserve operation IDs of existing English productions.
                     # Other languages must not reuse an English voice result.
                     if not self.episode["language"].lower().startswith("en"):

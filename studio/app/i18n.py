@@ -44,6 +44,12 @@ def notice(context, value):
         category, detail = text.split(": ", 1)
         if detail in RU:
             return category + ": " + RU[detail]
+        # Guidance now carries the ids the engine named, e.g. "... (sc05 4.8s
+        # > 3.6s)". Those are data, not wording: translate the sentence and
+        # keep them verbatim.
+        carried = re.fullmatch(r"(.+?)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)", detail.strip())
+        if carried and carried.group(1) in RU:
+            return f"{category}: {RU[carried.group(1)]} ({carried.group(2)})"
     # Only known application wording is rewritten. This filter must not be used
     # for scripts, prompts, descriptions, user titles, or dialogue.
     replacements = [

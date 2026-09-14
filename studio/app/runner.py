@@ -19,6 +19,8 @@ engine with private checkpoints, a durable worker lease and paid-call tracking.
 """
 from __future__ import annotations
 
+import re
+
 import threading
 import traceback
 from datetime import datetime, timezone
@@ -70,11 +72,35 @@ _GUIDANCE = [
 ]
 
 
+# Identifiers and measurements the engine already worked out. Guidance that
+# replaced the message wholesale threw these away, leaving an operator to
+# guess which of eight scenes to edit. They are our own ids and numbers, never
+# provider text, so they are safe to show.
+_SPECIFICS = [
+    re.compile(r"\[([^\[\]]{1,300})\]"),            # ['sc05 (4.8s > 3.6s)']
+    re.compile(r"(?:для|for):\s*([^\n]{1,300}?)\.?$"),  # ... для: nora (ELEVENLABS_VOICE_ID_NORA)
+]
+
+
+def specifics(error: str) -> str:
+    """The concrete ids/values named in an engine error, cleaned up."""
+    for pattern in _SPECIFICS:
+        match = pattern.search(error)
+        if not match:
+            continue
+        found = re.sub(r"['\"]", "", match.group(1)).strip(" .,")
+        found = re.sub(r"\s+", " ", found)
+        if found:
+            return found[:300]
+    return ""
+
+
 def explain(error: str) -> str:
     """Panel-facing guidance for a known engine blocker, or '' when there is none."""
     for needle, advice in _GUIDANCE:
         if needle in error:
-            return advice
+            detail = specifics(error)
+            return f"{advice} ({detail})" if detail else advice
     return ""
 
 

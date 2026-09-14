@@ -634,5 +634,10 @@
   "Recorded. Open the episode and click Resume to generate that one take again.": "Записано. Откройте эпизод и нажмите «Продолжить», чтобы заново сгенерировать этот один дубль.",
   "Resume will stop on the same refusal.": "«Продолжить» остановится на том же отказе.",
   "A saved fal.ai request cannot be read back and has to be recorded as unreachable first.": "Сохранённый запрос fal.ai невозможно прочитать; сначала его нужно отметить недостижимым.",
-  "Review and record it": "Открыть и отметить"
+  "Review and record it": "Открыть и отметить",
+  "Approve the finished episode on its page, then run the publish stage.": "Утвердите готовый эпизод на его странице, затем запустите стадию публикации.",
+  "Approve the current script and budget in the production form.": "Утвердите текущий сценарий и бюджет в форме запуска производства.",
+  "Enable PIPELINE_ALLOW_PAID in the service environment to use live production.": "Включите PIPELINE_ALLOW_PAID в переменных окружения сервиса, чтобы запускать живое производство.",
+  "A spoken line is too long for its clip. Shorten it in the script and save again.": "Реплика не помещается в свой клип. Сократите её в сценарии и сохраните заново.",
+  "A character has no voice id in the environment. Check the Characters page for the variable name.": "У персонажа нет voice id в переменных окружения. Имя переменной указано на странице «Персонажи»."
 }

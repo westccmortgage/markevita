@@ -6,12 +6,20 @@
   <p class="sub">{{ _("Appearance and wardrobe text goes to the image models, so it must be English and camera-ready. Voices are bound by environment-variable") }} <em>{{ _("name") }}</em> {{ _("— the voice id itself never enters the database.") }}</p></div>
 </div>
 
+<form method="post" action="{{ base }}/series/{{ s.id }}/fill-bible" style="margin-bottom:16px">
+  <input type="hidden" name="back" value="/series/{{ s.id }}/characters">
+  <button class="btn-primary" type="submit">{{ _("Fill this in automatically") }}</button>
+  <span class="hint">{{ _("The studio writes the cast and places from what this series already established, and keeps everything you wrote yourself.") }}</span>
+</form>
+
 {% for c in characters %}
 <div class="card">
   <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     {{ c.name }} <code>{{ c.character_id }}</code>
     {% if c.visual %}<span class="pill gold">{{ _("on camera") }}</span>{% else %}<span class="pill mute">{{ _("voice only") }}</span>{% endif %}
     {% if c.role %}<span class="muted small">{{ c.role }}</span>{% endif %}
+    {# Always visible which text a person chose and which the studio proposed. #}
+    {% if c.drafted_by_studio %}<span class="pill mute">{{ _("drafted by the studio") }}</span>{% endif %}
   </h2>
 
   <details>

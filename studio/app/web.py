@@ -9,6 +9,7 @@ production.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from urllib.parse import quote
 from pathlib import Path
@@ -498,6 +499,29 @@ def characters_page(request: Request, series_id: str):
         c["_voice"] = store.get("voices", {"series_id": series_id, "character_id": c["character_id"]})
     return render(request, "characters.html", s=s, characters=chars,
                   props=store.list("props", {"series_id": series_id}, order="prop_id"))
+
+
+@router.post("/series/{series_id}/fill-bible")
+def fill_bible(request: Request, series_id: str, back: str = Form("")):
+    """Complete the cast and places from what the series already established."""
+    a = require_admin(request)
+    target = back if back.startswith(f"/series/{series_id}") else f"/series/{series_id}/characters"
+    try:
+        result = authoring.fill_bible(series_id, a["email"])
+    except authoring.AuthoringError as e:
+        return _redirect(target, err=str(e))
+    except Exception as e:
+        logging.getLogger(__name__).exception("Filling the bible failed")
+        return _redirect(target, err=f"The studio could not complete the bible: {e}")
+    parts = []
+    if result["added"]:
+        parts.append(f"added {len(result['added'])}")
+    if result["completed"]:
+        parts.append(f"completed {len(result['completed'])}")
+    if result["locations"]:
+        parts.append(f"{len(result['locations'])} locations")
+    note = "Cast drafted: " + (", ".join(parts) or "nothing was missing") + ". Read it before filming."
+    return _redirect(target, ok=note)
 
 
 @router.post("/series/{series_id}/characters")

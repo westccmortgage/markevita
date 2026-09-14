@@ -713,5 +713,9 @@
   "Add clothing": "Добавить одежду",
   "Describe the location": "Описать локацию",
   "This series is not ready to film yet.": "Этот сериал пока нельзя снимать.",
-  "Engine detail": "Подробности движка"
+  "Engine detail": "Подробности движка",
+  "Fill this in automatically": "Заполнить автоматически",
+  "The studio writes the cast and places from what this series already established, and keeps everything you wrote yourself.": "Студия опишет персонажей и локации по тому, что уже сказано в этом сериале, и не тронет ничего, что вы написали сами.",
+  "drafted by the studio": "черновик студии",
+  "This series has nothing written yet. Add a logline or an episode first.": "Про этот сериал пока ничего не написано. Добавьте логлайн или серию."
 }

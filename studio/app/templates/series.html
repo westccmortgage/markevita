@@ -27,6 +27,11 @@
             <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ p.href }}">{{ _(p.label) }} →</a>
           </div>
         {% endfor %}
+        <form method="post" action="{{ base }}/series/{{ s.id }}/fill-bible" style="margin-top:14px">
+          <input type="hidden" name="back" value="/series/{{ s.id }}">
+          <button class="btn-primary" type="submit">{{ _("Fill this in automatically") }}</button>
+          <span class="hint">{{ _("The studio writes the cast and places from what this series already established, and keeps everything you wrote yourself.") }}</span>
+        </form>
         <details style="margin-top:12px"><summary class="hint">{{ _("Engine detail") }}</summary>
           <pre style="margin-top:8px">{{ validation.package }}</pre></details>
       </div>

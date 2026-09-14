@@ -413,3 +413,105 @@ def test_a_complete_series_shows_no_blockers(db, monkeypatch):
     episode = authoring.next_episode(MIAMI)["episode_id"]
     web.episode_studio(None, MIAMI, episode)
     assert captured["blockers"] == []
+
+
+# ── filling the bible from what the series already knows ───────────────────
+
+CAST = {"characters": [
+    {"id": "nora", "name": "Nora", "role": "protagonist", "age": "29", "visual": True,
+     "appearance": "A " + "detailed word " * 50, "behavior": "watchful",
+     "wardrobe": [{"id": "w_wedding", "description": "ivory slip dress", "is_default": True}]},
+    {"id": "caller", "name": "Caller", "visual": False, "appearance": "", "wardrobe": []}],
+ "locations": [{"id": "terrace", "name": "Terrace", "description": "T" * 200,
+                "lighting_states": {"default": "dusk", "night": "lanterns"}}]}
+
+
+def _cast(monkeypatch, answer=None):
+    return _stub(monkeypatch, [json.dumps(answer if answer is not None else CAST)])
+
+
+def test_a_series_started_from_a_clip_gets_its_cast(db, monkeypatch):
+    """The first-clip preview writes a series and an episode but no bible."""
+    db.delete("characters", {"series_id": MIAMI})
+    db.delete("clothing", {"series_id": MIAMI})
+    _cast(monkeypatch)
+    result = authoring.fill_bible(MIAMI, "admin@example.test")
+    assert sorted(result["added"]) == ["caller", "nora"]
+    nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
+    assert nora["name"] == "Nora" and len(nora["appearance"].split()) > 40
+    assert nora["drafted_by_studio"] is True
+    assert [w["variant_id"] for w in db.list("clothing", {"series_id": MIAMI,
+                                                          "character_id": "nora"})] == ["w_wedding"]
+    assert authoring.setup_problems(MIAMI) == []
+
+
+def test_a_voice_only_character_gets_no_clothes(db, monkeypatch):
+    db.delete("characters", {"series_id": MIAMI})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    assert db.list("clothing", {"series_id": MIAMI, "character_id": "caller"}) == []
+
+
+def test_every_new_character_gets_a_voice_binding(db, monkeypatch):
+    db.delete("characters", {"series_id": MIAMI})
+    db.delete("voices", {"series_id": MIAMI})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    voice = db.get("voices", {"series_id": MIAMI, "character_id": "nora"})
+    assert voice["voice_env"] == "ELEVENLABS_VOICE_ID_NORA"
+
+
+def test_what_a_person_wrote_is_never_overwritten(db, monkeypatch):
+    """The studio fills gaps; it does not rewrite someone's work."""
+    db.upsert("characters", {"series_id": MIAMI, "character_id": "nora", "name": "Nora Vale",
+                             "visual": True, "appearance": "Mine, written by hand."})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
+    assert nora["appearance"] == "Mine, written by hand." and nora["name"] == "Nora Vale"
+    assert nora["drafted_by_studio"] is False
+
+
+def test_an_empty_character_is_completed_and_marked(db, monkeypatch):
+    """The three characters that arrived with nothing in them."""
+    db.upsert("characters", {"series_id": MIAMI, "character_id": "nora", "name": "Nora",
+                             "visual": True, "appearance": ""})
+    _cast(monkeypatch)
+    result = authoring.fill_bible(MIAMI)
+    nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
+    assert result["completed"] == ["nora"] and nora["drafted_by_studio"] is True
+    assert len(nora["appearance"].split()) > 40
+
+
+def test_a_described_location_is_left_alone(db, monkeypatch):
+    before = db.get("locations", {"series_id": MIAMI, "location_id": "villa_terrace"})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    assert db.get("locations", {"series_id": MIAMI,
+                                "location_id": "villa_terrace"})["description"] == before["description"]
+
+
+def test_the_model_is_shown_what_the_series_already_said(db, monkeypatch):
+    db.upsert("episodes", {"series_id": MIAMI, "episode_id": "preview01", "number": 1,
+                           "title": "The Wrong Bride", "logline": "She catches them."})
+    calls = _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    sent = json.loads(calls[0]["messages"][0]["content"])
+    assert {"title": "The Wrong Bride", "logline": "She catches them.",
+            "episode_id": "preview01"} in sent["episodes_so_far"]
+    assert sent["dialogue_language"] == "en-US"
+    assert [c["id"] for c in sent["existing_characters"]] == ["nora"]
+
+
+def test_a_series_with_nothing_written_says_so(db, monkeypatch):
+    db.update("series", {"id": MIAMI}, {"title": "", "logline": ""})
+    db.delete("episodes", {"series_id": MIAMI})
+    with pytest.raises(authoring.AuthoringError, match="nothing written yet"):
+        authoring.fill_bible(MIAMI)
+
+
+def test_a_nonsense_id_from_the_model_is_dropped(db, monkeypatch):
+    db.delete("characters", {"series_id": MIAMI})
+    _cast(monkeypatch, {"characters": [{"id": "Not An Id!", "name": "X", "visual": True}],
+                        "locations": []})
+    assert authoring.fill_bible(MIAMI)["added"] == ["not_an_id"]

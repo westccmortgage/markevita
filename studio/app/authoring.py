@@ -559,3 +559,163 @@ def setup_problems(series_id: str) -> list[dict]:
             add("{where}: no description. It is what keeps the space the same between clips.",
                 "Describe the location", "locations", where=where)
     return out
+
+
+# ── filling the bible from what the series already knows ───────────────────
+
+CAST_SYSTEM = """You complete the production bible of an existing vertical drama series.
+
+Return ONLY a JSON object:
+{"characters": [{"id": "snake_case", "name": str, "role": str, "age": str,
+                 "visual": bool, "appearance": str, "behavior": str,
+                 "wardrobe": [{"id": "snake_case", "description": str, "is_default": bool}]}],
+ "locations": [{"id": "snake_case", "name": str, "description": str,
+                "lighting_states": {"default": str}}]}
+
+These entries are read by image and video models, so:
+
+- `appearance` is 80-150 words of ENGLISH camera-ready description: height, build,
+  skin, face shape, eyes, brows, nose, lips, hair length, part and wave pattern,
+  hands, distinguishing marks. It is what keeps one face across every clip, so
+  vagueness here becomes drift. Never mention clothing in it.
+- `description` for a location is 80-150 ENGLISH words: geometry, materials,
+  fixtures, the view, and above all what must never move between shots.
+- Each wardrobe entry is one outfit in 15-40 ENGLISH words. Exactly one is default.
+- `lighting_states` always has "default"; add "night" or others only if the story
+  needs them. Each value describes that light in English.
+- ids are lowercase snake_case, derived from the name, never renamed later.
+
+Only characters and places the given material actually implies. Do not invent a
+cast the story does not have. Keep every id, name and relationship already listed
+as existing exactly as it is: those are established and are being continued."""
+
+
+def _material(series_id: str) -> dict:
+    """Everything the series has already said about itself."""
+    series = store.get("series", {"id": series_id}) or {}
+    episodes = store.list("episodes", {"series_id": series_id}, order="number")
+    told = []
+    for e in episodes:
+        entry = {"episode_id": e["episode_id"], "title": e.get("title") or "",
+                 "logline": e.get("logline") or ""}
+        lines = [d.get("text", "") for s in store.list(
+                     "scenes", {"series_id": series_id, "episode_id": e["episode_id"]},
+                     order="sequence")
+                 for d in (s.get("dialogue") or [])]
+        if lines:
+            entry["dialogue"] = lines[:40]
+        told.append(entry)
+    return {
+        "series_title": series.get("title"), "genre": series.get("genre", ""),
+        "logline": series.get("logline", ""),
+        "dialogue_language": series.get("language") or "en-US",
+        "style_sentence": (series.get("style") or {}).get("style_sentence", ""),
+        "episodes_so_far": told,
+        "existing_characters": [{"id": c["character_id"], "name": c.get("name"),
+                                 "has_appearance": bool((c.get("appearance") or "").strip())}
+                                for c in store.list("characters", {"series_id": series_id},
+                                                    order="character_id")],
+        "existing_locations": [{"id": l["location_id"], "name": l.get("name"),
+                                "has_description": bool((l.get("description") or "").strip())}
+                               for l in store.list("locations", {"series_id": series_id},
+                                                   order="location_id")],
+    }
+
+
+def _slug_id(value: str) -> str:
+    out = re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_")
+    return out[:64]
+
+
+def fill_bible(series_id: str, actor: str = "") -> dict:
+    """Complete the cast and places from what the series already established.
+
+    A series started from the first-clip preview has episodes but an empty
+    bible: its people lived only inside that clip's prompt. Re-typing them for
+    the next episode is the studio's job, not the producer's.
+
+    Nothing already written is overwritten. Entries the studio drafts are
+    marked as such, so it is always visible which descriptions a person chose
+    and which the studio proposed.
+    """
+    material = _material(series_id)
+    if not any([material["logline"], material["episodes_so_far"], material["series_title"]]):
+        raise AuthoringError("This series has nothing written yet. Add a logline or an episode first.")
+
+    client = _client()
+    response = client.messages.create(
+        model=_model(), max_tokens=8000, system=CAST_SYSTEM,
+        messages=[{"role": "user", "content": json.dumps(material, ensure_ascii=False)}])
+    spend = _record_cost(series_id, "", response)
+    answer = "".join(b.text for b in response.content if b.type == "text")
+    proposal = _extract_json(answer)
+
+    added, completed = [], []
+    for c in proposal.get("characters") or []:
+        cid = _slug_id(c.get("id") or c.get("name") or "")
+        if not ID_RE.match(cid or ""):
+            continue
+        existing = store.get("characters", {"series_id": series_id, "character_id": cid})
+        record = {"series_id": series_id, "character_id": cid,
+                  "name": c.get("name") or cid, "visual": bool(c.get("visual", True)),
+                  "role": c.get("role", ""), "age": str(c.get("age") or ""),
+                  "appearance": (c.get("appearance") or "").strip(),
+                  "behavior": c.get("behavior", ""), "immutable": [], "props": [],
+                  "seed_assets": [], "drafted_by_studio": True, "updated_at": _now()}
+        if existing:
+            # Keep every field a person filled in; only fill what is empty.
+            kept = {k: v for k, v in existing.items()
+                    if k in record and str(v or "").strip() and k != "drafted_by_studio"}
+            if all(str(existing.get(k) or "").strip() for k in ("appearance", "name")):
+                filled = False
+            else:
+                filled = True
+            record = {**record, **kept}
+            record["drafted_by_studio"] = existing.get("drafted_by_studio", False) or filled
+            if filled:
+                completed.append(cid)
+        else:
+            added.append(cid)
+        store.upsert("characters", record)
+        if not store.get("voices", {"series_id": series_id, "character_id": cid}):
+            store.upsert("voices", {
+                "series_id": series_id, "character_id": cid, "provider": "elevenlabs",
+                "voice_env": f"ELEVENLABS_VOICE_ID_{cid.upper()}", "model_id": "eleven_v3",
+                "language": material["dialogue_language"], "style_notes": "",
+                "phone_fx": False, "locked": False})
+        if record["visual"] and not store.list("clothing", {"series_id": series_id,
+                                                            "character_id": cid}):
+            variants = [v for v in (c.get("wardrobe") or []) if _slug_id(v.get("id") or "")]
+            if not variants:
+                variants = [{"id": "w_default", "description": "", "is_default": True}]
+            if not any(v.get("is_default") for v in variants):
+                variants[0]["is_default"] = True
+            for v in variants:
+                store.upsert("clothing", {
+                    "series_id": series_id, "character_id": cid,
+                    "variant_id": _slug_id(v["id"]), "is_default": bool(v.get("is_default")),
+                    "description": v.get("description", ""), "immutable": [],
+                    "drafted_by_studio": True})
+
+    places = []
+    for l in proposal.get("locations") or []:
+        lid = _slug_id(l.get("id") or l.get("name") or "")
+        if not ID_RE.match(lid or ""):
+            continue
+        existing = store.get("locations", {"series_id": series_id, "location_id": lid})
+        if existing and (existing.get("description") or "").strip():
+            continue
+        states = {k: v for k, v in (l.get("lighting_states") or {}).items() if isinstance(v, str)}
+        states.setdefault("default", "")
+        store.upsert("locations", {
+            "series_id": series_id, "location_id": lid,
+            "name": l.get("name") or (existing or {}).get("name") or lid,
+            "description": (l.get("description") or "").strip(),
+            "lighting_states": states, "marks": "", "immutable": [], "seed_assets": [],
+            "drafted_by_studio": True})
+        places.append(lid)
+
+    history(series_id, "", "bible.drafted", entity_type="series", entity_id=series_id,
+            actor=actor, detail={"added": added, "completed": completed, "locations": places})
+    return {"added": added, "completed": completed, "locations": places, "spend_usd": spend,
+            "remaining": setup_problems(series_id)}

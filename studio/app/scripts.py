@@ -197,6 +197,92 @@ def _apply_field(scene: dict, key: str, value: str) -> None:
                 scene["relationship_changes"].append({"id": m.group(1).lower(), "state": m.group(2).strip()})
 
 
+def to_script_text(scenes: list[dict]) -> str:
+    """Render stored scenes back into the structured script format.
+
+    Editing one line must not leave the saved script text describing a
+    different episode, so the source is rewritten from the scenes it produced.
+    Doubles as a way to read the current script back out.
+    """
+    out: list[str] = []
+    for scene in sorted(scenes, key=lambda s: int(s.get("sequence") or 0)):
+        header = [f"SCENE {scene['scene_id']}", f"{int(scene.get('duration_seconds') or 6)}s"]
+        if scene.get("location"):
+            header.append(scene["location"])
+        if (scene.get("lighting_state") or "default") != "default":
+            header.append(scene["lighting_state"])
+        out.append(" | ".join(header))
+        if scene.get("characters_in_frame"):
+            out.append("CHARACTERS: " + ", ".join(scene["characters_in_frame"]))
+        if scene.get("wardrobe"):
+            out.append("WARDROBE: " + ", ".join(f"{c}={v}" for c, v in scene["wardrobe"].items()))
+        shot = [scene.get("shot_type") or "", scene.get("lens") or "", scene.get("camera_motion") or ""]
+        while shot and not shot[-1]:
+            shot.pop()
+        if any(shot):
+            out.append("SHOT: " + " | ".join(shot))
+        out.append("ACTION: " + (scene.get("action") or ""))
+        if scene.get("continuity_in"):
+            out.append("IN: " + scene["continuity_in"])
+        if scene.get("continuity_out"):
+            out.append("OUT: " + scene["continuity_out"])
+        if scene.get("props"):
+            out.append("PROPS: " + ", ".join(f"{p['prop_id']}={p.get('state','')}" for p in scene["props"]))
+        if scene.get("knowledge_required"):
+            out.append("KNOWS: " + ", ".join(f"{k['character']} needs {k['secret']}" for k in scene["knowledge_required"]))
+        if scene.get("knowledge_gained"):
+            out.append("LEARNS: " + ", ".join(
+                f"{k['character']} gains {k['secret']}" + (f" via {k['how']}" if k.get("how") else "")
+                for k in scene["knowledge_gained"]))
+        if scene.get("relationship_changes"):
+            out.append("REL: " + ", ".join(f"{r['id']} -> {r['state']}" for r in scene["relationship_changes"]))
+        if scene.get("is_cliffhanger"):
+            out.append("CLIFFHANGER")
+        for line in scene.get("dialogue") or []:
+            prefix = "vo " if line.get("voice_over") else ""
+            delivery = f" ({line['delivery']})" if line.get("delivery") else ""
+            out.append(f"{prefix}{line['speaker']}{delivery}: {line.get('text','')}")
+        out.append("")
+    return "\n".join(out).strip() + "\n"
+
+
+def reword_scene(series_id: str, episode_id: str, scene_id: str, texts: list[str],
+                 actor: str = "") -> dict:
+    """Replace the WORDS of a scene's lines, changing nothing else.
+
+    Speaker, delivery, voice-over flag and line count are untouched, which is
+    the one edit a produced episode can absorb without discarding its video.
+    """
+    scene = store.get("scenes", {"series_id": series_id, "episode_id": episode_id,
+                                 "scene_id": scene_id})
+    if not scene:
+        raise ScriptError(f"Scene {scene_id} not found.")
+    lines = list(scene.get("dialogue") or [])
+    if len(texts) != len(lines):
+        raise ScriptError("The number of lines must stay the same.")
+    cleaned = [" ".join(t.split()) for t in texts]
+    if not all(cleaned):
+        raise ScriptError("A spoken line cannot be empty.")
+    updated = [{**line, "text": text} for line, text in zip(lines, cleaned)]
+    store.update("scenes", {"series_id": series_id, "episode_id": episode_id,
+                            "scene_id": scene_id}, {"dialogue": updated})
+
+    scenes = store.list("scenes", {"series_id": series_id, "episode_id": episode_id},
+                        order="sequence")
+    prior = store.list("scripts", {"series_id": series_id, "episode_id": episode_id})
+    version = max([int(s.get("version") or 0) for s in prior], default=0) + 1
+    store.insert("scripts", {
+        "series_id": series_id, "episode_id": episode_id, "version": version,
+        "source": "reword", "filename": "", "content": to_script_text(scenes),
+        "parsed": {"scenes": scenes, "format": "reword"}, "created_by": actor,
+        "created_at": _now(),
+    })
+    from .ingest import history
+    history(series_id, episode_id, "scene.reworded", entity_type="scene", entity_id=scene_id,
+            detail={"version": version, "lines": len(updated)}, actor=actor)
+    return {"scene_id": scene_id, "version": version, "lines": len(updated)}
+
+
 def save_script(series_id: str, episode_id: str, content: str, *, source: str = "paste",
                 filename: str = "", actor: str = "") -> dict:
     """Store the script, parse it, and replace the episode's scenes."""

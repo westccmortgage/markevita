@@ -639,5 +639,11 @@
   "Approve the current script and budget in the production form.": "Утвердите текущий сценарий и бюджет в форме запуска производства.",
   "Enable PIPELINE_ALLOW_PAID in the service environment to use live production.": "Включите PIPELINE_ALLOW_PAID в переменных окружения сервиса, чтобы запускать живое производство.",
   "A spoken line is too long for its clip. Shorten it in the script and save again.": "Реплика не помещается в свой клип. Сократите её в сценарии и сохраните заново.",
-  "A character has no voice id in the environment. Check the Characters page for the variable name.": "У персонажа нет voice id в переменных окружения. Имя переменной указано на странице «Персонажи»."
+  "A character has no voice id in the environment. Check the Characters page for the variable name.": "У персонажа нет voice id в переменных окружения. Имя переменной указано на странице «Персонажи».",
+  "Edit spoken lines": "Изменить реплики",
+  "words": "слов",
+  "Save lines": "Сохранить реплики",
+  "Only the words change. Speaker, delivery and the video already generated stay as they are.": "Меняются только слова. Кто говорит, манера подачи и уже созданное видео остаются прежними.",
+  "The number of lines must stay the same.": "Количество реплик должно остаться прежним.",
+  "A spoken line cannot be empty.": "Реплика не может быть пустой."
 }

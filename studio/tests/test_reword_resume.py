@@ -162,3 +162,91 @@ def test_dropping_voice_work_is_idempotent():
     first = copy.deepcopy(state.data)
     drop_voice_work(state)
     assert state.data == first
+
+
+# ── editing a line in place ────────────────────────────────────────────────
+
+@pytest.fixture
+def store(monkeypatch, tmp_path):
+    from app import ingest, packaging, runner, scripts, web
+    from app.store.local import LocalDriver
+    driver = LocalDriver(tmp_path / "store")
+    for module in (scripts, web, runner, ingest, packaging):
+        monkeypatch.setattr(module, "store", driver, raising=False)
+    driver.upsert("series", {"id": "miami", "title": "Miami"})
+    driver.upsert("episodes", {"series_id": "miami", "episode_id": EPISODE, "number": 1})
+    driver.upsert("scenes", {
+        "series_id": "miami", "episode_id": EPISODE, "scene_id": "sc05", "sequence": 5,
+        "duration_seconds": 4, "location": "villa", "lighting_state": "night",
+        "characters_in_frame": ["nora"], "wardrobe": {"nora": "w_evening"},
+        "action": "She reads the list.", "shot_type": "medium", "lens": "50mm",
+        "camera_motion": "slow push-in", "continuity_in": "folded", "continuity_out": "open",
+        "props": [], "knowledge_required": [], "knowledge_gained": [],
+        "relationship_changes": [], "is_cliffhanger": False, "status": "complete",
+        "dialogue": [{"speaker": "nora", "delivery": "quiet", "voice_over": False,
+                      "text": "Your name is on the passenger list and nobody told me."}]})
+    return driver
+
+
+def _reword(text):
+    from app.scripts import reword_scene
+    return reword_scene("miami", EPISODE, "sc05", [text], "admin@example.test")
+
+
+def test_rewording_changes_only_the_words(store):
+    _reword("Your name is on it.")
+    line = store.get("scenes", {"series_id": "miami", "episode_id": EPISODE,
+                                "scene_id": "sc05"})["dialogue"][0]
+    assert line["text"] == "Your name is on it."
+    assert line["speaker"] == "nora" and line["delivery"] == "quiet"
+    assert line["voice_over"] is False
+
+
+def test_the_edit_is_exactly_what_resume_accepts(store):
+    """The whole point: this edit must not look like a different production."""
+    before = store.get("scenes", {"series_id": "miami", "episode_id": EPISODE, "scene_id": "sc05"})
+    _reword("Your name is on it.")
+    after = store.get("scenes", {"series_id": "miami", "episode_id": EPISODE, "scene_id": "sc05"})
+    assert spoken_words_removed({}, [before], EPISODE) == spoken_words_removed({}, [after], EPISODE)
+
+
+def test_the_saved_script_is_rewritten_to_match(store):
+    """Otherwise the stored script would describe a different episode."""
+    _reword("Your name is on it.")
+    script = store.list("scripts", {"series_id": "miami", "episode_id": EPISODE})[-1]
+    assert "Your name is on it." in script["content"]
+    assert "passenger list" not in script["content"]
+    assert "SCENE sc05 | 4s | villa | night" in script["content"]
+    assert script["source"] == "reword"
+
+
+def test_the_rewritten_script_parses_back_to_the_same_scene(store):
+    """Round trip: the serializer and the parser must agree."""
+    from app.scripts import parse
+    _reword("Your name is on it.")
+    content = store.list("scripts", {"series_id": "miami", "episode_id": EPISODE})[-1]["content"]
+    scene = parse(content)["scenes"][0]
+    assert scene["scene_id"] == "sc05" and scene["duration_seconds"] == 4
+    assert scene["location"] == "villa" and scene["lighting_state"] == "night"
+    assert scene["characters_in_frame"] == ["nora"]
+    assert scene["wardrobe"] == {"nora": "w_evening"}
+    assert scene["dialogue"][0] == {"speaker": "nora", "delivery": "quiet",
+                                    "text": "Your name is on it."}
+
+
+def test_changing_the_line_count_is_refused(store):
+    from app.scripts import ScriptError, reword_scene
+    with pytest.raises(ScriptError, match="number of lines"):
+        reword_scene("miami", EPISODE, "sc05", ["one", "two"], "admin@example.test")
+
+
+def test_an_empty_line_is_refused(store):
+    from app.scripts import ScriptError
+    with pytest.raises(ScriptError, match="cannot be empty"):
+        _reword("   ")
+
+
+def test_an_unknown_scene_is_refused(store):
+    from app.scripts import ScriptError, reword_scene
+    with pytest.raises(ScriptError, match="not found"):
+        reword_scene("miami", EPISODE, "sc99", ["x"], "admin@example.test")

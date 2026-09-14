@@ -197,6 +197,25 @@ speak is split automatically into sub-shots, one speaker each.</pre>
           <div class="small muted" style="margin-top:5px">{{ _("In frame:") }} {{ sc.characters_in_frame|join(', ') }}
             {%- if sc.shot_type %} · {{ sc.shot_type }}{% endif %}{% if sc.camera_motion %} · {{ sc.camera_motion }}{% endif %}</div>
         {% endif %}
+        {% if sc.dialogue %}
+          {% set spoken = sc.dialogue|map(attribute='text')|join(' ')|wordcount %}
+          {% set budget = word_budget(sc.duration_seconds, sc.dialogue|length) %}
+          <details style="margin-top:8px">
+            <summary>{{ _("Edit spoken lines") }} —
+              <span class="{{ 'pill bad' if spoken > budget else 'muted small' }}">{{ spoken }}/{{ budget }} {{ _("words") }}</span>
+            </summary>
+            <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/scenes/{{ sc.scene_id }}/dialogue" style="margin-top:10px">
+              {% for d in sc.dialogue %}
+                <div class="field">
+                  <label>{{ d.speaker }}{% if d.delivery %} ({{ d.delivery }}){% endif %}{% if d.voice_over %} · {{ _("VO") }}{% endif %}</label>
+                  <input type="text" name="line_{{ '%02d'|format(loop.index0) }}" value="{{ d.text }}" required>
+                </div>
+              {% endfor %}
+              <button class="btn-primary btn-sm" type="submit">{{ _("Save lines") }}</button>
+              <p class="hint">{{ _("Only the words change. Speaker, delivery and the video already generated stay as they are.") }}</p>
+            </form>
+          </details>
+        {% endif %}
         {% for d in sc.dialogue or [] %}
           <div class="dlg"><b>{{ d.speaker }}</b>{% if d.delivery %} <span class="muted small">({{ d.delivery }})</span>{% endif %}{% if d.voice_over %} <span class="pill mute">{{ _("VO") }}</span>{% endif %}: {{ d.text }}</div>
         {% endfor %}

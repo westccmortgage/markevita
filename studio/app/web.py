@@ -614,12 +614,14 @@ def episode_page(request: Request, series_id: str, episode_id: str):
                 "subject_type": "fal_request_unreachable", "subject_id": match.group(1)}):
             blocked_request, blocked_job = match.group(1), job["id"]
         break
+    from serial.package import word_budget
     takes = store.list("takes", {"series_id": series_id, "episode_id": episode_id}, order="take_id")
     by_scene: dict[str, list] = {}
     for t in takes:
         by_scene.setdefault(t.get("scene_id", ""), []).append(t)
     return render(request, "episode.html", s=s, ep=ep, mode=settings.mode,
                   blocked_request=blocked_request, blocked_job=blocked_job,
+                  word_budget=word_budget,
                   scenes=store.list("scenes", {"series_id": series_id, "episode_id": episode_id},
                                     order="sequence"),
                   scripts=scripts_list,
@@ -677,6 +679,26 @@ async def post_script(request: Request, series_id: str, episode_id: str,
         return _redirect(f"/series/{series_id}/episodes/{episode_id}", err=str(e))
     return _redirect(f"/series/{series_id}/episodes/{episode_id}",
                      ok=f"Script v{result['version']} saved — {result['scenes']} scenes.")
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/scenes/{scene_id}/dialogue")
+async def reword_scene(request: Request, series_id: str, episode_id: str, scene_id: str):
+    """Edit the words of one scene's lines, in place.
+
+    Re-pasting the whole script was the only way to change a line, which is
+    impractical on a phone and left an episode stranded when the voice stage
+    asked for a shorter line.
+    """
+    a = require_admin(request)
+    form = await request.form()
+    texts = [form[key] for key in sorted(k for k in form if k.startswith("line_"))]
+    back = f"/series/{series_id}/episodes/{episode_id}"
+    try:
+        result = scriptmod.reword_scene(series_id, episode_id, scene_id, texts, a["email"])
+    except scriptmod.ScriptError as e:
+        return _redirect(back, err=str(e))
+    return _redirect(back, ok=f"{scene_id}: lines saved as script v{result['version']}. "
+                              "Resume regenerates only the speech.")
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/production")

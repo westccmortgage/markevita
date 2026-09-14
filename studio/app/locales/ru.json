@@ -631,5 +631,8 @@
   "Record as unreachable": "Отметить недостижимым",
   "This job did not report that request as refused.": "Эта задача не сообщала об отказе по такому запросу.",
   "That request is already recorded as unreachable.": "Этот запрос уже отмечен как недостижимый.",
-  "Recorded. Open the episode and click Resume to generate that one take again.": "Записано. Откройте эпизод и нажмите «Продолжить», чтобы заново сгенерировать этот один дубль."
+  "Recorded. Open the episode and click Resume to generate that one take again.": "Записано. Откройте эпизод и нажмите «Продолжить», чтобы заново сгенерировать этот один дубль.",
+  "Resume will stop on the same refusal.": "«Продолжить» остановится на том же отказе.",
+  "A saved fal.ai request cannot be read back and has to be recorded as unreachable first.": "Сохранённый запрос fal.ai невозможно прочитать; сначала его нужно отметить недостижимым.",
+  "Review and record it": "Открыть и отметить"
 }

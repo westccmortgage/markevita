@@ -602,11 +602,24 @@ def episode_page(request: Request, series_id: str, episode_id: str):
     scripts_list = store.list("scripts", {"series_id": series_id, "episode_id": episode_id},
                               order="version", desc=True)
     runtime = runner.episode_runtime(series_id, episode_id)
+    # Resume lives on this page, so a saved request that must be retired first
+    # has to be visible here. Otherwise Resume just repeats the same refusal.
+    blocked_request, blocked_job = None, None
+    for job in sorted(episode_jobs, key=lambda j: j.get("created_at") or "", reverse=True):
+        if job.get("state") != "failed":
+            continue
+        match = REFUSED_REQUEST_RE.search(job.get("error") or "")
+        if match and not store.list("approvals", {
+                "series_id": series_id, "episode_id": episode_id,
+                "subject_type": "fal_request_unreachable", "subject_id": match.group(1)}):
+            blocked_request, blocked_job = match.group(1), job["id"]
+        break
     takes = store.list("takes", {"series_id": series_id, "episode_id": episode_id}, order="take_id")
     by_scene: dict[str, list] = {}
     for t in takes:
         by_scene.setdefault(t.get("scene_id", ""), []).append(t)
     return render(request, "episode.html", s=s, ep=ep, mode=settings.mode,
+                  blocked_request=blocked_request, blocked_job=blocked_job,
                   scenes=store.list("scenes", {"series_id": series_id, "episode_id": episode_id},
                                     order="sequence"),
                   scripts=scripts_list,

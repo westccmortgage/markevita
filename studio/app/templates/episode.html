@@ -99,6 +99,14 @@
       <input type="text" name="force" placeholder="sc07, keyframes">
       <p class="hint">{{ _("Forced takes are new immutable takes, flagged and logged; earlier takes are kept.") }}</p>
     </div>{% endif %}
+    {% if blocked_request %}
+    <div class="notice err">
+      <b>{{ _("Resume will stop on the same refusal.") }}</b>
+      {{ _("A saved fal.ai request cannot be read back and has to be recorded as unreachable first.") }}
+      <div class="mono small" style="margin-top:6px">{{ blocked_request }}</div>
+      <a class="btn btn-sm" style="margin-top:8px" href="{{ base }}/jobs/{{ blocked_job }}">{{ _("Review and record it") }}</a>
+    </div>
+    {% endif %}
     <div class="btn-row">
       {% if mode == 'live' %}<button type="submit" name="action" value="check">{{ _("Check production settings") }}</button>{% endif %}
       <button class="btn-primary" name="action" value="start" type="submit"

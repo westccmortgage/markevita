@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ s.title }} · {{ _("Episode") }} {{ ep.number }}{% endblock %}
+{% block content %}
+
+{# Which series and which episode, always. An earlier flow let a continuation
+   of one series be loaded into another; the answer should never be a guess. #}
+<div class="page-head">
+  <div>
+    <h1>{{ s.title }} · {{ _("Episode") }} {{ ep.number }}</h1>
+    <p class="sub">{{ ep.title or _("Untitled") }}
+      {% if memory.previous_episode %} · {{ _("continues") }} <code>{{ memory.previous_episode }}</code>{% endif %}
+      · {{ _("dialogue in") }} {{ memory.dialogue_language }}</p>
+  </div>
+  <div class="btn-row">
+    <span class="pill {{ 'ok' if runtime.status in ('complete','published') else 'mute' }}">{{ (runtime.status)|ui }}</span>
+    <a class="btn btn-sm" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}">{{ _("Advanced settings") }}</a>
+  </div>
+</div>
+
+{# The finished episode belongs on the screen the producer works on, not
+   only in the advanced view the notification used to be the sole route to. #}
+{% if mode == 'live' and runtime.masters and runtime.stages.get('deliver') == 'done' %}
+{% set latest_master = runtime.masters|last %}
+<section class="card" id="watch" aria-labelledby="episode-ready-title">
+  <h2 id="episode-ready-title">{{ _("Your episode is ready") }}</h2>
+  <p><a class="btn btn-primary" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ latest_master.version }}">{{ _("Watch or download episode") }} · {{ latest_master.version }}</a></p>
+  <video controls playsinline preload="none" style="width:100%;max-width:360px;max-height:65vh;background:#000" src="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ latest_master.version }}"></video>
+</section>
+{% endif %}
+
+{% if active_job %}
+<div class="notice info">
+  {{ _("Production is") }} <b>{{ (active_job.state)|ui }}</b>{% if (active_job.progress or {}).get('stage') %},
+  {{ _("stage") }} <code>{{ active_job.progress.stage }}</code>{% endif %}.
+  <a href="{{ base }}/jobs/{{ active_job.id }}">{{ _("Open progress") }} →</a>
+</div>
+{% endif %}
+
+{% if not script %}
+  <!-- ── 1. the wish ───────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>{{ _("What should happen in this episode?") }}</h2>
+    <p class="hint" style="margin-top:-8px">
+      {{ _("Write it in your own words, in any language — the spoken lines will be in") }}
+      <b>{{ memory.dialogue_language }}</b>.
+      {% if memory.previous_episode %}
+        {{ _("Leave it empty to continue from the recorded ending of the previous episode.") }}
+      {% endif %}
+      {{ _("A plain script with its own headings works too.") }}
+    </p>
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/draft">
+      <div class="field">
+        <textarea name="wish" rows="6" placeholder="{{ _('Nora pretends to leave but listens at the door. Build tension, a sense of being watched, and a strong hook at the end.') }}">{{ request.query_params.get('wish', '') }}</textarea>
+      </div>
+      <button class="btn-primary" type="submit">{{ _("Prepare the script") }}</button>
+      <p class="hint">{{ _("The studio keeps your approved cast, wardrobe and locations. This uses the language model and costs a few cents.") }}</p>
+    </form>
+  </div>
+
+  {% if memory.previous_final_scenes %}
+  <div class="card">
+    <h3>{{ _("Where the last episode ended") }}</h3>
+    {% for sc in memory.previous_final_scenes %}
+      <div class="scene-card">
+        <div class="small">{{ sc.action }}</div>
+        {% for d in sc.dialogue %}<div class="dlg"><b>{{ d.speaker }}</b>: {{ d.text }}</div>{% endfor %}
+        {% if sc.continuity_out %}<div class="hint">{{ _("Ends on:") }} {{ sc.continuity_out }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+{% else %}
+  <!-- ── 2. the script, as prose ───────────────────────────────────────── -->
+  <div class="card">
+    <h2>{{ _("The script") }}</h2>
+    {% if ep.logline %}<p class="sub">{{ ep.logline }}</p>{% endif %}
+    {% for sc in script %}
+      <div class="scene-card">
+        <h4>{{ _("Scene") }} {{ sc.number }}
+          <span class="muted">{{ sc.seconds }}{{ _("s ·") }} {{ sc.place }}{% if sc.light and sc.light != 'default' %} · {{ sc.light }}{% endif %}</span>
+          {% if sc.is_cliffhanger %}<span class="pill gold">{{ _("cliffhanger") }}</span>{% endif %}
+          <span class="{{ 'pill bad' if sc.words > sc.word_budget else 'muted small' }}">{{ sc.words }}/{{ sc.word_budget }} {{ _("words") }}</span>
+        </h4>
+        <div class="small">{{ sc.action }}</div>
+        {% if sc.shot %}<div class="hint">{{ sc.shot }}</div>{% endif %}
+        {% for line in sc.lines %}
+          <div class="dlg"><b>{{ line.who }}</b>{% if line.how %} <span class="muted small">({{ line.how }})</span>{% endif %}{% if line.voice_over %} <span class="pill mute">{{ _("VO") }}</span>{% endif %}: {{ line.text }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── 3. changing it in plain words ─────────────────────────────────── -->
+  <div class="card">
+    <h2>{{ _("What to change?") }}</h2>
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/revise">
+      <div class="field">
+        <textarea name="instruction" rows="3" placeholder="{{ _('Make the ending tenser. Nora should see them through the door first. Shorten that line.') }}">{{ request.query_params.get('instruction', '') }}</textarea>
+      </div>
+      <button type="submit">{{ _("Apply the change") }}</button>
+      <p class="hint">{{ _("Scenes the change does not touch keep their wording and their footage. Changing what is seen or how the camera moves means that clip is generated again.") }}</p>
+    </form>
+  </div>
+
+  <!-- ── 4. making the video ───────────────────────────────────────────── -->
+  <div class="card">
+    <h2>{{ _("Make the video") }}</h2>
+    {% if estimate and estimate.ok %}
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="stat"><div class="k">{{ _("Length") }}</div><div class="v">{{ estimate.seconds }}{{ _("s") }}</div>
+          <div class="hint">{{ estimate.clips }} {{ _("clips") }}</div></div>
+        <div class="stat"><div class="k">{{ _("Estimated cost") }}</div><div class="v gold">{{ estimate.estimate_usd|money }}</div>
+          <div class="hint">{{ _("an estimate, not a quote") }}</div></div>
+        <div class="stat"><div class="k">{{ _("Limit") }}</div><div class="v">{{ estimate.cap_usd|money }}</div>
+          <div class="hint">{{ _("production stops here") }}</div></div>
+      </div>
+      {% if estimate.warnings %}
+        <div class="notice info">{% for w in estimate.warnings %}<div>{{ w }}</div>{% endfor %}</div>
+      {% endif %}
+    {% elif estimate %}
+      <div class="notice err"><b>{{ _("This script will not run yet.") }}</b><pre style="margin-top:8px">{{ (estimate.message)|notice }}</pre></div>
+    {% endif %}
+
+    {% if voiceless %}
+      <div class="notice err">{{ _("These characters speak but have no voice assigned:") }}
+        <b>{{ voiceless|join(', ') }}</b>.
+        <a href="{{ base }}/series/{{ s.id }}/characters">{{ _("Assign voices") }} →</a>
+        {{ _("Or choose native scene audio below.") }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/production">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="approved_digest" value="{{ production_digest }}">
+      {% for st in ['intake','direction','references','keyframes','video','voice','lipsync','assemble','qa','deliver'] %}
+        <input type="hidden" name="stages" value="{{ st }}">
+      {% endfor %}
+      {% if mode == 'live' %}
+        <div class="field" style="max-width:460px"><label>{{ _("Audio") }}</label>
+          <select name="audio_mode">
+            <option value="native" {{ 'selected' if runtime.audio_mode != 'voices' }}>{{ _("Native scene audio — speech generated with video") }}</option>
+            <option value="voices" {{ 'selected' if runtime.audio_mode == 'voices' }}>{{ _("Assigned character voices — ElevenLabs and lipsync") }}</option>
+          </select>
+        </div>
+        <label><input type="checkbox" name="approve_live" value="yes"> {{ _("Approve this script and live production up to") }} {{ (estimate.cap_usd if estimate and estimate.ok else 0)|money }} {{ _("in estimated provider charges.") }}</label>
+        <p class="hint">{{ _("Production pauses for reference review before video. Provider billing may differ from estimates. Nothing is published automatically.") }}</p>
+      {% endif %}
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-primary" name="action" value="start" type="submit"
+          {{ 'disabled' if (estimate and not estimate.ok) or (active_job and active_job.state in ('running','queued')) }}>{{ _("Make the video") }}</button>
+        <button name="action" value="resume" type="submit">{{ _("Resume") }}</button>
+      </div>
+    </form>
+  </div>
+{% endif %}
+
+{% if jobs %}
+<div class="card">
+  <h3>{{ _("Recent runs") }}</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>{{ _("State") }}</th><th>{{ _("Stage") }}</th><th>{{ _("Started") }}</th><th></th></tr></thead>
+    <tbody>{% for j in jobs %}
+      <tr><td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else 'mute') }}">{{ (j.state)|ui }}</span></td>
+          <td class="small mono">{{ (j.progress or {}).get('stage') or '—' }}</td>
+          <td class="small muted">{{ j.started_at|time }}</td>
+          <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">{{ _("Open") }}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

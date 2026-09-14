@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import json
 import re
+from urllib.parse import quote
 from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from . import auth, integrations, runner, scripts as scriptmod
+from . import auth, authoring, integrations, runner, scripts as scriptmod
 from . import live_jobs
 from . import i18n
 from .preview_web import _check_form, _csrf_token
@@ -363,6 +364,85 @@ def add_episode(request: Request, series_id: str, episode_id: str = Form(...),
 
 
 # ── characters, clothing, voices ───────────────────────────────────────────
+
+# ── the screen the producer actually works on ──────────────────────────────
+
+@router.post("/series/{series_id}/next-episode")
+def open_next_episode(request: Request, series_id: str):
+    a = require_admin(request)
+    try:
+        episode = authoring.next_episode(series_id, a["email"])
+    except authoring.AuthoringError as e:
+        return _redirect(f"/series/{series_id}", err=str(e))
+    note = ("Continuing where you left off." if episode.get("reused")
+            else f"Episode {episode['number']} opened.")
+    return _redirect(f"/series/{series_id}/episodes/{episode['episode_id']}/studio", ok=note)
+
+
+def _estimate(series_id: str, episode_id: str) -> dict:
+    """Length, an estimated cost and the cap. The figure is an estimate."""
+    from serial.config import Config
+    from serial.package import SeriesPackage, estimate_first_pass, validate_episode
+    from .config import PIPELINE_DIR
+    from .packaging import materialize
+    try:
+        cfg = Config.load(PIPELINE_DIR, live=False)
+        pkg = SeriesPackage(materialize(series_id))
+        norm = validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
+        refs = store.list("reference_assets", {"series_id": series_id})
+        est = estimate_first_pass(norm, pkg, cfg, not refs)
+        return {"ok": True, "seconds": norm["total_seconds"], "clips": len(norm["scenes"]),
+                "estimate_usd": est["total_first_pass"], "cap_usd": est["budget_cap"],
+                "warnings": norm.get("warnings") or []}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
+@router.get("/series/{series_id}/episodes/{episode_id}/studio", response_class=HTMLResponse)
+def episode_studio(request: Request, series_id: str, episode_id: str):
+    require_admin(request)
+    s = store.get("series", {"id": series_id})
+    ep = store.get("episodes", {"series_id": series_id, "episode_id": episode_id})
+    if not s or not ep:
+        raise HTTPException(404, "episode not found")
+    scenes = store.list("scenes", {"series_id": series_id, "episode_id": episode_id},
+                        order="sequence")
+    memory = authoring.series_memory(series_id, episode_id)
+    runtime = runner.episode_runtime(series_id, episode_id)
+    return render(request, "authoring.html", s=s, ep=ep, mode=settings.mode,
+                  script=authoring.readable(scenes, memory), memory=memory,
+                  estimate=_estimate(series_id, episode_id) if scenes else None,
+                  runtime=runtime, active_job=runner.jobs.active_job(series_id, episode_id),
+                  jobs=runner.jobs.jobs_for(series_id, episode_id, limit=5),
+                  production_digest=live_jobs.review(series_id, episode_id) if settings.allow_paid else "",
+                  csrf_token=_csrf_token(request, require_admin(request)),
+                  voiceless=[c["id"] for c in memory["characters"]
+                             if c["on_camera"] and not c["has_voice"]])
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/draft")
+def draft_script(request: Request, series_id: str, episode_id: str, wish: str = Form("")):
+    a = require_admin(request)
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
+    try:
+        result = authoring.draft(series_id, episode_id, wish, a["email"])
+    except authoring.AuthoringError as e:
+        # The wish is kept so nothing typed is lost.
+        return _redirect(f"{back}?wish={quote(wish[:2000])}", err=str(e))
+    return _redirect(back, ok=f"Script ready: {result['clips']} clips, {result['seconds']}s.")
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/revise")
+def revise_script(request: Request, series_id: str, episode_id: str, instruction: str = Form("")):
+    a = require_admin(request)
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
+    try:
+        result = authoring.revise(series_id, episode_id, instruction, a["email"])
+    except authoring.AuthoringError as e:
+        return _redirect(f"{back}?instruction={quote(instruction[:2000])}", err=str(e))
+    redo = ", ".join(f"{c['scene_id']} ({c['redo']})" for c in result["changed"]) or "nothing"
+    return _redirect(back, ok=f"Script v{result['version']} saved. To redo: {redo}.")
+
 
 @router.get("/series/{series_id}/characters", response_class=HTMLResponse)
 def characters_page(request: Request, series_id: str):

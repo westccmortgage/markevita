@@ -117,6 +117,15 @@
     </div>
   </form>
 
+  {% if runtime.stages.get('deliver') == 'done' %}
+  <div class="btn-row" style="margin-top:14px">
+    <form method="post" action="{{ base }}/series/{{ s.id }}/next-episode">
+      <button class="btn-primary" type="submit">{{ _("Next episode") }}</button>
+    </form>
+    <span class="hint">{{ _("Continues this series from the ending you just approved.") }}</span>
+  </div>
+  {% endif %}
+
   {% if runtime.status == 'needs_budget_override' %}
     <hr class="sep">
     <div class="notice mode"><b>{{ _("Budget cap reached.") }}</b> {{ _("The run stopped rather than continuing silently. An override is recorded with actor, time, old value, new value and reason.") }}</div>

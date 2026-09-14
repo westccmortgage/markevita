@@ -46,6 +46,10 @@
 <div class="grid g2">
   <div class="card">
     <h2>{{ _("Episodes") }}</h2>
+    <form method="post" action="{{ base }}/series/{{ s.id }}/next-episode" style="margin-bottom:14px">
+      <button class="btn-primary" type="submit">{{ _("Next episode") }}</button>
+      <span class="hint">{{ _("Opens the next episode of this series and asks what should happen in it.") }}</span>
+    </form>
     {% if episodes %}
       <div class="table-scroll"><table>
         <thead><tr><th>#</th><th>{{ _("Episode") }}</th><th>{{ _("Title") }}</th><th>{{ _("Status") }}</th><th>{{ _("Spent") }}</th></tr></thead>
@@ -53,7 +57,7 @@
         {% for e in episodes %}
           <tr>
             <td class="muted">{{ e.number }}</td>
-            <td><a href="{{ base }}/series/{{ s.id }}/episodes/{{ e.episode_id }}"><code>{{ e.episode_id }}</code></a></td>
+            <td><a href="{{ base }}/series/{{ s.id }}/episodes/{{ e.episode_id }}/studio"><code>{{ e.episode_id }}</code></a></td>
             <td>{{ e.title or '—' }}</td>
             <td><span class="pill {{ 'ok' if e.status in ('complete','published') else ('bad' if 'failed' in (e.status or '') else 'mute') }}">{{ (e.status)|ui }}</span></td>
             <td>{{ e.spent_usd|money }}</td>

@@ -512,3 +512,50 @@ def changed_scenes(before: dict, after: list[dict]) -> list[dict]:
         elif spoken:
             out.append({"scene_id": scene["scene_id"], "redo": "speech"})
     return out
+
+
+# ── what the series still needs before it can be written or filmed ─────────
+
+def setup_problems(series_id: str) -> list[dict]:
+    """Missing bible entries, named and linked.
+
+    The engine reports these as schema paths — "bible/characters.json/0:
+    'appearance' is a required property" — which names an array index rather
+    than a person and offers nowhere to go. An on-camera character really does
+    need an appearance and a wardrobe: the image models read that text
+    literally, and without it faces drift between clips.
+
+    Each problem carries its wording and its values separately so the name of
+    a character or place is never fed through the translation table.
+    """
+    out = []
+
+    def add(message, label, page, **values):
+        out.append({"message": message, "values": values, "label": label,
+                    "href": f"/series/{series_id}/{page}"})
+
+    characters = store.list("characters", {"series_id": series_id}, order="character_id")
+    if not characters:
+        add("This series has no characters yet. Add them before writing an episode.",
+            "Add characters", "characters")
+    for c in characters:
+        if not c.get("visual", True):
+            continue
+        who = c.get("name") or c["character_id"]
+        if not (c.get("appearance") or "").strip():
+            add("{who}: no appearance description. The image models read it literally, so without "
+                "it the face changes between clips.", "Describe the character", "characters", who=who)
+        if not store.list("clothing", {"series_id": series_id, "character_id": c["character_id"]}):
+            add("{who}: no clothing variant. Every on-camera character needs at least one.",
+                "Add clothing", "characters", who=who)
+
+    locations = store.list("locations", {"series_id": series_id}, order="location_id")
+    if not locations:
+        add("This series has no locations yet. Add one before writing an episode.",
+            "Add a location", "locations")
+    for l in locations:
+        where = l.get("name") or l["location_id"]
+        if not (l.get("description") or "").strip():
+            add("{where}: no description. It is what keeps the space the same between clips.",
+                "Describe the location", "locations", where=where)
+    return out

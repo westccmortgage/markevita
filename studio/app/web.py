@@ -270,7 +270,7 @@ def series_page(request: Request, series_id: str):
     if not s:
         raise HTTPException(404, "series not found")
     validation = runner.validate_series(series_id)
-    return render(request, "series.html", s=s,
+    return render(request, "series.html", s=s, setup=authoring.setup_problems(series_id),
                   seasons=store.list("seasons", {"series_id": series_id}, order="number"),
                   episodes=store.list("episodes", {"series_id": series_id}, order="number"),
                   characters=store.list("characters", {"series_id": series_id}, order="character_id"),
@@ -445,13 +445,7 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     # What stops this episode being written at all. The producer used to type a
     # wish, press the button and only then learn the series has no cast — and
     # the refusal gave no way to go and fix it.
-    blockers = []
-    if not memory["characters"]:
-        blockers.append({"message": "This series has no characters yet. Add them before writing an episode.",
-                         "label": "Add characters", "href": f"/series/{series_id}/characters"})
-    if not memory["locations"]:
-        blockers.append({"message": "This series has no locations yet. Add one before writing an episode.",
-                         "label": "Add a location", "href": f"/series/{series_id}/locations"})
+    blockers = authoring.setup_problems(series_id)
     return render(request, "authoring.html", s=s, ep=ep, mode=settings.mode, blockers=blockers,
                   script=authoring.readable(scenes, memory), memory=memory,
                   estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))

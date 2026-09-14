@@ -66,7 +66,8 @@ def db(monkeypatch, tmp_path):
     driver.upsert("voices", {"series_id": MIAMI, "character_id": "nora",
                              "voice_env": "ELEVENLABS_VOICE_ID_NORA"})
     driver.upsert("locations", {"series_id": MIAMI, "location_id": "villa_terrace",
-                                "name": "Villa terrace", "lighting_states": {"default": "dusk"}})
+                                "name": "Villa terrace", "description": "Tiled terrace over the water.",
+                                "lighting_states": {"default": "dusk"}})
     return driver
 
 
@@ -342,6 +343,42 @@ def test_a_revision_sends_the_current_script_and_the_instruction(db, monkeypatch
 
 
 # ── what stops an episode being written is said before the wish is typed ───
+
+def test_a_character_saved_without_an_appearance_is_named(db):
+    """The engine said "bible/characters.json/0" — an index, not a person."""
+    db.upsert("characters", {"series_id": MIAMI, "character_id": "adrian", "name": "Adrian",
+                             "visual": True, "appearance": ""})
+    db.upsert("clothing", {"series_id": MIAMI, "character_id": "adrian", "variant_id": "w_suit"})
+    problems = authoring.setup_problems(MIAMI)
+    assert [p["values"].get("who") for p in problems] == ["Adrian"]
+    assert "appearance" in problems[0]["message"]
+    assert problems[0]["href"] == f"/series/{MIAMI}/characters"
+    # The name travels as a value, never through the translation table.
+    assert "Adrian" not in problems[0]["message"]
+
+
+def test_a_character_with_nothing_to_wear_is_named(db):
+    db.upsert("characters", {"series_id": MIAMI, "character_id": "maya", "name": "Maya",
+                             "visual": True, "appearance": "described"})
+    assert [p["values"].get("who") for p in authoring.setup_problems(MIAMI)] == ["Maya"]
+
+
+def test_an_off_camera_character_needs_neither(db):
+    """A voice on the phone is never rendered, so it needs no face or clothes."""
+    db.upsert("characters", {"series_id": MIAMI, "character_id": "caller", "name": "Caller",
+                             "visual": False})
+    assert authoring.setup_problems(MIAMI) == []
+
+
+def test_a_location_without_a_description_is_named(db):
+    db.upsert("locations", {"series_id": MIAMI, "location_id": "pier", "name": "Pier",
+                            "description": ""})
+    assert [p["values"].get("where") for p in authoring.setup_problems(MIAMI)] == ["Pier"]
+
+
+def test_a_ready_series_reports_nothing_to_do(db):
+    assert authoring.setup_problems(MIAMI) == []
+
 
 def test_a_series_with_no_cast_says_so_before_the_wish_is_typed(db, monkeypatch):
     """The refusal used to arrive only after the producer had written one."""

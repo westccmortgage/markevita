@@ -18,7 +18,21 @@
 <div class="card {{ 'tight' }}">
   <h3>{{ _("Package validation") }}</h3>
   {% if validation.package != 'ok' %}
-    <div class="notice err" style="margin:0"><b>{{ _("Package invalid.") }}</b><pre style="margin-top:8px">{{ validation.package }}</pre></div>
+    {# Say it as the thing to go and do. The engine's own schema paths name an
+       array index, not a person, and are kept below for diagnosis. #}
+    {% if setup %}
+      <div class="notice err" style="margin:0"><b>{{ _("This series is not ready to film yet.") }}</b>
+        {% for p in setup %}
+          <div style="margin-top:10px">{{ _(p.message, **p.values) }}
+            <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ p.href }}">{{ _(p.label) }} →</a>
+          </div>
+        {% endfor %}
+        <details style="margin-top:12px"><summary class="hint">{{ _("Engine detail") }}</summary>
+          <pre style="margin-top:8px">{{ validation.package }}</pre></details>
+      </div>
+    {% else %}
+      <div class="notice err" style="margin:0"><b>{{ _("Package invalid.") }}</b><pre style="margin-top:8px">{{ validation.package }}</pre></div>
+    {% endif %}
   {% else %}
     <div class="notice ok" style="margin:0 0 12px">{{ _("Package valid — bible version") }} <code>{{ validation.bible_version }}</code>.</div>
     {% if validation.episodes %}

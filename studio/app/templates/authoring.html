@@ -41,7 +41,7 @@
   <h2>{{ _("Before this episode can be written") }}</h2>
   <p class="hint" style="margin-top:-8px">{{ _("The studio writes only with the cast and places you approved. It never invents a new character or location.") }}</p>
   {% for b in blockers %}
-    <div class="notice err" style="margin-top:10px">{{ b.message|notice }}
+    <div class="notice err" style="margin-top:10px">{{ _(b.message, **b.values) }}
       <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ b.href }}">{{ _(b.label) }} →</a>
     </div>
   {% endfor %}

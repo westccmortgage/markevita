@@ -705,5 +705,13 @@
   "The studio writes only with the cast and places you approved. It never invents a new character or location.": "Студия пишет только теми персонажами и локациями, которые вы утвердили. Новых она не придумывает.",
   "Add characters": "Добавить персонажей",
   "Add a location": "Добавить локацию",
-  "Episode {id!r} has not been opened yet.": "Серия {id!r} ещё не открыта."
+  "Episode {id!r} has not been opened yet.": "Серия {id!r} ещё не открыта.",
+  "{who}: no appearance description. The image models read it literally, so without it the face changes between clips.": "{who}: не заполнено описание внешности. Модели изображений читают его дословно — без него лицо будет меняться от клипа к клипу.",
+  "{who}: no clothing variant. Every on-camera character needs at least one.": "{who}: нет ни одного варианта одежды. Каждому персонажу в кадре нужен хотя бы один.",
+  "{where}: no description. It is what keeps the space the same between clips.": "{where}: не заполнено описание. Именно оно удерживает пространство одинаковым от клипа к клипу.",
+  "Describe the character": "Описать персонажа",
+  "Add clothing": "Добавить одежду",
+  "Describe the location": "Описать локацию",
+  "This series is not ready to film yet.": "Этот сериал пока нельзя снимать.",
+  "Engine detail": "Подробности движка"
 }

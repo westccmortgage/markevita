@@ -36,6 +36,18 @@
 </div>
 {% endif %}
 
+{% if blockers %}
+<div class="card">
+  <h2>{{ _("Before this episode can be written") }}</h2>
+  <p class="hint" style="margin-top:-8px">{{ _("The studio writes only with the cast and places you approved. It never invents a new character or location.") }}</p>
+  {% for b in blockers %}
+    <div class="notice err" style="margin-top:10px">{{ b.message|notice }}
+      <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ b.href }}">{{ _(b.label) }} →</a>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if not script %}
   <!-- ── 1. the wish ───────────────────────────────────────────────────── -->
   <div class="card">
@@ -52,7 +64,7 @@
       <div class="field">
         <textarea name="wish" rows="6" placeholder="{{ _('Nora pretends to leave but listens at the door. Build tension, a sense of being watched, and a strong hook at the end.') }}">{{ request.query_params.get('wish', '') }}</textarea>
       </div>
-      <button class="btn-primary" type="submit">{{ _("Prepare the script") }}</button>
+      <button class="btn-primary" type="submit" {{ 'disabled' if blockers }}>{{ _("Prepare the script") }}</button>
       <p class="hint">{{ _("The studio keeps your approved cast, wardrobe and locations. This uses the language model and costs a few cents.") }}</p>
     </form>
   </div>

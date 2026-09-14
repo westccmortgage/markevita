@@ -697,5 +697,13 @@
   "on the video, plus a separate file": "на видео и отдельным файлом",
   "on the video": "на видео",
   "separate file only": "только отдельным файлом",
-  "off": "выключены"
+  "off": "выключены",
+  "This series has no characters yet. Add them before writing an episode.": "У этого сериала ещё нет персонажей. Добавьте их, прежде чем писать серию.",
+  "This series has no locations yet. Add one before writing an episode.": "У этого сериала ещё нет локаций. Добавьте хотя бы одну, прежде чем писать серию.",
+  "This series has no season yet. Add one on the series page.": "У этого сериала ещё нет сезона. Добавьте его на странице сериала.",
+  "Before this episode can be written": "Чего не хватает, чтобы написать серию",
+  "The studio writes only with the cast and places you approved. It never invents a new character or location.": "Студия пишет только теми персонажами и локациями, которые вы утвердили. Новых она не придумывает.",
+  "Add characters": "Добавить персонажей",
+  "Add a location": "Добавить локацию",
+  "Episode {id!r} has not been opened yet.": "Серия {id!r} ещё не открыта."
 }

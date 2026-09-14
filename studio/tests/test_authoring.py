@@ -339,3 +339,40 @@ def test_a_revision_sends_the_current_script_and_the_instruction(db, monkeypatch
     assert sent["current_script"]
     assert "Make the ending tenser" in sent["request"]
     assert "Leave every scene the change does not concern" in sent["request"]
+
+
+# ── what stops an episode being written is said before the wish is typed ───
+
+def test_a_series_with_no_cast_says_so_before_the_wish_is_typed(db, monkeypatch):
+    """The refusal used to arrive only after the producer had written one."""
+    from app import web
+    db.delete("characters", {"series_id": MIAMI})
+    captured = {}
+    monkeypatch.setattr(web, "store", db, raising=False)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "a@b.test"})
+    monkeypatch.setattr(web, "render", lambda request, template, **ctx: captured.update(ctx))
+    monkeypatch.setattr(web, "_csrf_token", lambda *a: "t")
+    monkeypatch.setattr(web.i18n, "language", lambda request: "en")
+    monkeypatch.setattr(web.runner, "episode_runtime", lambda *a: {"status": "draft", "stages": {}})
+    monkeypatch.setattr(web.runner.jobs, "active_job", lambda *a: None)
+    monkeypatch.setattr(web.runner.jobs, "jobs_for", lambda *a, **k: [])
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+    web.episode_studio(None, MIAMI, episode)
+    assert [b["href"] for b in captured["blockers"]] == [f"/series/{MIAMI}/characters"]
+    assert "no characters" in captured["blockers"][0]["message"]
+
+
+def test_a_complete_series_shows_no_blockers(db, monkeypatch):
+    from app import web
+    captured = {}
+    monkeypatch.setattr(web, "store", db, raising=False)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "a@b.test"})
+    monkeypatch.setattr(web, "render", lambda request, template, **ctx: captured.update(ctx))
+    monkeypatch.setattr(web, "_csrf_token", lambda *a: "t")
+    monkeypatch.setattr(web.i18n, "language", lambda request: "en")
+    monkeypatch.setattr(web.runner, "episode_runtime", lambda *a: {"status": "draft", "stages": {}})
+    monkeypatch.setattr(web.runner.jobs, "active_job", lambda *a: None)
+    monkeypatch.setattr(web.runner.jobs, "jobs_for", lambda *a, **k: [])
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+    web.episode_studio(None, MIAMI, episode)
+    assert captured["blockers"] == []

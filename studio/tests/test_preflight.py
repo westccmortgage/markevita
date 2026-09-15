@@ -128,7 +128,7 @@ def test_resume_form_keeps_saved_character_voice_mode(language_ui, monkeypatch):
     runtime = runner.episode_runtime(sid, eid)
     runtime['audio_mode'] = 'voices'
     monkeypatch.setattr(runner, 'episode_runtime', lambda *a: runtime)
-    text = client.get(f'/studio/series/{sid}/episodes/{eid}').text
+    text = client.get(f'/studio/series/{sid}/episodes/{eid}/studio').text
     assert '<option value="voices" selected>' in text
     assert '<option value="native" selected>' not in text
 

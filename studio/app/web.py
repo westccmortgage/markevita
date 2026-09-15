@@ -447,19 +447,20 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     # wish, press the button and only then learn the series has no cast — and
     # the refusal gave no way to go and fix it.
     blockers = authoring.setup_problems(series_id)
-    return render(request, "authoring.html", s=s, ep=ep, mode=settings.mode, blockers=blockers,
-                  script=authoring.readable(scenes, memory), memory=memory,
-                  estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
-                           if scenes else None,
-                  runtime=runtime, active_job=runner.jobs.active_job(series_id, episode_id),
-                  jobs=runner.jobs.jobs_for(series_id, episode_id, limit=5),
-                  production_digest=live_jobs.review(series_id, episode_id) if settings.allow_paid else "",
-                  subtitles=i18n.translate(
-                      SUBTITLES.get((s.get("format") or {}).get("captions", "both"),
-                                    SUBTITLES["both"]), i18n.language(request)),
-                  csrf_token=_csrf_token(request, require_admin(request)),
-                  voiceless=[c["id"] for c in memory["characters"]
-                             if c["on_camera"] and not c["has_voice"]])
+    # One screen: the plain-words half above, the technical half from the old
+    # episode page folded in below it behind a disclosure.
+    context = _episode_context(request, series_id, episode_id)
+    context.update(
+        blockers=blockers, memory=memory,
+        script=authoring.readable(scenes, memory),
+        estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
+                 if scenes else None,
+        subtitles=i18n.translate(
+            SUBTITLES.get((s.get("format") or {}).get("captions", "both"), SUBTITLES["both"]),
+            i18n.language(request)),
+        voiceless=[c["id"] for c in memory["characters"]
+                   if c["on_camera"] and not c["has_voice"]])
+    return render(request, "authoring.html", **context)
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/draft")
@@ -498,7 +499,8 @@ def characters_page(request: Request, series_id: str):
                                                  "character_id": c["character_id"]}, order="variant_id")
         c["_voice"] = store.get("voices", {"series_id": series_id, "character_id": c["character_id"]})
     return render(request, "characters.html", s=s, characters=chars,
-                  props=store.list("props", {"series_id": series_id}, order="prop_id"))
+                  props=store.list("props", {"series_id": series_id}, order="prop_id"),
+                  voice_slots=authoring.voice_choices(series_id))
 
 
 @router.post("/series/{series_id}/fill-bible")
@@ -540,10 +542,11 @@ def save_character(request: Request, series_id: str, character_id: str = Form(..
         "immutable": _jsonlist(immutable), "props": [], "seed_assets": [],
         "updated_at": _now(),
     })
-    if not store.get("voices", {"series_id": series_id, "character_id": cid}):
+    slot = authoring.next_free_slot(series_id)
+    if slot and not store.get("voices", {"series_id": series_id, "character_id": cid}):
         store.upsert("voices", {
             "series_id": series_id, "character_id": cid, "provider": "elevenlabs",
-            "voice_env": f"ELEVENLABS_VOICE_ID_{cid.upper()}", "model_id": "eleven_v3",
+            "voice_env": slot, "model_id": "eleven_v3",
             "language": (store.get("series", {"id": series_id}) or {}).get("language", "en-US"),
             "style_notes": "", "phone_fx": False, "locked": False,
         })
@@ -598,6 +601,9 @@ def save_voice(request: Request, series_id: str, character_id: str,
     if not re.fullmatch(r"[A-Z0-9_]+", env_name):
         return _redirect(f"/series/{series_id}/characters",
                          err="The voice variable name may contain only A-Z, 0-9 and underscores.")
+    if not authoring.voice_env_is_known(env_name):
+        return _redirect(f"/series/{series_id}/characters",
+                         err="Choose one of this server's voice slots.")
     store.upsert("voices", {
         "series_id": series_id, "character_id": character_id, "provider": "elevenlabs",
         "voice_env": env_name, "model_id": model_id, "language": language,
@@ -605,8 +611,11 @@ def save_voice(request: Request, series_id: str, character_id: str,
     })
     history(series_id, "", "voice.assigned", entity_type="voice", entity_id=character_id,
             actor=a["email"], detail={"voice_env": env_name})
+    ready = any(slot["env"] == env_name and slot["configured"]
+                for slot in authoring.voice_slots())
     return _redirect(f"/series/{series_id}/characters",
-                     ok=f"Voice bound to {env_name}. Put the id in studio/.env under that name.")
+                     ok=f"Voice bound to {env_name}." if ready else
+                        f"Voice bound to {env_name}, but that slot is empty on this server.")
 
 
 # ── locations and props ────────────────────────────────────────────────────
@@ -736,10 +745,17 @@ def delete_secret(request: Request, series_id: str, secret_id: str):
 
 @router.get("/series/{series_id}/episodes/{episode_id}", response_class=HTMLResponse)
 def episode_page(request: Request, series_id: str, episode_id: str):
+    """Kept so older links still work; the episode has one screen now."""
     require_admin(request)
-    episode_jobs = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id})
-    if any(job.get("stages") == ["clip_preview"] for job in episode_jobs):
+    if any(job.get("stages") == ["clip_preview"] for job in
+           store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id})):
         return _redirect("/clip-preview")
+    return _redirect(f"/series/{series_id}/episodes/{episode_id}/studio")
+
+
+def _episode_context(request: Request, series_id: str, episode_id: str) -> dict:
+    """Everything the technical half of the episode screen needs."""
+    episode_jobs = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id})
     s = store.get("series", {"id": series_id})
     ep = store.get("episodes", {"series_id": series_id, "episode_id": episode_id})
     if not s or not ep:
@@ -764,7 +780,7 @@ def episode_page(request: Request, series_id: str, episode_id: str):
     by_scene: dict[str, list] = {}
     for t in takes:
         by_scene.setdefault(t.get("scene_id", ""), []).append(t)
-    return render(request, "episode.html", s=s, ep=ep, mode=settings.mode,
+    return dict(s=s, ep=ep, mode=settings.mode,
                   blocked_request=blocked_request, blocked_job=blocked_job,
                   word_budget=word_budget,
                   scenes=store.list("scenes", {"series_id": series_id, "episode_id": episode_id},

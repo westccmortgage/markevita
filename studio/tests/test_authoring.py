@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -46,6 +47,16 @@ def _open_second(db):
                            "number": 1, "title": "Pilot"})
     db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", **_scene(1)})
     return authoring.next_episode(MIAMI)["episode_id"]
+
+
+@pytest.fixture
+def slots(monkeypatch):
+    """Two voice slots set on this server, as Render would hold them."""
+    for name in list(os.environ):
+        if name.startswith("ELEVENLABS_VOICE"):
+            monkeypatch.delenv(name)
+    monkeypatch.setenv("ELEVENLABS_VOICE_1", "voice-one")
+    monkeypatch.setenv("ELEVENLABS_VOICE_2", "voice-two")
 
 
 @pytest.fixture
@@ -454,13 +465,54 @@ def test_a_voice_only_character_gets_no_clothes(db, monkeypatch):
     assert db.list("clothing", {"series_id": MIAMI, "character_id": "caller"}) == []
 
 
-def test_every_new_character_gets_a_voice_binding(db, monkeypatch):
+def test_every_new_character_takes_a_free_voice_slot(db, monkeypatch, slots):
+    """Binding a per-character variable meant a redeploy for each new name."""
     db.delete("characters", {"series_id": MIAMI})
     db.delete("voices", {"series_id": MIAMI})
     _cast(monkeypatch)
     authoring.fill_bible(MIAMI)
-    voice = db.get("voices", {"series_id": MIAMI, "character_id": "nora"})
-    assert voice["voice_env"] == "ELEVENLABS_VOICE_ID_NORA"
+    assert db.get("voices", {"series_id": MIAMI,
+                             "character_id": "nora"})["voice_env"] == "ELEVENLABS_VOICE_1"
+    assert db.get("voices", {"series_id": MIAMI,
+                             "character_id": "caller"})["voice_env"] == "ELEVENLABS_VOICE_2"
+
+
+def test_a_server_with_no_slots_binds_nobody(db, monkeypatch):
+    """Inventing a variable name nobody can set is worse than none at all."""
+    for name in list(os.environ):
+        if authoring.SLOT_RE.match(name):
+            monkeypatch.delenv(name)
+    db.delete("characters", {"series_id": MIAMI})
+    db.delete("voices", {"series_id": MIAMI})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    assert db.list("voices", {"series_id": MIAMI}) == []
+
+
+def test_an_empty_slot_is_offered_but_marked(db, slots, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_VOICE_3", "")
+    choices = {c["env"]: c["configured"] for c in authoring.voice_choices(MIAMI)}
+    assert choices["ELEVENLABS_VOICE_1"] is True and choices["ELEVENLABS_VOICE_3"] is False
+
+
+def test_a_slot_shows_who_else_holds_it(db, slots):
+    db.upsert("voices", {"series_id": MIAMI, "character_id": "nora",
+                         "voice_env": "ELEVENLABS_VOICE_1"})
+    held = {c["env"]: c["used_by"] for c in authoring.voice_choices(MIAMI)}
+    assert held["ELEVENLABS_VOICE_1"] == ["nora"] and held["ELEVENLABS_VOICE_2"] == []
+
+
+def test_a_free_slot_is_preferred_over_a_taken_one(db, slots):
+    db.upsert("voices", {"series_id": MIAMI, "character_id": "nora",
+                         "voice_env": "ELEVENLABS_VOICE_1"})
+    assert authoring.next_free_slot(MIAMI) == "ELEVENLABS_VOICE_2"
+
+
+def test_only_this_servers_slots_may_be_bound():
+    assert authoring.voice_env_is_known("ELEVENLABS_VOICE_4")
+    assert authoring.voice_env_is_known("ELEVENLABS_VOICE_ID_NORA")  # older binding
+    assert not authoring.voice_env_is_known("PATH")
+    assert not authoring.voice_env_is_known("AWS_SECRET_ACCESS_KEY")
 
 
 def test_what_a_person_wrote_is_never_overwritten(db, monkeypatch):

@@ -700,11 +700,13 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
             added.append(cid)
         store.upsert("characters", record)
         if not store.get("voices", {"series_id": series_id, "character_id": cid}):
-            store.upsert("voices", {
-                "series_id": series_id, "character_id": cid, "provider": "elevenlabs",
-                "voice_env": f"ELEVENLABS_VOICE_ID_{cid.upper()}", "model_id": "eleven_v3",
-                "language": material["dialogue_language"], "style_notes": "",
-                "phone_fx": False, "locked": False})
+            slot = next_free_slot(series_id)
+            if slot:
+                store.upsert("voices", {
+                    "series_id": series_id, "character_id": cid, "provider": "elevenlabs",
+                    "voice_env": slot, "model_id": "eleven_v3",
+                    "language": material["dialogue_language"], "style_notes": "",
+                    "phone_fx": False, "locked": False})
         if record["visual"] and not store.list("clothing", {"series_id": series_id,
                                                             "character_id": cid}):
             variants = [v for v in (c.get("wardrobe") or []) if _slug_id(v.get("id") or "")]
@@ -741,3 +743,57 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
             actor=actor, detail={"added": added, "completed": completed, "locations": places})
     return {"added": added, "completed": completed, "locations": places, "spend_usd": spend,
             "remaining": setup_problems(series_id)}
+
+
+# ── voice slots ────────────────────────────────────────────────────────────
+
+SLOT_PREFIX = "ELEVENLABS_VOICE_"
+LEGACY_PREFIX = "ELEVENLABS_VOICE_ID_"
+SLOT_RE = re.compile(r"^ELEVENLABS_VOICE_(?:SLOT_)?([0-9]{1,2})$")
+
+
+def voice_slots() -> list[dict]:
+    """Voice variables this server actually holds, as choices.
+
+    Binding a character to ELEVENLABS_VOICE_ID_<NAME> meant a new server
+    variable and a redeploy for every character — impossible from the browser,
+    and "fill this in automatically" can add five at once. A fixed pool is set
+    once; assigning one is then a choice in the studio.
+
+    The id itself is never read here and never reaches the database: only the
+    variable's name, and whether it is filled in.
+    """
+    slots = []
+    for name, value in os.environ.items():
+        match = SLOT_RE.match(name)
+        if match:
+            slots.append({"env": name, "number": int(match.group(1)),
+                          "configured": bool((value or "").strip())})
+    slots.sort(key=lambda s: s["number"])
+    return slots
+
+
+def voice_choices(series_id: str) -> list[dict]:
+    """The pool, with who currently holds each slot."""
+    taken = {}
+    for v in store.list("voices", {"series_id": series_id}):
+        taken.setdefault(v.get("voice_env"), []).append(v["character_id"])
+    return [{**slot, "used_by": sorted(taken.get(slot["env"], []))} for slot in voice_slots()]
+
+
+def next_free_slot(series_id: str) -> str:
+    """A configured slot nobody in this series holds, else any configured one.
+
+    Returns "" when the server has no voice slots at all; the series then runs
+    on the video model's own speech until slots are set.
+    """
+    choices = voice_choices(series_id)
+    ready = [c for c in choices if c["configured"]]
+    free = [c for c in ready if not c["used_by"]]
+    pick = (free or ready or choices)
+    return pick[0]["env"] if pick else ""
+
+
+def voice_env_is_known(name: str) -> bool:
+    """A pool slot, or the per-character name the studio used before."""
+    return bool(SLOT_RE.match(name) or name.startswith(LEGACY_PREFIX))

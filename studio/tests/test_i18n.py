@@ -70,7 +70,7 @@ def test_all_studio_pages_render_russian_without_translating_content(language_ui
     store.update('episodes',{'series_id':sid,'episode_id':eid},{'spent_usd':0,'status':'draft'})
     store.insert('production_jobs',{'id':'testjob','series_id':sid,'episode_id':eid,'state':'failed','mode':'live',
          'stages':['intake','references'],'progress':{'stage':'references','done':['intake']},'error':'Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.', 'log':'Original provider log'})
-    paths=['/','/jobs','/jobs/testjob','/costs','/integrations',f'/series/{sid}',f'/series/{sid}/episodes/{eid}']
+    paths=['/','/jobs','/jobs/testjob','/costs','/integrations',f'/series/{sid}',f'/series/{sid}/episodes/{eid}/studio']
     paths += [f'/series/{sid}/{p}' for p in ['characters','locations','world','references']]
     for path in paths:
         r=client.get('/studio'+path)

@@ -87,7 +87,24 @@
   <form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/voice">
     <div class="row">
       <div class="field"><label>{{ _("Voice id variable name") }}</label>
-        <input type="text" name="voice_env" value="{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}"></div>
+        {% set bound = v.get('voice_env', '') %}
+        {# A slot is set once on the server; assigning one is a choice here, so
+           adding a character no longer needs a redeploy. #}
+        <select name="voice_env">
+          {% for slot in voice_slots %}
+            <option value="{{ slot.env }}" {{ 'selected' if bound == slot.env }}>
+              {{ _("Voice") }} {{ slot.number }}{% if not slot.configured %} — {{ _("empty on this server") }}{% endif %}
+              {%- set others = slot.used_by | reject('equalto', c.character_id) | list %}
+              {%- if others %} · {{ _("also") }}: {{ others|join(', ') }}{% endif %}
+            </option>
+          {% endfor %}
+          {% if bound and bound not in voice_slots|map(attribute='env')|list %}
+            <option value="{{ bound }}" selected>{{ bound }} — {{ _("older per-character variable") }}</option>
+          {% endif %}
+          {% if not voice_slots and not bound %}
+            <option value="">{{ _("no voice slots configured on this server") }}</option>
+          {% endif %}
+        </select></div>
       <div class="field"><label>{{ _("Model") }}</label><input type="text" name="model_id" value="{{ v.get('model_id','eleven_v3') }}"></div>
       <div class="field"><label>{{ _("Language") }}</label><input type="text" name="language" value="{{ v.get('language','en-US') }}"></div>
       <div class="field"><label>{{ _("Phone effect") }}</label>
@@ -97,8 +114,8 @@
     </div>
     <div class="field"><label>{{ _("Style notes — register, pace, delivery") }}</label>
       <input type="text" name="style_notes" value="{{ v.get('style_notes','') }}" placeholder="warm low mezzo, 150 wpm, dry humour"></div>
-    <p class="hint">{{ _("Put the actual id in") }} <code>studio/.env</code> {{ _("as") }}
-      <code>{{ v.get('voice_env', 'ELEVENLABS_VOICE_ID_' ~ c.character_id|upper) }}=…</code>{{ _(". It is never stored here.") }}</p>
+    <p class="hint">{{ _("Voice slots are set on the server once, as") }} <code>ELEVENLABS_VOICE_1…N</code>.
+      {{ _("The id itself is never stored here — only which slot this character uses.") }}</p>
     <button type="submit">{{ _("Save voice binding") }}</button>
   </form>
 </div>

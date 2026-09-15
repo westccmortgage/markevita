@@ -87,8 +87,11 @@
     {% else %}<div class="empty">{{ _("No episodes yet.") }}</div>{% endif %}
 
     <hr class="sep">
-    <h3>{{ _("Add episode") }}</h3>
-    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes">
+    {# "Next episode" numbers and places an episode correctly. Typing an id by
+       hand is now mainly a way to create one that does not match its season. #}
+    <details>
+    <summary class="hint">{{ _("Add an episode by hand (advanced)") }}</summary>
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes" style="margin-top:12px">
       <div class="row">
         <div class="field"><label>{{ _("Episode id") }}</label><input type="text" name="episode_id" placeholder="s01e01" required></div>
         <div class="field"><label>{{ _("Season") }}</label>
@@ -97,8 +100,9 @@
         <div class="field"><label>{{ _("Number") }}</label><input type="number" name="number" value="{{ episodes|length + 1 }}"></div>
       </div>
       <div class="field"><label>{{ _("Title") }}</label><input type="text" name="title"></div>
-      <button class="btn-primary" type="submit">{{ _("Add episode") }}</button>
+      <button type="submit">{{ _("Add episode") }}</button>
     </form>
+    </details>
   </div>
 
   <div class="card">
@@ -113,7 +117,9 @@
       </tbody>
     </table></div>
     <hr class="sep">
-    <h3>{{ _("Add season") }}</h3>
+    <details>
+    <summary class="hint">{{ _("Add a season by hand (advanced)") }}</summary>
+    <p class="hint">{{ _("A season is opened automatically when the next episode needs one.") }}</p>
     <form method="post" action="{{ base }}/series/{{ s.id }}/seasons">
       <div class="row">
         <div class="field"><label>{{ _("Season id") }}</label><input type="text" name="season_id" placeholder="s02" required></div>
@@ -122,6 +128,7 @@
       <div class="field"><label>{{ _("Title") }}</label><input type="text" name="title"></div>
       <button type="submit">{{ _("Add season") }}</button>
     </form>
+    </details>
   </div>
 </div>
 

@@ -128,7 +128,7 @@ def test_the_episode_page_warns_before_resume(ui):
     Without this the operator presses Resume and gets the same refusal."""
     ui.store.upsert("episodes", {"series_id": SERIES, "episode_id": EPISODE,
                                  "number": 1, "title": "V2"})
-    page = ui.client.get(f"/studio/series/{SERIES}/episodes/{EPISODE}").text
+    page = ui.client.get(f"/studio/series/{SERIES}/episodes/{EPISODE}/studio").text
     assert "Resume will stop on the same refusal" in page
     assert RID in page
     assert f'/studio/jobs/{ui.job["id"]}' in page
@@ -138,7 +138,7 @@ def test_the_episode_warning_clears_once_recorded(ui):
     ui.store.upsert("episodes", {"series_id": SERIES, "episode_id": EPISODE,
                                  "number": 1, "title": "V2"})
     ui.client.post(f"/studio/jobs/{ui.job['id']}/release-request", data={"request_id": RID})
-    page = ui.client.get(f"/studio/series/{SERIES}/episodes/{EPISODE}").text
+    page = ui.client.get(f"/studio/series/{SERIES}/episodes/{EPISODE}/studio").text
     assert "Resume will stop on the same refusal" not in page
 
 

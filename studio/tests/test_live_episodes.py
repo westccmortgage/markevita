@@ -324,7 +324,7 @@ def test_production_form_uses_current_script_budget_and_csrf(short_package, monk
                       'takes': {}, 'masters': [], 'stages': {}, 'approvals': {}, 'overrides': [], 'qa': []})
     client = TestClient(app, base_url='https://studio.example.test')
     client.cookies.set(auth.COOKIE, auth.serialize({'email': 'admin@example.test', 'role': 'owner'}))
-    response = client.get(f'/series/{sid}/episodes/{eid}')
+    response = client.get(f'/series/{sid}/episodes/{eid}/studio')
     assert response.status_code == 200
     assert 'Brief valid — 4 clips, 32s' in response.text
     assert 'Native scene audio' in response.text

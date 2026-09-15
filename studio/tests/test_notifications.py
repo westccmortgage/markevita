@@ -138,11 +138,11 @@ def test_ready_episode_player_precedes_production_and_links_latest_master(langua
     runtime.update(stages={'qa':'done','deliver':'done'}, masters=[{'version':'v2','files':['episode.mp4']}])
     monkeypatch.setattr(runner, 'episode_runtime', lambda *args:runtime)
     monkeypatch.setattr(settings, 'allow_paid', True)
-    page = client.get(f'/studio/series/{sid}/episodes/{eid}').text
+    page = client.get(f'/studio/series/{sid}/episodes/{eid}/studio').text
     assert page.index('id="watch"') < page.index('<!-- ── production')
     assert 'preload="none"' in page and '/master/v2' in page
     runtime['stages']['deliver'] = 'failed'
-    assert 'id="watch"' not in client.get(f'/studio/series/{sid}/episodes/{eid}').text
+    assert 'id="watch"' not in client.get(f'/studio/series/{sid}/episodes/{eid}/studio').text
 
 
 def test_parallel_restore_preserves_files_paths_and_detects_corruption(checkpoint, tmp_path):

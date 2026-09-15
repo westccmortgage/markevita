@@ -717,5 +717,16 @@
   "Fill this in automatically": "Заполнить автоматически",
   "The studio writes the cast and places from what this series already established, and keeps everything you wrote yourself.": "Студия опишет персонажей и локации по тому, что уже сказано в этом сериале, и не тронет ничего, что вы написали сами.",
   "drafted by the studio": "черновик студии",
-  "This series has nothing written yet. Add a logline or an episode first.": "Про этот сериал пока ничего не написано. Добавьте логлайн или серию."
+  "This series has nothing written yet. Add a logline or an episode first.": "Про этот сериал пока ничего не написано. Добавьте логлайн или серию.",
+  "Technical details": "Технические детали",
+  "Add an episode by hand (advanced)": "Добавить серию вручную (расширенное)",
+  "Add a season by hand (advanced)": "Добавить сезон вручную (расширенное)",
+  "A season is opened automatically when the next episode needs one.": "Сезон открывается сам, когда он нужен следующей серии.",
+  "empty on this server": "на сервере не задан",
+  "also": "также",
+  "older per-character variable": "старая переменная под персонажа",
+  "no voice slots configured on this server": "на сервере не настроено ни одного слота голоса",
+  "Voice slots are set on the server once, as": "Слоты голосов задаются на сервере один раз, как",
+  "The id itself is never stored here — only which slot this character uses.": "Сам id здесь не хранится — только то, какой слот занимает этот персонаж.",
+  "Choose one of this server's voice slots.": "Выберите один из слотов голоса этого сервера."
 }

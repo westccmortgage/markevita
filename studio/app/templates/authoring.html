@@ -13,7 +13,7 @@
   </div>
   <div class="btn-row">
     <span class="pill {{ 'ok' if runtime.status in ('complete','published') else 'mute' }}">{{ (runtime.status)|ui }}</span>
-    <a class="btn btn-sm" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}">{{ _("Advanced settings") }}</a>
+    <a class="btn btn-sm" href="#technical">{{ _("Technical details") }}</a>
   </div>
 </div>
 
@@ -172,6 +172,16 @@
     </form>
   </div>
 {% endif %}
+
+{# One screen per episode. Everything the old separate page carried lives
+   here, collapsed: stage selection, scripts, scene editing, QA, approvals,
+   overrides, costs and logs. #}
+<details id="technical" style="margin-top:22px">
+  <summary class="hint" style="font-size:15px">{{ _("Technical details") }}</summary>
+  <div style="margin-top:14px">
+    {% with embedded = true %}{% include "episode_body.html" %}{% endwith %}
+  </div>
+</details>
 
 {% if jobs %}
 <div class="card">

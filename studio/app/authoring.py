@@ -810,45 +810,87 @@ def voice_env_is_known(name: str) -> bool:
     return bool(SLOT_RE.match(name) or name.startswith(LEGACY_PREFIX))
 
 
-# ── writing the bible takes longer than a browser request ──────────────────
+# ── work that outlives the request that started it ─────────────────────────
 
-STARTED, DONE, FAILED = "bible.drafting", "bible.drafted", "bible.draft_failed"
+# Describing a cast, or writing an episode, takes the model a minute or two.
+# That is longer than the proxy in front of the service will hold a browser
+# request open, so it answered with a gateway timeout while the work carried
+# on invisibly. Long work runs behind the request and reports through the
+# history table, which every worker of the service can read.
+
+BIBLE = ("bible.drafting", "bible.drafted", "bible.draft_failed")
+SCRIPT = ("script.drafting", "script.drafted", "script.draft_failed")
+EVENTS = {"bible": BIBLE, "script": SCRIPT}
 
 
-def fill_state(series_id: str) -> dict:
-    """Where the last attempt got to, from the history it writes.
-
-    The model needs a minute or two for a whole cast; a browser request is cut
-    off long before that by the proxy in front of the service, which showed the
-    producer a gateway timeout while the work was still running. So the work
-    runs behind the request and reports through history, which every worker of
-    the service can read.
-    """
+def work_state(series_id: str, kind: str = "bible", episode_id: str = "") -> dict:
+    """Where the last attempt of this kind got to."""
+    started, done, failed = EVENTS[kind]
     rows = [r for r in store.list("generation_history", {"series_id": series_id},
                                   order="created_at", desc=True)
-            if r.get("event") in (STARTED, DONE, FAILED)]
+            if r.get("event") in (started, done, failed)
+            and (r.get("episode_id") or "") == episode_id]
     if not rows:
         return {"state": "idle"}
     last = rows[0]
-    detail = last.get("detail") or {}
-    return {"state": {STARTED: "running", DONE: "done", FAILED: "failed"}[last["event"]],
-            "at": last.get("created_at"), **detail}
+    return {"state": {started: "running", done: "done", failed: "failed"}[last["event"]],
+            "at": last.get("created_at"), **(last.get("detail") or {})}
 
 
-def start_fill(series_id: str, actor: str = "") -> dict:
-    """Begin writing the bible and return at once."""
-    if fill_state(series_id)["state"] == "running":
+def fill_state(series_id: str) -> dict:
+    return work_state(series_id, "bible")
+
+
+def _start(series_id: str, episode_id: str, kind: str, work, actor: str) -> dict:
+    """Begin the work and return at once."""
+    started, done, failed = EVENTS[kind]
+    if work_state(series_id, kind, episode_id)["state"] == "running":
         return {"already": True}
-    if not store.get("series", {"id": series_id}):
-        raise AuthoringError(f"Series {series_id!r} not found.")
-    history(series_id, "", STARTED, entity_type="series", entity_id=series_id, actor=actor)
+    history(series_id, episode_id, started, entity_type="series", entity_id=series_id,
+            actor=actor)
 
     def run():
         try:
-            fill_bible(series_id, actor)
-        except Exception as exc:                                  # noqa: BLE001
-            history(series_id, "", FAILED, entity_type="series", entity_id=series_id,
-                    actor=actor, detail={"error": str(exc)[:400]})
+            detail = work() or {}
+        except Exception as exc:                                   # noqa: BLE001
+            history(series_id, episode_id, failed, entity_type="series",
+                    entity_id=series_id, actor=actor, detail={"error": str(exc)[:400]})
+        else:
+            history(series_id, episode_id, done, entity_type="series",
+                    entity_id=series_id, actor=actor, detail=detail)
 
-    threading.Thread(target=run, name=f"fill-bible:{series_id}", daemon=True).start()
+    threading.Thread(target=run, name=f"{kind}:{series_id}:{episode_id}", daemon=True).start()
     return {"already": False}
+
+
+def start_fill(series_id: str, actor: str = "") -> dict:
+    if not store.get("series", {"id": series_id}):
+        raise AuthoringError(f"Series {series_id!r} not found.")
+    return _start(series_id, "", "bible",
+                  lambda: {k: v for k, v in fill_bible(series_id, actor).items()
+                           if k in ("added", "completed", "locations")}, actor)
+
+
+def start_draft(series_id: str, episode_id: str, wish: str, actor: str = "") -> dict:
+    """Write the episode behind the request."""
+    if not store.get("episodes", {"series_id": series_id, "episode_id": episode_id}):
+        raise AuthoringError(
+            f"Episode {episode_id!r} has not been opened yet. Use \u201cNext episode\u201d "
+            "on the series page.")
+    return _start(series_id, episode_id, "script",
+                  lambda: _summary(draft(series_id, episode_id, wish, actor)), actor)
+
+
+def start_revise(series_id: str, episode_id: str, instruction: str, actor: str = "") -> dict:
+    instruction = (instruction or "").strip()
+    if not instruction:
+        raise AuthoringError("Describe what to change.")
+    return _start(series_id, episode_id, "script",
+                  lambda: _summary(revise(series_id, episode_id, instruction, actor)), actor)
+
+
+def _summary(result: dict) -> dict:
+    return {"clips": result.get("clips"), "seconds": result.get("seconds"),
+            "version": result.get("version"),
+            "changed": [f"{c['scene_id']} ({c['redo']})" for c in result.get("changed") or []],
+            "warnings": result.get("warnings") or []}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ s.title }} · {{ _("Episode") }} {{ ep.number }}{% endblock %}
-{% from "_fill.html" import fill_status %}
+{% from "_fill.html" import fill_status, writing_status %}
 {% block content %}
 
 {# Which series and which episode, always. An earlier flow let a continuation
@@ -28,6 +28,8 @@
   <video controls playsinline preload="none" style="width:100%;max-width:360px;max-height:65vh;background:#000" src="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/master/{{ latest_master.version }}"></video>
 </section>
 {% endif %}
+
+{{ writing_status(writing) }}
 
 {% if active_job %}
 <div class="notice info">
@@ -71,7 +73,7 @@
       <div class="field">
         <textarea name="wish" rows="6" placeholder="{{ _('Nora pretends to leave but listens at the door. Build tension, a sense of being watched, and a strong hook at the end.') }}">{{ request.query_params.get('wish', '') }}</textarea>
       </div>
-      <button class="btn-primary" type="submit" {{ 'disabled' if blockers }}>{{ _("Prepare the script") }}</button>
+      <button class="btn-primary" type="submit" {{ 'disabled' if blockers or writing.state == 'running' }}>{{ _("Prepare the script") }}</button>
       <p class="hint">{{ _("The studio keeps your approved cast, wardrobe and locations. This uses the language model and costs a few cents.") }}</p>
     </form>
   </div>
@@ -117,7 +119,7 @@
       <div class="field">
         <textarea name="instruction" rows="3" placeholder="{{ _('Make the ending tenser. Nora should see them through the door first. Shorten that line.') }}">{{ request.query_params.get('instruction', '') }}</textarea>
       </div>
-      <button type="submit">{{ _("Apply the change") }}</button>
+      <button type="submit" {{ 'disabled' if writing.state == 'running' }}>{{ _("Apply the change") }}</button>
       <p class="hint">{{ _("Scenes the change does not touch keep their wording and their footage. Changing what is seen or how the camera moves means that clip is generated again.") }}</p>
     </form>
   </div>

@@ -13,3 +13,20 @@
     </div>
   {% endif %}
 {% endmacro %}
+
+{% macro writing_status(writing) %}
+  {% if writing and writing.state == 'running' %}
+    <meta http-equiv="refresh" content="15">
+    <div class="notice info">
+      <b>{{ _("The studio is writing this episode.") }}</b>
+      {{ _("This takes a minute or two. The page refreshes itself.") }}
+    </div>
+  {% elif writing and writing.state == 'failed' %}
+    <div class="notice err">
+      <b>{{ _("Writing the episode stopped.") }}</b>
+      <pre style="margin-top:8px">{{ (writing.error or '')|notice }}</pre>
+    </div>
+  {% elif writing and writing.state == 'done' and writing.changed %}
+    <div class="notice info">{{ _("To redo:") }} {{ writing.changed|join(', ') }}</div>
+  {% endif %}
+{% endmacro %}

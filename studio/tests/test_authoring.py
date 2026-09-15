@@ -663,11 +663,63 @@ def test_the_request_returns_before_the_model_does(db, monkeypatch, slots):
 
 def test_a_second_press_does_not_start_a_second_run(db, monkeypatch, slots):
     monkeypatch.setattr(authoring, "history", lambda *a, **k: None)
-    monkeypatch.setattr(authoring, "fill_state", lambda sid: {"state": "running"})
+    monkeypatch.setattr(authoring, "work_state",
+                        lambda sid, kind="bible", episode_id="": {"state": "running"})
     started = []
     monkeypatch.setattr(authoring, "fill_bible", lambda *a: started.append(1))
     assert authoring.start_fill(MIAMI)["already"] is True
     assert started == []
+
+
+def test_writing_a_script_also_runs_behind_the_request(db, monkeypatch):
+    """The episode took minutes too, and the proxy cut that request off as well."""
+    import threading
+    released, started = threading.Event(), threading.Event()
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+
+    def slow(series_id, episode_id, wish, actor=""):
+        started.set()
+        assert released.wait(5)
+        return {"clips": 2, "seconds": 16, "version": 1, "warnings": []}
+
+    monkeypatch.setattr(authoring, "draft", slow)
+    assert authoring.start_draft(MIAMI, episode, "a wish", "a@b.test") == {"already": False}
+    assert started.wait(5)
+    assert authoring.work_state(MIAMI, "script", episode)["state"] == "running"
+    released.set()
+    for _ in range(100):
+        if authoring.work_state(MIAMI, "script", episode)["state"] == "done":
+            break
+        time.sleep(0.05)
+    state = authoring.work_state(MIAMI, "script", episode)
+    assert state["state"] == "done" and state["clips"] == 2
+
+
+def test_one_episode_writing_does_not_hide_another(db, monkeypatch):
+    """Two episodes of one series report separately."""
+    first = authoring.next_episode(MIAMI)["episode_id"]
+    monkeypatch.setattr(authoring, "draft", lambda *a, **k: {"clips": 1, "seconds": 8})
+    authoring.start_draft(MIAMI, first, "x")
+    for _ in range(100):
+        if authoring.work_state(MIAMI, "script", first)["state"] == "done":
+            break
+        time.sleep(0.05)
+    assert authoring.work_state(MIAMI, "script", "s01e99")["state"] == "idle"
+
+
+def test_a_script_failure_says_why(db, monkeypatch):
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+
+    def boom(*a, **k):
+        raise authoring.AuthoringError("the model could not be reached")
+
+    monkeypatch.setattr(authoring, "draft", boom)
+    authoring.start_draft(MIAMI, episode, "x")
+    for _ in range(100):
+        if authoring.work_state(MIAMI, "script", episode)["state"] == "failed":
+            break
+        time.sleep(0.05)
+    assert "could not be reached" in authoring.work_state(MIAMI, "script", episode)["error"]
 
 
 def test_a_failure_is_recorded_where_the_page_can_read_it(db, monkeypatch):

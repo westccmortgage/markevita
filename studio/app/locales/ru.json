@@ -731,5 +731,8 @@
   "Choose one of this server's voice slots.": "Выберите один из слотов голоса этого сервера.",
   "The studio is writing the cast and places.": "Студия пишет персонажей и локации.",
   "This takes a minute or two. The page refreshes itself.": "Это занимает минуту-две. Страница обновится сама.",
-  "Writing the bible stopped.": "Заполнение остановилось."
+  "Writing the bible stopped.": "Заполнение остановилось.",
+  "The studio is writing this episode.": "Студия пишет эту серию.",
+  "Writing the episode stopped.": "Написание серии остановилось.",
+  "To redo:": "Переснять:"
 }

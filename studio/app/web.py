@@ -453,6 +453,7 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     context = _episode_context(request, series_id, episode_id)
     context.update(
         blockers=blockers, memory=memory, fill=authoring.fill_state(series_id),
+        writing=authoring.work_state(series_id, "script", episode_id),
         script=authoring.readable(scenes, memory),
         estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
                  if scenes else None,
@@ -469,11 +470,13 @@ def draft_script(request: Request, series_id: str, episode_id: str, wish: str = 
     a = require_admin(request)
     back = f"/series/{series_id}/episodes/{episode_id}/studio"
     try:
-        result = authoring.draft(series_id, episode_id, wish, a["email"])
+        started = authoring.start_draft(series_id, episode_id, wish, a["email"])
     except authoring.AuthoringError as e:
         # The wish is kept so nothing typed is lost.
         return _redirect(f"{back}?wish={quote(wish[:2000])}", err=str(e))
-    return _redirect(back, ok=f"Script ready: {result['clips']} clips, {result['seconds']}s.")
+    return _redirect(back, ok="Already writing. This page refreshes itself."
+                     if started.get("already") else
+                     "Writing the episode. It takes a minute or two; this page refreshes itself.")
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/revise")
@@ -481,11 +484,12 @@ def revise_script(request: Request, series_id: str, episode_id: str, instruction
     a = require_admin(request)
     back = f"/series/{series_id}/episodes/{episode_id}/studio"
     try:
-        result = authoring.revise(series_id, episode_id, instruction, a["email"])
+        started = authoring.start_revise(series_id, episode_id, instruction, a["email"])
     except authoring.AuthoringError as e:
         return _redirect(f"{back}?instruction={quote(instruction[:2000])}", err=str(e))
-    redo = ", ".join(f"{c['scene_id']} ({c['redo']})" for c in result["changed"]) or "nothing"
-    return _redirect(back, ok=f"Script v{result['version']} saved. To redo: {redo}.")
+    return _redirect(back, ok="Already applying a change. This page refreshes itself."
+                     if started.get("already") else
+                     "Applying the change. It takes a minute or two; this page refreshes itself.")
 
 
 @router.get("/series/{series_id}/characters", response_class=HTMLResponse)

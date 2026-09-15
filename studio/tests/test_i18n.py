@@ -191,3 +191,30 @@ def test_an_incomplete_series_renders_its_blockers_in_russian(language_ui):
         assert 'Nora' in r.text, path
     page = client.get(f'/studio/series/{sid}').text
     assert 'описание внешности' in page and 'Заполнить автоматически' in page
+
+
+@pytest.mark.parametrize("state", ["running", "failed", "done"])
+def test_the_progress_banners_render_in_every_state(language_ui, monkeypatch, state):
+    """A macro imported without context cannot translate, and the banner only
+    renders while work is running — so every earlier test skipped its body."""
+    from app import authoring, web
+    client, store, sid, eid = language_ui
+    client.post('/studio/ui-language', data={'language': 'ru', 'next': '/studio/'})
+    store.update('episodes', {'series_id': sid, 'episode_id': eid},
+                 {'spent_usd': 0, 'status': 'draft'})
+    reported = {'state': state, 'error': 'the model refused', 'changed': ['sc01 (speech)'],
+                'added': [], 'completed': ['nora'], 'locations': []}
+    monkeypatch.setattr(authoring, 'work_state', lambda *a, **k: reported)
+    monkeypatch.setattr(authoring, 'fill_state', lambda sid: reported)
+    for path in (f'/series/{sid}', f'/series/{sid}/characters',
+                 f'/series/{sid}/episodes/{eid}/studio'):
+        r = client.get('/studio' + path)
+        assert r.status_code == 200, (path, state, r.text[:400])
+        assert '<html lang="ru">' in r.text
+    page = client.get(f'/studio/series/{sid}/episodes/{eid}/studio').text
+    if state == 'running':
+        assert 'Студия пишет эту серию' in page and 'http-equiv="refresh"' in page
+    elif state == 'failed':
+        assert 'остановилось' in page and 'the model refused' in page
+    else:
+        assert 'sc01 (speech)' in page

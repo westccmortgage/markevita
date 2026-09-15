@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ s.title }} {{ _("— Series Studio") }}{% endblock %}
-{% from "_fill.html" import fill_status %}
+{% from "_fill.html" import fill_status with context %}
 {% block content %}
 <div class="page-head">
   <div>

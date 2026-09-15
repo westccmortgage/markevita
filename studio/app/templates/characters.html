@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Characters —") }} {{ s.title }}{% endblock %}
-{% from "_fill.html" import fill_status %}
+{% from "_fill.html" import fill_status with context %}
 {% block content %}
 <div class="page-head">
   <div><h1>{{ _("Characters, clothing and voices") }}</h1>

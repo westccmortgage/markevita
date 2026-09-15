@@ -172,3 +172,22 @@ def test_multilingual_v2_uses_original_text_without_unsupported_parameter(tmp_pa
     providers.tts(cfg,lambda _:None,'Привет!','','offline-voice',tmp_path/'voice.mp3',language_code='ru-RU')
     assert 'language_code' not in post.call_args.kwargs['json']
     assert post.call_args.kwargs['json']['text']=='Привет!'
+
+
+def test_an_incomplete_series_renders_its_blockers_in_russian(language_ui):
+    """Every earlier page test used a complete series, so the list of what is
+    missing was rendered zero times and a crash in it reached production."""
+    client, store, sid, eid = language_ui
+    client.post('/studio/ui-language', data={'language': 'ru', 'next': '/studio/'})
+    store.update('episodes', {'series_id': sid, 'episode_id': eid},
+                 {'spent_usd': 0, 'status': 'draft'})
+    store.upsert('characters', {'series_id': sid, 'character_id': 'nora', 'name': 'Nora',
+                                'visual': True, 'appearance': ''})
+    store.delete('clothing', {'series_id': sid, 'character_id': 'nora'})
+    for path in (f'/series/{sid}', f'/series/{sid}/characters',
+                 f'/series/{sid}/episodes/{eid}/studio'):
+        r = client.get('/studio' + path)
+        assert r.status_code == 200, (path, r.text[:400])
+        assert 'Nora' in r.text, path
+    page = client.get(f'/studio/series/{sid}').text
+    assert 'описание внешности' in page and 'Заполнить автоматически' in page

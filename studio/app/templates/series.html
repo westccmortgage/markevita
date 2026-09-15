@@ -23,7 +23,7 @@
     {% if setup %}
       <div class="notice err" style="margin:0"><b>{{ _("This series is not ready to film yet.") }}</b>
         {% for p in setup %}
-          <div style="margin-top:10px">{{ _(p.message, **p.values) }}
+          <div style="margin-top:10px">{{ _(p.message, **p.names) }}
             <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ p.href }}">{{ _(p.label) }} →</a>
           </div>
         {% endfor %}

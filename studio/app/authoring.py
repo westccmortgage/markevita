@@ -553,7 +553,7 @@ def setup_problems(series_id: str) -> list[dict]:
     out = []
 
     def add(message, label, page, **values):
-        out.append({"message": message, "values": values, "label": label,
+        out.append({"message": message, "names": values, "label": label,
                     "href": f"/series/{series_id}/{page}"})
 
     characters = store.list("characters", {"series_id": series_id}, order="character_id")

@@ -212,10 +212,12 @@ def test_duration_settings_preserve_style_and_other_limits(monkeypatch):
 @pytest.fixture
 def short_package(tmp_path, monkeypatch):
     from test_studio import _minimal_series, SERIES
-    from app import scripts
+    from app import authoring, scripts
     store = StrictStore()
     monkeypatch.setattr(settings, 'package_dir', tmp_path / 'packages')
-    for module in (runner, packaging, scripts, web):
+    # Production shares one store across every module; a fixture that patches
+    # only some of them leaves whole code paths unexercised.
+    for module in (runner, packaging, scripts, web, authoring):
         monkeypatch.setattr(module, 'store', store)
     _minimal_series(store)
     store.update('series', {'id': SERIES}, {'production_limits': {'min_scenes': 4, 'min_episode_seconds': 30, 'max_episode_seconds': 40}})

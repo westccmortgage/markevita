@@ -352,7 +352,7 @@ def test_a_character_saved_without_an_appearance_is_named(db):
                              "visual": True, "appearance": ""})
     db.upsert("clothing", {"series_id": MIAMI, "character_id": "adrian", "variant_id": "w_suit"})
     problems = authoring.setup_problems(MIAMI)
-    assert [p["values"].get("who") for p in problems] == ["Adrian"]
+    assert [p["names"].get("who") for p in problems] == ["Adrian"]
     assert "appearance" in problems[0]["message"]
     assert problems[0]["href"] == f"/series/{MIAMI}/characters"
     # The name travels as a value, never through the translation table.
@@ -362,7 +362,7 @@ def test_a_character_saved_without_an_appearance_is_named(db):
 def test_a_character_with_nothing_to_wear_is_named(db):
     db.upsert("characters", {"series_id": MIAMI, "character_id": "maya", "name": "Maya",
                              "visual": True, "appearance": "described"})
-    assert [p["values"].get("who") for p in authoring.setup_problems(MIAMI)] == ["Maya"]
+    assert [p["names"].get("who") for p in authoring.setup_problems(MIAMI)] == ["Maya"]
 
 
 def test_an_off_camera_character_needs_neither(db):
@@ -375,7 +375,7 @@ def test_an_off_camera_character_needs_neither(db):
 def test_a_location_without_a_description_is_named(db):
     db.upsert("locations", {"series_id": MIAMI, "location_id": "pier", "name": "Pier",
                             "description": ""})
-    assert [p["values"].get("where") for p in authoring.setup_problems(MIAMI)] == ["Pier"]
+    assert [p["names"].get("where") for p in authoring.setup_problems(MIAMI)] == ["Pier"]
 
 
 def test_a_ready_series_reports_nothing_to_do(db):

@@ -24,6 +24,7 @@
     <a href="{{ base }}/notifications" class="{{ 'on' if '/notifications' in request.url.path }}">{{ _("Notifications") }}</a>
     <a href="{{ base }}/costs" class="{{ 'on' if request.url.path == '/costs' }}">{{ _("Costs") }}</a>
     <a href="{{ base }}/integrations" class="{{ 'on' if request.url.path == '/integrations' }}">{{ _("Integrations") }}</a>
+    <a href="{{ base }}/selfcheck" class="{{ 'on' if request.url.path == '/selfcheck' }}">{{ _("Self-check") }}</a>
   </nav>
   <div class="topbar-right">
     {% include "_language_switch.html" %}

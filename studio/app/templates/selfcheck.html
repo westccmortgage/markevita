@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Self-check") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ _("Self-check") }}</h1>
+  <p class="sub">{{ _("Every screen, fetched against this server's own database. No writes, no paid work.") }}</p></div>
+</div>
+
+{% if failures %}
+  <div class="notice err"><b>{{ failures|length }} {{ _("screens are broken.") }}</b>
+    {{ _("Each row below names the exception and the line that raised it.") }}</div>
+{% else %}
+  <div class="notice ok"><b>{{ _("Every screen answers.") }}</b></div>
+{% endif %}
+
+<div class="card">
+  <div class="table-scroll"><table>
+    <thead><tr><th></th><th>{{ _("Screen") }}</th><th>{{ _("Answer") }}</th><th>{{ _("Detail") }}</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td><span class="pill {{ 'ok' if r.ok else 'bad' }}">{{ r.status or '—' }}</span></td>
+        <td class="small mono">{{ r.path }}</td>
+        <td class="small muted">{{ _("fine") if r.ok else _("broken") }}</td>
+        <td class="small"><pre style="margin:0">{{ r.detail }}{% if r.where %}
+{{ r.where }}{% endif %}</pre></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

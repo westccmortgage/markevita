@@ -510,6 +510,27 @@ def characters_page(request: Request, series_id: str):
                   drafted=authoring.drafted_ids(series_id))
 
 
+@router.get("/selfcheck", response_class=HTMLResponse)
+def selfcheck_page(request: Request):
+    """Fetch every screen against this server's own database and report."""
+    require_admin(request)
+    from fastapi.testclient import TestClient
+    from . import selfcheck
+    from .main import app
+    client = TestClient(app, base_url=str(request.base_url).rstrip("/"),
+                        raise_server_exceptions=False)
+    client.cookies.set(auth.COOKIE, request.cookies.get(auth.COOKIE, ""))
+    prefix = settings.base_path.rstrip("/")
+
+    class _Prefixed:
+        def get(self, path, **kw):
+            return client.get(prefix + path, **kw)
+
+    results = selfcheck.run(_Prefixed())
+    return render(request, "selfcheck.html", results=results,
+                  failures=[r for r in results if not r["ok"]])
+
+
 @router.post("/series/{series_id}/fill-bible")
 def fill_bible(request: Request, series_id: str, back: str = Form("")):
     """Complete the cast and places from what the series already established."""

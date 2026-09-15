@@ -734,5 +734,15 @@
   "Writing the bible stopped.": "Заполнение остановилось.",
   "The studio is writing this episode.": "Студия пишет эту серию.",
   "Writing the episode stopped.": "Написание серии остановилось.",
-  "To redo:": "Переснять:"
+  "To redo:": "Переснять:",
+  "Self-check": "Самопроверка",
+  "Every screen, fetched against this server's own database. No writes, no paid work.": "Каждый экран, открытый на базе этого сервера. Ничего не записывается, ничего не оплачивается.",
+  "screens are broken.": "экранов сломано.",
+  "Each row below names the exception and the line that raised it.": "В каждой строке ниже — исключение и строка, на которой оно возникло.",
+  "Every screen answers.": "Все экраны отвечают.",
+  "Screen": "Экран",
+  "Answer": "Ответ",
+  "fine": "в порядке",
+  "broken": "сломан",
+  "Something in the studio broke": "Что-то в студии сломалось"
 }

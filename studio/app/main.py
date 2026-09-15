@@ -6,11 +6,16 @@ preview router requires its own enablement and explicit spending approval.
 """
 from __future__ import annotations
 
+import html
+import logging
 import os
 import re
+import traceback
+import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import router as api_router
@@ -44,6 +49,35 @@ async def start_notifications():
 @app.on_event('shutdown')
 async def stop_notifications():
     notification_dispatcher.stop.set()
+
+
+@app.exception_handler(Exception)
+async def unhandled(request: Request, exc: Exception):
+    """Say what broke, instead of a blank "Internal Server Error".
+
+    A white page with two words costs a round trip through the operator to
+    read the host's log, and this panel is only ever seen by a signed-in
+    administrator. The exception and where it was raised go to the page; the
+    full traceback goes to the log. Values are never included — only types,
+    messages and code locations.
+    """
+    reference = uuid.uuid4().hex[:8]
+    logging.getLogger(__name__).exception("Unhandled request error [%s] %s %s",
+                                          reference, request.method, request.url.path)
+    frames = [f for f in traceback.extract_tb(exc.__traceback__)
+              if "/app/" in f.filename or "/serial/" in f.filename]
+    where = " -> ".join(f"{Path(f.filename).name}:{f.lineno} ({f.name})" for f in frames[-4:])
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"error": type(exc).__name__, "reference": reference}, status_code=500)
+    body = (f"<h1>Something in the studio broke</h1>"
+            f"<p><b>{html.escape(type(exc).__name__)}</b>: {html.escape(str(exc)[:500])}</p>"
+            f"<p><code>{html.escape(where)}</code></p>"
+            f"<p>Reference <code>{reference}</code>. Nothing was changed by this request.</p>"
+            f"<p><a href=\"{html.escape(settings.url('/'))}\">Back to the studio</a></p>")
+    return HTMLResponse(f"<!doctype html><meta charset=utf-8>"
+                        f"<style>body{{font:15px/1.6 system-ui;margin:40px;max-width:760px}}"
+                        f"code{{background:#eee;padding:2px 5px;border-radius:4px}}</style>{body}",
+                        status_code=500)
 
 
 @app.exception_handler(401)

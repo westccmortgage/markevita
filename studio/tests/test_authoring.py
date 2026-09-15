@@ -733,3 +733,58 @@ def test_a_failure_is_recorded_where_the_page_can_read_it(db, monkeypatch):
         time.sleep(0.05)
     state = authoring.fill_state(MIAMI)
     assert state["state"] == "failed" and "Anthropic refused" in state["error"]
+
+
+# ── a failure must say what it was, on the screen ──────────────────────────
+
+def test_a_broken_screen_names_the_exception_and_the_line(db, monkeypatch):
+    """A blank "Internal Server Error" cost a round trip for every fault."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app import auth, main, web
+
+    def boom(*a, **k):
+        raise RuntimeError("the database refused a column")
+
+    monkeypatch.setattr(web, "store", db, raising=False)
+    monkeypatch.setattr(web, "series_page", boom, raising=False)
+    app = FastAPI()
+    app.add_exception_handler(Exception, main.unhandled)
+
+    @app.get("/boom")
+    def _boom():
+        boom()
+
+    client = TestClient(app, base_url="https://x.test", raise_server_exceptions=False)
+    r = client.get("/boom")
+    assert r.status_code == 500
+    assert "RuntimeError" in r.text and "refused a column" in r.text
+    assert "Reference" in r.text
+
+
+def test_the_self_check_lists_every_screen(db):
+    from app import selfcheck
+    monkey = selfcheck.store
+    selfcheck.store = db
+    try:
+        found = selfcheck.paths()
+    finally:
+        selfcheck.store = monkey
+    assert "/" in found and f"/series/{MIAMI}" in found
+    assert any(p.endswith("/characters") for p in found)
+
+
+def test_the_self_check_reports_a_broken_screen(db):
+    from app import selfcheck
+
+    class _Client:
+        def get(self, path, **kw):
+            raise RuntimeError("column does not exist")
+
+    selfcheck_store, selfcheck.store = selfcheck.store, db
+    try:
+        results = selfcheck.run(_Client())
+    finally:
+        selfcheck.store = selfcheck_store
+    assert results and all(not r["ok"] for r in results)
+    assert "column does not exist" in results[0]["detail"]

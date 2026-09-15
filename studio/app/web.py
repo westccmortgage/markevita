@@ -500,7 +500,8 @@ def characters_page(request: Request, series_id: str):
         c["_voice"] = store.get("voices", {"series_id": series_id, "character_id": c["character_id"]})
     return render(request, "characters.html", s=s, characters=chars,
                   props=store.list("props", {"series_id": series_id}, order="prop_id"),
-                  voice_slots=authoring.voice_choices(series_id))
+                  voice_slots=authoring.voice_choices(series_id),
+                  drafted=authoring.drafted_ids(series_id))
 
 
 @router.post("/series/{series_id}/fill-bible")

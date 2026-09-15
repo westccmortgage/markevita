@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from .base import NATURAL_KEYS, TABLES
+from .base import NATURAL_KEYS, TABLES, check_columns
 
 
 class LocalDriver:
@@ -58,6 +58,7 @@ class LocalDriver:
         return rows[0] if rows else None
 
     def insert(self, table, row):
+        check_columns(table, row)
         with self._lock:
             rows = self._read(table)
             row = dict(row)
@@ -67,6 +68,7 @@ class LocalDriver:
         return row
 
     def upsert(self, table, row):
+        check_columns(table, row)
         keys = NATURAL_KEYS.get(table)
         if not keys:
             return self.insert(table, row)
@@ -86,6 +88,7 @@ class LocalDriver:
             return new
 
     def update(self, table, where, patch):
+        check_columns(table, patch)
         n = 0
         with self._lock:
             rows = self._read(table)

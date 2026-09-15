@@ -644,6 +644,21 @@ def _material(series_id: str) -> dict:
     }
 
 
+def drafted_ids(series_id: str) -> set[str]:
+    """Who the studio described, read back from the history it already writes.
+
+    Kept out of the bible tables on purpose: a marker is not production data,
+    and adding a column to a live database to hold one is not worth it.
+    """
+    out: set[str] = set()
+    for row in store.list("generation_history", {"series_id": series_id,
+                                                 "event": "bible.drafted"}):
+        detail = row.get("detail") or {}
+        for key in ("added", "completed", "locations"):
+            out.update(detail.get(key) or [])
+    return out
+
+
 def _slug_id(value: str) -> str:
     out = re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_")
     return out[:64]
@@ -683,17 +698,14 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
                   "role": c.get("role", ""), "age": str(c.get("age") or ""),
                   "appearance": (c.get("appearance") or "").strip(),
                   "behavior": c.get("behavior", ""), "immutable": [], "props": [],
-                  "seed_assets": [], "drafted_by_studio": True, "updated_at": _now()}
+                  "seed_assets": [], "updated_at": _now()}
         if existing:
             # Keep every field a person filled in; only fill what is empty.
             kept = {k: v for k, v in existing.items()
-                    if k in record and str(v or "").strip() and k != "drafted_by_studio"}
-            if all(str(existing.get(k) or "").strip() for k in ("appearance", "name")):
-                filled = False
-            else:
-                filled = True
+                    if k in record and str(v or "").strip()}
+            filled = not all(str(existing.get(k) or "").strip()
+                             for k in ("appearance", "name"))
             record = {**record, **kept}
-            record["drafted_by_studio"] = existing.get("drafted_by_studio", False) or filled
             if filled:
                 completed.append(cid)
         else:
@@ -718,8 +730,7 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
                 store.upsert("clothing", {
                     "series_id": series_id, "character_id": cid,
                     "variant_id": _slug_id(v["id"]), "is_default": bool(v.get("is_default")),
-                    "description": v.get("description", ""), "immutable": [],
-                    "drafted_by_studio": True})
+                    "description": v.get("description", ""), "immutable": []})
 
     places = []
     for l in proposal.get("locations") or []:
@@ -735,8 +746,7 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
             "series_id": series_id, "location_id": lid,
             "name": l.get("name") or (existing or {}).get("name") or lid,
             "description": (l.get("description") or "").strip(),
-            "lighting_states": states, "marks": "", "immutable": [], "seed_assets": [],
-            "drafted_by_studio": True})
+            "lighting_states": states, "marks": "", "immutable": [], "seed_assets": []})
         places.append(lid)
 
     history(series_id, "", "bible.drafted", entity_type="series", entity_id=series_id,

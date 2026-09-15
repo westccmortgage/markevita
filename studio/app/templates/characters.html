@@ -19,7 +19,7 @@
     {% if c.visual %}<span class="pill gold">{{ _("on camera") }}</span>{% else %}<span class="pill mute">{{ _("voice only") }}</span>{% endif %}
     {% if c.role %}<span class="muted small">{{ c.role }}</span>{% endif %}
     {# Always visible which text a person chose and which the studio proposed. #}
-    {% if c.drafted_by_studio %}<span class="pill mute">{{ _("drafted by the studio") }}</span>{% endif %}
+    {% if c.character_id in drafted %}<span class="pill mute">{{ _("drafted by the studio") }}</span>{% endif %}
   </h2>
 
   <details>

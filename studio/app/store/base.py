@@ -6,7 +6,48 @@ supabase/migrations/0001_studio.sql exactly.
 """
 from __future__ import annotations
 
+import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Protocol
+
+MIGRATION = Path(__file__).resolve().parents[2] / "supabase" / "migrations" / "0001_studio.sql"
+
+
+@lru_cache(maxsize=1)
+def columns() -> dict[str, set[str]]:
+    """Column names per table, read from the migration Postgres actually runs.
+
+    The local driver used to accept any field, so a write of a column the
+    database does not have passed every test and failed only in production.
+    One schema, read from one place, keeps both drivers honest.
+    """
+    out: dict[str, set[str]] = {}
+    try:
+        sql = MIGRATION.read_text(encoding="utf-8")
+    except OSError:
+        return out
+    for block in re.finditer(r"create table if not exists\s+(\w+)\s*\((.*?)\n\);", sql, re.S):
+        table, body = block.group(1), block.group(2)
+        names = set()
+        for line in body.splitlines():
+            line = line.strip()
+            match = re.match(r"([a-z_][a-z0-9_]*)\s+\S", line)
+            if match and match.group(1) not in ("unique", "primary", "foreign", "check", "constraint"):
+                names.add(match.group(1))
+        out[table] = names
+    return out
+
+
+def check_columns(table: str, row: dict) -> None:
+    """Refuse a field Postgres would refuse, wherever the driver is running."""
+    known = columns().get(table)
+    if not known:
+        return
+    unknown = sorted(set(row) - known)
+    if unknown:
+        raise ValueError(f"{table}: no such column(s): {', '.join(unknown)}. "
+                         f"Add them to supabase/migrations/ before writing them.")
 
 TABLES = [
     "studio_admins", "series", "seasons", "episodes", "scripts", "characters", "clothing",

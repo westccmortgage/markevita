@@ -452,7 +452,7 @@ def test_a_series_started_from_a_clip_gets_its_cast(db, monkeypatch):
     assert sorted(result["added"]) == ["caller", "nora"]
     nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
     assert nora["name"] == "Nora" and len(nora["appearance"].split()) > 40
-    assert nora["drafted_by_studio"] is True
+    assert "nora" in authoring.drafted_ids(MIAMI)
     assert [w["variant_id"] for w in db.list("clothing", {"series_id": MIAMI,
                                                           "character_id": "nora"})] == ["w_wedding"]
     assert authoring.setup_problems(MIAMI) == []
@@ -523,7 +523,7 @@ def test_what_a_person_wrote_is_never_overwritten(db, monkeypatch):
     authoring.fill_bible(MIAMI)
     nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
     assert nora["appearance"] == "Mine, written by hand." and nora["name"] == "Nora Vale"
-    assert nora["drafted_by_studio"] is False
+    assert "nora" not in authoring.drafted_ids(MIAMI)
 
 
 def test_an_empty_character_is_completed_and_marked(db, monkeypatch):
@@ -533,7 +533,7 @@ def test_an_empty_character_is_completed_and_marked(db, monkeypatch):
     _cast(monkeypatch)
     result = authoring.fill_bible(MIAMI)
     nora = db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
-    assert result["completed"] == ["nora"] and nora["drafted_by_studio"] is True
+    assert result["completed"] == ["nora"] and "nora" in authoring.drafted_ids(MIAMI)
     assert len(nora["appearance"].split()) > 40
 
 
@@ -603,3 +603,29 @@ def test_an_existing_real_season_is_used_as_it_is(db):
     db.upsert("seasons", {"series_id": MIAMI, "season_id": "s02", "number": 2,
                           "episode_order": []})
     assert authoring.next_episode(MIAMI)["season_id"] == "s02"
+
+
+# ── a field the database does not have must fail here, not in production ───
+
+def test_writing_an_unknown_column_is_refused(db):
+    """A marker column passed every local test and failed only on Supabase."""
+    with pytest.raises(ValueError, match="no such column"):
+        db.upsert("characters", {"series_id": MIAMI, "character_id": "x", "name": "X",
+                                 "drafted_by_studio": True})
+
+
+def test_filling_the_bible_writes_only_real_columns(db, monkeypatch, slots):
+    """The whole write path, against the schema Postgres actually runs."""
+    db.delete("characters", {"series_id": MIAMI})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI, "admin@example.test")
+    assert db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
+    assert authoring.drafted_ids(MIAMI) >= {"nora", "caller", "terrace"}
+
+
+def test_the_schema_is_read_from_the_migration():
+    from app.store.base import columns
+    known = columns()
+    assert known["characters"] >= {"series_id", "character_id", "appearance"}
+    assert "drafted_by_studio" not in known["characters"]
+    assert len(known) >= 20

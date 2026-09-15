@@ -34,7 +34,7 @@ os.environ["STUDIO_ADMIN_PASSWORD"] = "test-password"
 
 from app import auth  # noqa: E402
 from app.config import settings  # noqa: E402
-from app.store.base import NATURAL_KEYS  # noqa: E402
+from app.store.base import NATURAL_KEYS, check_columns  # noqa: E402
 from app.store.supa import SupabaseDriver  # noqa: E402
 
 
@@ -58,6 +58,7 @@ class StrictStore(SupabaseDriver):
         return rows[0] if rows else None
 
     def insert(self, table, row):
+        check_columns(table, row)
         with self.lock:
             row = copy.deepcopy(row)
             row.setdefault("id", str(uuid.uuid4()))
@@ -82,6 +83,7 @@ class StrictStore(SupabaseDriver):
             return self.insert(table, row)
 
     def update(self, table, where, patch):
+        check_columns(table, patch)
         with self.lock:
             count = 0
             for row in self.rows.get(table, []):

@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Characters —") }} {{ s.title }}{% endblock %}
+{% from "_fill.html" import fill_status %}
 {% block content %}
 <div class="page-head">
   <div><h1>{{ _("Characters, clothing and voices") }}</h1>
   <p class="sub">{{ _("Appearance and wardrobe text goes to the image models, so it must be English and camera-ready. Voices are bound by environment-variable") }} <em>{{ _("name") }}</em> {{ _("— the voice id itself never enters the database.") }}</p></div>
 </div>
 
+{{ fill_status(fill) }}
 <form method="post" action="{{ base }}/series/{{ s.id }}/fill-bible" style="margin-bottom:16px">
   <input type="hidden" name="back" value="/series/{{ s.id }}/characters">
   <button class="btn-primary" type="submit">{{ _("Fill this in automatically") }}</button>

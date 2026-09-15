@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import time
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -629,3 +630,54 @@ def test_the_schema_is_read_from_the_migration():
     assert known["characters"] >= {"series_id", "character_id", "appearance"}
     assert "drafted_by_studio" not in known["characters"]
     assert len(known) >= 20
+
+
+# ── the work outlives the request that started it ──────────────────────────
+
+def test_the_request_returns_before_the_model_does(db, monkeypatch, slots):
+    """A whole cast takes minutes; the proxy cut the request off at a timeout."""
+    import threading
+    released, started = threading.Event(), threading.Event()
+
+    class _Slow:
+        def create(self, **kw):
+            started.set()
+            assert released.wait(5), "the fill never ran"
+            return SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps(CAST))],
+                                   usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+
+    monkeypatch.setattr(authoring, "_client", lambda: SimpleNamespace(messages=_Slow()))
+    db.delete("characters", {"series_id": MIAMI})
+    assert authoring.start_fill(MIAMI, "admin@example.test") == {"already": False}
+    assert started.wait(5)
+    # The producer already has the page back while the model is still writing.
+    assert authoring.fill_state(MIAMI)["state"] == "running"
+    released.set()
+    for _ in range(100):
+        if authoring.fill_state(MIAMI)["state"] == "done":
+            break
+        time.sleep(0.05)
+    assert authoring.fill_state(MIAMI)["state"] == "done"
+    assert db.get("characters", {"series_id": MIAMI, "character_id": "nora"})
+
+
+def test_a_second_press_does_not_start_a_second_run(db, monkeypatch, slots):
+    monkeypatch.setattr(authoring, "history", lambda *a, **k: None)
+    monkeypatch.setattr(authoring, "fill_state", lambda sid: {"state": "running"})
+    started = []
+    monkeypatch.setattr(authoring, "fill_bible", lambda *a: started.append(1))
+    assert authoring.start_fill(MIAMI)["already"] is True
+    assert started == []
+
+
+def test_a_failure_is_recorded_where_the_page_can_read_it(db, monkeypatch):
+    def _boom():
+        raise RuntimeError("Anthropic refused")
+    monkeypatch.setattr(authoring, "_client", _boom)
+    authoring.start_fill(MIAMI, "admin@example.test")
+    for _ in range(100):
+        if authoring.fill_state(MIAMI)["state"] == "failed":
+            break
+        time.sleep(0.05)
+    state = authoring.fill_state(MIAMI)
+    assert state["state"] == "failed" and "Anthropic refused" in state["error"]

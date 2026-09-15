@@ -1,0 +1,15 @@
+{% macro fill_status(fill) %}
+  {# The work runs behind the request; the page reports on it and refreshes. #}
+  {% if fill and fill.state == 'running' %}
+    <meta http-equiv="refresh" content="15">
+    <div class="notice info" style="margin-top:12px">
+      <b>{{ _("The studio is writing the cast and places.") }}</b>
+      {{ _("This takes a minute or two. The page refreshes itself.") }}
+    </div>
+  {% elif fill and fill.state == 'failed' %}
+    <div class="notice err" style="margin-top:12px">
+      <b>{{ _("Writing the bible stopped.") }}</b>
+      <pre style="margin-top:8px">{{ (fill.error or '')|notice }}</pre>
+    </div>
+  {% endif %}
+{% endmacro %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ s.title }} {{ _("— Series Studio") }}{% endblock %}
+{% from "_fill.html" import fill_status %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -27,6 +28,7 @@
             <a class="btn btn-sm" style="margin-left:8px" href="{{ base }}{{ p.href }}">{{ _(p.label) }} →</a>
           </div>
         {% endfor %}
+{{ fill_status(fill) }}
         <form method="post" action="{{ base }}/series/{{ s.id }}/fill-bible" style="margin-top:14px">
           <input type="hidden" name="back" value="/series/{{ s.id }}">
           <button class="btn-primary" type="submit">{{ _("Fill this in automatically") }}</button>

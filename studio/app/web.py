@@ -272,6 +272,7 @@ def series_page(request: Request, series_id: str):
         raise HTTPException(404, "series not found")
     validation = runner.validate_series(series_id)
     return render(request, "series.html", s=s, setup=authoring.setup_problems(series_id),
+                  fill=authoring.fill_state(series_id),
                   seasons=store.list("seasons", {"series_id": series_id}, order="number"),
                   episodes=store.list("episodes", {"series_id": series_id}, order="number"),
                   characters=store.list("characters", {"series_id": series_id}, order="character_id"),
@@ -451,7 +452,7 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     # episode page folded in below it behind a disclosure.
     context = _episode_context(request, series_id, episode_id)
     context.update(
-        blockers=blockers, memory=memory,
+        blockers=blockers, memory=memory, fill=authoring.fill_state(series_id),
         script=authoring.readable(scenes, memory),
         estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
                  if scenes else None,
@@ -501,6 +502,7 @@ def characters_page(request: Request, series_id: str):
     return render(request, "characters.html", s=s, characters=chars,
                   props=store.list("props", {"series_id": series_id}, order="prop_id"),
                   voice_slots=authoring.voice_choices(series_id),
+                  fill=authoring.fill_state(series_id),
                   drafted=authoring.drafted_ids(series_id))
 
 
@@ -510,21 +512,16 @@ def fill_bible(request: Request, series_id: str, back: str = Form("")):
     a = require_admin(request)
     target = back if back.startswith(f"/series/{series_id}") else f"/series/{series_id}/characters"
     try:
-        result = authoring.fill_bible(series_id, a["email"])
+        started = authoring.start_fill(series_id, a["email"])
     except authoring.AuthoringError as e:
         return _redirect(target, err=str(e))
     except Exception as e:
         logging.getLogger(__name__).exception("Filling the bible failed")
-        return _redirect(target, err=f"The studio could not complete the bible: {e}")
-    parts = []
-    if result["added"]:
-        parts.append(f"added {len(result['added'])}")
-    if result["completed"]:
-        parts.append(f"completed {len(result['completed'])}")
-    if result["locations"]:
-        parts.append(f"{len(result['locations'])} locations")
-    note = "Cast drafted: " + (", ".join(parts) or "nothing was missing") + ". Read it before filming."
-    return _redirect(target, ok=note)
+        return _redirect(target, err=f"The studio could not start writing the bible: {e}")
+    return _redirect(target, ok="Already writing. This page refreshes itself."
+                     if started.get("already") else
+                     "Writing the cast and places. It takes a minute or two; "
+                     "this page refreshes itself.")
 
 
 @router.post("/series/{series_id}/characters")

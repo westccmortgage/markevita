@@ -728,5 +728,8 @@
   "no voice slots configured on this server": "на сервере не настроено ни одного слота голоса",
   "Voice slots are set on the server once, as": "Слоты голосов задаются на сервере один раз, как",
   "The id itself is never stored here — only which slot this character uses.": "Сам id здесь не хранится — только то, какой слот занимает этот персонаж.",
-  "Choose one of this server's voice slots.": "Выберите один из слотов голоса этого сервера."
+  "Choose one of this server's voice slots.": "Выберите один из слотов голоса этого сервера.",
+  "The studio is writing the cast and places.": "Студия пишет персонажей и локации.",
+  "This takes a minute or two. The page refreshes itself.": "Это занимает минуту-две. Страница обновится сама.",
+  "Writing the bible stopped.": "Заполнение остановилось."
 }

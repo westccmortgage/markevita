@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import sys
+import threading
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -807,3 +808,47 @@ def next_free_slot(series_id: str) -> str:
 def voice_env_is_known(name: str) -> bool:
     """A pool slot, or the per-character name the studio used before."""
     return bool(SLOT_RE.match(name) or name.startswith(LEGACY_PREFIX))
+
+
+# ── writing the bible takes longer than a browser request ──────────────────
+
+STARTED, DONE, FAILED = "bible.drafting", "bible.drafted", "bible.draft_failed"
+
+
+def fill_state(series_id: str) -> dict:
+    """Where the last attempt got to, from the history it writes.
+
+    The model needs a minute or two for a whole cast; a browser request is cut
+    off long before that by the proxy in front of the service, which showed the
+    producer a gateway timeout while the work was still running. So the work
+    runs behind the request and reports through history, which every worker of
+    the service can read.
+    """
+    rows = [r for r in store.list("generation_history", {"series_id": series_id},
+                                  order="created_at", desc=True)
+            if r.get("event") in (STARTED, DONE, FAILED)]
+    if not rows:
+        return {"state": "idle"}
+    last = rows[0]
+    detail = last.get("detail") or {}
+    return {"state": {STARTED: "running", DONE: "done", FAILED: "failed"}[last["event"]],
+            "at": last.get("created_at"), **detail}
+
+
+def start_fill(series_id: str, actor: str = "") -> dict:
+    """Begin writing the bible and return at once."""
+    if fill_state(series_id)["state"] == "running":
+        return {"already": True}
+    if not store.get("series", {"id": series_id}):
+        raise AuthoringError(f"Series {series_id!r} not found.")
+    history(series_id, "", STARTED, entity_type="series", entity_id=series_id, actor=actor)
+
+    def run():
+        try:
+            fill_bible(series_id, actor)
+        except Exception as exc:                                  # noqa: BLE001
+            history(series_id, "", FAILED, entity_type="series", entity_id=series_id,
+                    actor=actor, detail={"error": str(exc)[:400]})
+
+    threading.Thread(target=run, name=f"fill-bible:{series_id}", daemon=True).start()
+    return {"already": False}

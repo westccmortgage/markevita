@@ -40,6 +40,28 @@ EPISODE_LABEL_RE = re.compile(r"^\s*(episode\s*\d+|s\d{1,2}\s*[e·-]\s*\d{1,3})\
                               re.IGNORECASE)
 
 
+# Confirmed twice against fal.ai, not guessed: a full-body prompt carrying any
+# of these was refused with content_policy_violation after ten to twelve
+# minutes and a pack of images already paid for.
+REFUSAL_WORDS = ("sheer", "unbuttoned", "plunging", "backless", "strapless",
+                 "topless", "bikini", "lingerie", "underwear", "bra", "panties",
+                 "nude", "naked", "see-through", "see through", "bare chest",
+                 "bare shoulders", "bare skin", "cleavage", "slip dress",
+                 "slip gown", "low back", "open shirt", "open-chest")
+
+
+def refusal_risk(text: str) -> list[str]:
+    """Words that have got a wardrobe description refused by the image provider.
+
+    Advice, never a block: the list is from observed refusals, so it will miss
+    some and flag some that would have passed. Seeing it on the screen costs
+    nothing; finding out from the provider costs twelve minutes and the images
+    generated before it.
+    """
+    low = (text or "").lower()
+    return [word for word in REFUSAL_WORDS if word in low]
+
+
 def episode_title(text: str) -> str:
     """The episode's name without a numbering the studio did not ask for."""
     return EPISODE_LABEL_RE.sub("", text or "").strip()

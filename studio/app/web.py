@@ -519,6 +519,10 @@ def characters_page(request: Request, series_id: str):
     for c in chars:
         c["_clothing"] = store.list("clothing", {"series_id": series_id,
                                                  "character_id": c["character_id"]}, order="variant_id")
+        for variant in c["_clothing"]:
+            # Shown beside the text, so wording an image provider refuses is
+            # caught here rather than twelve minutes into a paid run.
+            variant["_risk"] = authoring.refusal_risk(variant.get("description"))
         c["_voice"] = store.get("voices", {"series_id": series_id, "character_id": c["character_id"]})
     return render(request, "characters.html", s=s, characters=chars,
                   props=store.list("props", {"series_id": series_id}, order="prop_id"),

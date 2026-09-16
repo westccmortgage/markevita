@@ -59,7 +59,11 @@
       {% for w in c._clothing %}
         <tr>
           <td><code>{{ w.variant_id }}</code>{% if w.is_default %} <span class="pill ok">{{ _("default") }}</span>{% endif %}</td>
-          <td class="small">{{ w.description or '—' }}</td>
+          <td class="small">{{ w.description or '—' }}
+            {% if w._risk %}<div class="small" style="color:#e0a33e">
+              {{ _("An image provider is likely to refuse this wording:") }}
+              {{ w._risk|join(', ') }}.
+              {{ _("Describe the garment rather than what it leaves bare.") }}</div>{% endif %}</td>
           <td class="small muted">{{ (w.immutable or [])|join('; ') }}</td>
           <td><form method="post" action="{{ base }}/series/{{ s.id }}/characters/{{ c.character_id }}/clothing/{{ w.variant_id }}/delete">
             <button class="btn-danger btn-sm" type="submit">{{ _("Remove") }}</button></form></td>

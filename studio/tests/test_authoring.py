@@ -1120,3 +1120,15 @@ def test_the_bible_writer_is_told_to_keep_wardrobe_text_generatable(db):
     for word in ("sheer", "unbuttoned", "plunging", "backless", "strapless", "bare skin"):
         assert word in authoring.CAST_SYSTEM
     assert "full-body image prompts" in authoring.CAST_SYSTEM
+
+
+def test_wording_an_image_provider_refuses_is_flagged_before_the_run(db):
+    """fal named `ref adrian/fullbody_three_quarter__casual_resort_shirt`
+    after twelve minutes and a pack of images already paid for."""
+    assert authoring.refusal_risk(
+        "Unbuttoned cream short-sleeve shirt over tan shorts.") == ["unbuttoned"]
+    assert authoring.refusal_risk(
+        "Bright coral bikini with a sheer sarong tied at the hip.") == ["sheer", "bikini"]
+    assert authoring.refusal_risk(
+        "Cream short-sleeve camp-collar shirt worn loose over tan shorts.") == []
+    assert authoring.refusal_risk(None) == []

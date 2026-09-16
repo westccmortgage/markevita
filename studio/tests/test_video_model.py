@@ -259,3 +259,39 @@ def test_a_new_series_is_set_up_for_the_best_picture():
     seconds = DEFAULT_LIMITS["min_episode_seconds"]
     video = costs.video_cost(seconds, True, "4k", FULL)
     assert DEFAULT_LIMITS["maximum_episode_budget_usd"] >= video
+
+
+# ── preflight must accept every model the studio can bill and send ─────────
+
+def _config(video_model):
+    """A real Config, not a hand-rolled stand-in: the gate reads fields a fake
+    keeps forgetting, which is how the fast-only check survived unnoticed."""
+    from serial.config import Config
+    cfg = Config(fal_video_model=video_model, fal_key="", elevenlabs_api_key="x",
+                  image_resolution="2K", video_resolution="4k",
+                  lipsync_variant="lipsync-2-pro",
+                  r2_account_id="a", r2_access_key_id="b", r2_secret_access_key="c",
+                  r2_bucket="d", anthropic_api_key="e")
+    cfg.native_dialogue = True   # set by the studio at run time, not a Config field
+    return cfg
+
+
+def _series_package():
+    from types import SimpleNamespace
+    return SimpleNamespace(series={"format": {"aspect_ratio": "9:16"}},
+                           limits=lambda cfg: {"budget": 150.0})
+
+
+@pytest.mark.parametrize("model", [FAST, FULL])
+def test_preflight_accepts_both_veo_endpoints(model):
+    """Choosing Veo 3.1 in the settings was refused at the gate by a check
+    that still named only the fast endpoint."""
+    from app import preflight
+    errors = preflight.problems(_config(model), ["video"], _series_package())
+    assert not [e for e in errors if "FAL_VIDEO_MODEL" in e], errors
+
+
+def test_preflight_still_refuses_a_model_with_no_adapter():
+    from app import preflight
+    errors = preflight.problems(_config("fal-ai/some/other-model"), ["video"], _series_package())
+    assert any("FAL_VIDEO_MODEL" in e for e in errors)

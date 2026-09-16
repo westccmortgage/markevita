@@ -33,13 +33,19 @@ def problems(cfg, stages, pkg):
             errors.append(error)
     # The current adapters and prices implement these exact endpoints. A new
     # model needs its own payload/price adapter, not just a changed env value.
-    supported = [({'references', 'keyframes'}, 'FAL_IMAGE_MODEL', cfg.fal_image_model, 'fal-ai/nano-banana-2/edit'),
-                 ({'video'}, 'FAL_VIDEO_MODEL', cfg.fal_video_model, 'fal-ai/veo3.1/fast/image-to-video')]
+    # Both Veo 3.1 endpoints take the same request and both are priced, so both
+    # are supported; this list is what the studio can actually bill and send.
+    from serial.config import VIDEO_MODELS
+    supported = [({'references', 'keyframes'}, 'FAL_IMAGE_MODEL', cfg.fal_image_model,
+                  ['fal-ai/nano-banana-2/edit']),
+                 ({'video'}, 'FAL_VIDEO_MODEL', cfg.fal_video_model, sorted(VIDEO_MODELS))]
     if not native:
-        supported.append(({'lipsync'}, 'FAL_LIPSYNC_MODEL', cfg.fal_lipsync_model, 'fal-ai/sync-lipsync/v2'))
+        supported.append(({'lipsync'}, 'FAL_LIPSYNC_MODEL', cfg.fal_lipsync_model,
+                          ['fal-ai/sync-lipsync/v2']))
     for uses, name, value, expected in supported:
-        if uses.intersection(stages) and value != expected:
-            errors.append(f'{name}: this production adapter requires {expected}. Other models need a separate integration.')
+        if uses.intersection(stages) and value not in expected:
+            errors.append(f'{name}: this production adapter requires '
+                          + ' or '.join(expected) + '. Other models need a separate integration.')
     if {'references', 'keyframes'}.intersection(stages):
         # Reference Pro pricing in this release covers 1K/2K only.
         allowed = ('1K', '2K') if 'references' in stages else ('1K', '2K', '4K')

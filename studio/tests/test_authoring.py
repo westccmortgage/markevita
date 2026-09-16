@@ -969,3 +969,52 @@ def test_the_model_is_told_the_style_reaches_every_prompt():
     assert "appended to EVERY image and video prompt" in authoring.CAST_SYSTEM
     for field in authoring.STYLE_FIELDS:
         assert field in authoring.CAST_SYSTEM
+
+
+# ── finding a voice id without leaving the studio ──────────────────────────
+
+def test_the_voice_catalogue_lists_names_and_ids(db, monkeypatch, slots):
+    """An operator was being asked to hunt for a twenty-character id in another
+    product, and to not mistype it."""
+    from types import SimpleNamespace
+    from app import integrations
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
+    monkeypatch.setenv("ELEVENLABS_VOICE_1", "abc123")
+    monkeypatch.setenv("ELEVENLABS_VOICE_2", "")   # exists on the server, still empty
+    monkeypatch.setattr(integrations, "voice_slots", authoring.voice_slots, raising=False)
+
+    def _get(url, headers, timeout):
+        assert headers["xi-api-key"] == "secret-key"
+        return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"voices": [
+            {"name": "Nora", "voice_id": "abc123",
+             "labels": {"gender": "female", "age": "young"}},
+            {"name": "Adrian", "voice_id": "def456", "labels": {"gender": "male"}}]})
+
+    monkeypatch.setattr("requests.get", _get)
+    result = integrations.voice_catalogue()
+    assert result["ok"]
+    assert [v["name"] for v in result["voices"]] == ["Adrian", "Nora"]
+    nora = next(v for v in result["voices"] if v["name"] == "Nora")
+    assert nora["voice_id"] == "abc123" and nora["in_slots"] == ["ELEVENLABS_VOICE_1"]
+    assert result["unfilled"] == ["ELEVENLABS_VOICE_2"]
+
+
+def test_a_missing_key_says_so_instead_of_failing(db, monkeypatch):
+    from app import integrations
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    result = integrations.voice_catalogue()
+    assert result["ok"] is False and "ELEVENLABS_API_KEY" in result["reason"]
+
+
+def test_a_provider_failure_never_echoes_the_key(db, monkeypatch):
+    """The response body of a rejected request can contain the key."""
+    from app import integrations
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
+
+    def _boom(url, headers, timeout):
+        raise RuntimeError("401 for key secret-key")
+
+    monkeypatch.setattr("requests.get", _boom)
+    result = integrations.voice_catalogue()
+    assert result["ok"] is False
+    assert "secret-key" not in result["reason"] and "RuntimeError" in result["reason"]

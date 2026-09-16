@@ -757,5 +757,13 @@
   "This series is set to an unknown picture quality: {quality!r}.": "У сериала задано неизвестное качество картинки.",
   "This series is set to spend up to ${wanted:.0f} per episode, but the server caps every episode at ${ceiling:.0f}. Raise MAX_EPISODE_BUDGET_USD to at least ${wanted:.0f} in the service environment, or lower the series budget.": "У сериала задано до ${wanted:.0f} на серию, но сервер ограничивает любую серию суммой ${ceiling:.0f}. Поднимите MAX_EPISODE_BUDGET_USD минимум до ${wanted:.0f} в окружении сервиса — или уменьшите бюджет сериала.",
   "Series settings": "Настройки сериала",
-  "Set on this server": "Задано на этом сервере"
+  "Set on this server": "Задано на этом сервере",
+  "Voices on this ElevenLabs account": "Голоса на этом аккаунте ElevenLabs",
+  "A voice slot holds an id — a twenty-character string with nothing to read in it. These are the voices this server's key can reach; copy an id into a slot on the service environment. Nothing here is stored.": "Слот голоса хранит id — строку из двадцати символов, в которой нечего прочитать. Ниже голоса, до которых дотягивается ключ этого сервера; скопируйте id в слот в окружении сервиса. Здесь ничего не сохраняется.",
+  "Slots waiting for an id:": "Слоты, ожидающие id:",
+  "No voice slots exist yet. Add ELEVENLABS_VOICE_1, _2, _3 … to the service environment, then put one of the ids below in each.": "Слотов голоса пока нет. Добавьте ELEVENLABS_VOICE_1, _2, _3 … в окружение сервиса и впишите в каждый один из id ниже.",
+  "Voice ID — this is the value": "Voice ID — это и есть значение",
+  "Character of the voice": "Характер голоса",
+  "In use": "Занят",
+  "ELEVENLABS_API_KEY is not set on this server.": "ELEVENLABS_API_KEY не задан на этом сервере."
 }

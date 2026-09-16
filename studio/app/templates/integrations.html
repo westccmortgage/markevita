@@ -47,4 +47,33 @@
     <dt>Instagram</dt><dd>{{ _("Disabled.") }} <code>INSTAGRAM_PUBLISH_ENABLED</code> {{ _("stays") }} <code>false</code>.</dd>
   </dl>
 </div>
+
+<div class="card">
+  <h2>{{ _("Voices on this ElevenLabs account") }}</h2>
+  <p class="hint" style="margin-top:-8px">{{ _("A voice slot holds an id — a twenty-character string with nothing to read in it. These are the voices this server's key can reach; copy an id into a slot on the service environment. Nothing here is stored.") }}</p>
+
+  {% if not voices.ok %}
+    <div class="notice err">{{ (voices.reason)|notice }}</div>
+  {% else %}
+    {% if voices.unfilled %}
+      <div class="notice info">{{ _("Slots waiting for an id:") }}
+        <b>{{ voices.unfilled|join(', ') }}</b></div>
+    {% elif not voices.slots %}
+      <div class="notice info">{{ _("No voice slots exist yet. Add ELEVENLABS_VOICE_1, _2, _3 … to the service environment, then put one of the ids below in each.") }}</div>
+    {% endif %}
+    <div class="table-scroll"><table>
+      <thead><tr><th>{{ _("Voice") }}</th><th>{{ _("Voice ID — this is the value") }}</th>
+                 <th>{{ _("Character of the voice") }}</th><th>{{ _("In use") }}</th></tr></thead>
+      <tbody>
+      {% for v in voices.voices %}
+        <tr><td>{{ v.name }}</td>
+            <td><code>{{ v.voice_id }}</code></td>
+            <td class="small muted">{{ v.traits }}</td>
+            <td class="small">{% if v.in_slots %}<span class="pill ok">{{ v.in_slots|join(', ') }}</span>{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  {% endif %}
+</div>
+
 {% endblock %}

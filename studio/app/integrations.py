@@ -225,3 +225,51 @@ def _probe(provider: str) -> str | None:
     except Exception as e:
         # SDK exceptions can contain keys, capability URLs and headers.
         return f"Connection check failed ({type(e).__name__})."
+
+
+# ── the voices this account actually has ───────────────────────────────────
+
+def voice_catalogue() -> dict:
+    """Names and ids of the voices on the configured ElevenLabs account.
+
+    A voice slot holds an id, and an id is a twenty-character string with no
+    meaning to read — asking an operator to hunt for one in another product,
+    and to not mistype it, is a poor trade when this server already holds the
+    key. Read-only: nothing is stored, and the key never leaves this function.
+    """
+    import requests
+    key = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
+    if not key:
+        return {"ok": False, "reason": "ELEVENLABS_API_KEY is not set on this server."}
+    try:
+        response = requests.get("https://api.elevenlabs.io/v1/voices",
+                                headers={"xi-api-key": key}, timeout=20)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:                                       # noqa: BLE001
+        # Never the response body: it can echo the key back.
+        return {"ok": False, "reason": f"ElevenLabs did not answer ({type(exc).__name__})."}
+
+    # Which slot, if any, already holds each voice — so the operator sees what
+    # is set rather than comparing strings by eye.
+    from .authoring import voice_slots
+    held = {}
+    for slot in voice_slots():
+        value = (os.getenv(slot["env"]) or "").strip()
+        if value:
+            held.setdefault(value, []).append(slot["env"])
+
+    voices = []
+    for v in payload.get("voices") or []:
+        labels = v.get("labels") or {}
+        voices.append({
+            "name": v.get("name") or "",
+            "voice_id": v.get("voice_id") or "",
+            "traits": ", ".join(str(labels[k]) for k in ("gender", "age", "accent", "description")
+                                if labels.get(k)),
+            "in_slots": held.get(v.get("voice_id") or "", []),
+        })
+    voices.sort(key=lambda v: v["name"].lower())
+    return {"ok": True, "voices": voices,
+            "slots": [s["env"] for s in voice_slots()],
+            "unfilled": [s["env"] for s in voice_slots() if not s["configured"]]}

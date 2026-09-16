@@ -1124,7 +1124,8 @@ def release_saved_request(request: Request, job_id: str, request_id: str = Form(
 @router.get("/integrations", response_class=HTMLResponse)
 def integrations_page(request: Request):
     require_admin(request)
-    return render(request, "integrations.html", providers=integrations.status_all())
+    return render(request, "integrations.html", providers=integrations.status_all(),
+                  voices=integrations.voice_catalogue())
 
 
 @router.post("/integrations/{provider}/test")

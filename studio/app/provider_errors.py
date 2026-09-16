@@ -9,7 +9,10 @@ class ProviderFailure(RuntimeError):
 _TYPES = {
     "file_download_error": "fal.ai could not download an input file. Check the saved request in fal.ai before retrying.",
     "image_load_error": "fal.ai could not read an input image. Check the saved request in fal.ai before retrying.",
-    "content_policy_violation": "fal.ai rejected the request under its content policy. Review the provider result before continuing.",
+    "content_policy_violation": "fal.ai refused to generate this under its content policy. Nothing is "
+                                "retried on its own: change the wording it was given — for a reference that is "
+                                "the character's appearance or the wardrobe item, for a clip it is the scene's "
+                                "action — and run the episode again.",
     "face_detection_error": "fal.ai could not detect the required face in the input image.",
     "image_too_large": "fal.ai rejected an input file or parameter. Check the saved request details.",
     "file_too_large": "fal.ai rejected an input file or parameter. Check the saved request details.",
@@ -23,7 +26,7 @@ for _name in _INFRA:
     _TYPES[_name] = "fal.ai reported a processing failure. Check the saved request status before continuing."
 
 
-def fal_diagnostic(exc, request_id=None, phase="collect"):
+def fal_diagnostic(exc, request_id=None, phase="collect", what=""):
     response = getattr(exc, "response", None)
     status = getattr(exc, "status_code", None)
     if status is None and response is not None:
@@ -67,5 +70,9 @@ def fal_diagnostic(exc, request_id=None, phase="collect"):
     if isinstance(request_id, str) and re.fullmatch(r"[a-fA-F0-9]{8}-[a-fA-F0-9-]{27,40}", request_id):
         info["request_id"] = request_id
         prefix += f" · request {request_id}"
+    # What was being made, so a refusal names the reference or clip to fix
+    # instead of only a request id. It is our own label, never provider text.
+    if isinstance(what, str) and what.strip():
+        prefix += " · " + what.strip()[:120]
     info["message"] = prefix + ": " + advice
     return info

@@ -680,6 +680,14 @@ These entries are read by image and video models, so:
 - `description` for a location is 80-150 ENGLISH words: geometry, materials,
   fixtures, the view, and above all what must never move between shots.
 - Each wardrobe entry is one outfit in 15-40 ENGLISH words. Exactly one is default.
+  These go verbatim into full-body image prompts, and an image provider refuses a
+  prompt it reads as a request for a revealing picture of a person — the episode
+  then stops mid-pack having paid for the images before it. So describe the
+  garment, not the body it exposes: name the piece, its cut, fabric and colour.
+  Never write that something is sheer, unbuttoned, open, plunging, backless or
+  strapless, and never mention bare skin, cleavage or underwear. Swimwear is
+  "swimwear" with its colour. The character can still look glamorous; the
+  sentence just has to read as a costume note, not an undressing.
 - `lighting_states` always has "default"; add "night" or others only if the story
   needs them. Each value describes that light in English.
 - ids are lowercase snake_case, derived from the name, never renamed later.

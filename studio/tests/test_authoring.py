@@ -1111,3 +1111,12 @@ def test_the_model_does_not_get_to_number_the_episodes(db, monkeypatch):
     authoring.draft(MIAMI, "s01e02", "a wish")
     assert (db.get("episodes", {"series_id": MIAMI, "episode_id": "s01e02"})["title"]
             == "The Fourth Woman")
+
+
+def test_the_bible_writer_is_told_to_keep_wardrobe_text_generatable(db):
+    """The studio drafted "sheer sarong", "plunging neckline", "unbuttoned
+    shirt"; fal refused the full-body reference under its content policy and
+    the episode stopped mid-pack, after paying for the images before it."""
+    for word in ("sheer", "unbuttoned", "plunging", "backless", "strapless", "bare skin"):
+        assert word in authoring.CAST_SYSTEM
+    assert "full-body image prompts" in authoring.CAST_SYSTEM

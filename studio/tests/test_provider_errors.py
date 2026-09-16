@@ -186,3 +186,33 @@ def test_unknown_response_and_request_id_are_never_echoed():
     diagnostic = fal_diagnostic(exc, "https://private.test/PRIVATE_TOKEN")
     assert diagnostic["http_status"] == 500 and diagnostic["error_type"] is None
     assert "PRIVATE" not in json.dumps(diagnostic)
+
+
+def _refusal(kind="content_policy_violation"):
+    response = requests.Response()
+    response.status_code = 422
+    response._content = json.dumps({"error_type": kind}).encode()
+    response.headers["content-type"] = "application/json"
+    return requests.exceptions.HTTPError(response=response)
+
+
+def test_a_refusal_names_what_was_being_made(tmp_path):
+    """The failure said only a request id: the producer had to read the log to
+    learn which of forty reference images fal refused."""
+    exc = _refusal()
+    info = fal_diagnostic(exc, RID, what="ref adrian/fullbody_front__linen_suit")
+    assert "ref adrian/fullbody_front__linen_suit" in info["message"]
+    assert RID in info["message"]
+
+
+def test_a_content_refusal_says_what_the_producer_changes(tmp_path):
+    exc = _refusal()
+    message = fal_diagnostic(exc, RID)["message"]
+    assert "appearance" in message and "wardrobe" in message
+
+
+def test_a_label_never_carries_provider_text(tmp_path):
+    """Only our own label goes in; it is also bounded."""
+    exc = _refusal()
+    info = fal_diagnostic(exc, RID, what="x" * 400)
+    assert "x" * 121 not in info["message"]

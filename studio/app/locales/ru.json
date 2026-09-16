@@ -584,7 +584,6 @@
   "References need your review": "Нужно проверить референсы",
   "fal.ai could not download an input file. Check the saved request in fal.ai before retrying.": "fal.ai не смог скачать входной файл. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
   "fal.ai could not read an input image. Check the saved request in fal.ai before retrying.": "fal.ai не смог прочитать входное изображение. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
-  "fal.ai rejected the request under its content policy. Review the provider result before continuing.": "fal.ai отклонил запрос по правилам сервиса. Перед продолжением проверьте ответ провайдера.",
   "fal.ai could not detect the required face in the input image.": "fal.ai не смог обнаружить нужное лицо на входном изображении.",
   "fal.ai rejected an input file or parameter. Check the saved request details.": "fal.ai отклонил входной файл или параметр. Проверьте данные сохранённого запроса.",
   "fal.ai authentication failed. Check the API key in Render.": "fal.ai не принял авторизацию. Проверьте API-ключ в Render.",
@@ -765,5 +764,6 @@
   "Voice ID — this is the value": "Voice ID — это и есть значение",
   "Character of the voice": "Характер голоса",
   "In use": "Занят",
-  "ELEVENLABS_API_KEY is not set on this server.": "ELEVENLABS_API_KEY не задан на этом сервере."
+  "ELEVENLABS_API_KEY is not set on this server.": "ELEVENLABS_API_KEY не задан на этом сервере.",
+  "fal.ai refused to generate this under its content policy. Nothing is retried on its own: change the wording it was given — for a reference that is the character's appearance or the wardrobe item, for a clip it is the scene's action — and run the episode again.": "fal.ai отказался это создавать по своим правилам. Само по себе ничего не повторяется: измените описание, которое ему дали — для референса это внешность персонажа или предмет одежды, для клипа — действие в сцене, — и запустите серию снова."
 }

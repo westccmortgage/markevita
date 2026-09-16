@@ -242,7 +242,7 @@ class DurableFal(Fal):
                 response.raise_for_status()
             except requests.exceptions.RequestException as exc:
                 _provider_explanation(exc, None, self.cfg.fal_key, self.log)
-                info = fal_diagnostic(exc, phase='submit')
+                info = fal_diagnostic(exc, phase='submit', what=what)
                 info['submission_rejected'] = _response_refused(exc)
                 take['provider_error'] = info
                 if _known_refusal(take):
@@ -263,7 +263,7 @@ class DurableFal(Fal):
             result = self._wait(take.get('endpoint') or endpoint, take['request_id'])
         except Exception as exc:
             _provider_explanation(exc, take['request_id'], self.cfg.fal_key, self.log)
-            info = fal_diagnostic(exc, take['request_id'])
+            info = fal_diagnostic(exc, take['request_id'], what=take.get('what') or what)
             take['provider_error'] = info
             self.state.save()
             raise ProviderFailure(info['message']) from exc

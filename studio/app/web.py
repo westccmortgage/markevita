@@ -414,7 +414,8 @@ def open_next_episode(request: Request, series_id: str):
 def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> dict:
     """Length, an estimated cost and the cap. The figure is an estimate."""
     from serial.config import Config, VIDEO_MODELS
-    from serial.package import SeriesPackage, estimate_first_pass, validate_episode
+    from serial.package import (PackageError, SeriesPackage, estimate_first_pass,
+                                validate_episode)
     from .config import PIPELINE_DIR
     from .live_jobs import video_model
     from .packaging import materialize
@@ -436,6 +437,15 @@ def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> di
                 "estimate_usd": est["total_first_pass"], "cap_usd": est["budget_cap"],
                 "model": VIDEO_MODELS[cfg.fal_video_model],
                 "warnings": norm.get("warnings") or []}
+    except PackageError as e:
+        # An episode written before the series' length settings were raised is
+        # not broken; it simply no longer matches them. Saying "rejected" over
+        # a finished episode reads like damage, and the raw list said nothing
+        # about what to do.
+        return {"ok": False, "message":
+                "This episode does not match the series' current length settings, so it cannot "
+                "be produced as it stands — it was written under earlier ones. Change the "
+                f"settings on the series page, or write it again. Details: {e}"}
     except Exception as e:
         return {"ok": False, "message": str(e)}
 

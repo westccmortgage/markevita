@@ -33,6 +33,16 @@ from serial.package import (PackageError, SeriesPackage,          # noqa: E402
                             validate_episode, word_budget)
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,63}$")
+# "S02E02: The Fourth Woman" appeared as the name of episode three of season
+# one. The model numbers episodes itself when left to it; the studio already
+# knows the number, and two disagreeing ones on one screen help nobody.
+EPISODE_LABEL_RE = re.compile(r"^\s*(episode\s*\d+|s\d{1,2}\s*[e·-]\s*\d{1,3})\s*[:.\u2014-]*\s*",
+                              re.IGNORECASE)
+
+
+def episode_title(text: str) -> str:
+    """The episode's name without a numbering the studio did not ask for."""
+    return EPISODE_LABEL_RE.sub("", text or "").strip()
 
 
 class AuthoringError(ValueError):
@@ -409,7 +419,7 @@ def _brief_for(series_id: str, episode_id: str, draft: dict) -> dict:
         "schema_version": "2.0", "series_id": series_id,
         "season_id": episode.get("season_id") or "s01", "episode_id": episode_id,
         "number": int(episode.get("number") or 1),
-        "title": draft.get("title") or episode.get("title") or episode_id,
+        "title": episode_title(draft.get("title")) or episode.get("title") or episode_id,
         "logline": draft.get("logline", ""),
         "scenes": scenes,
         "cliffhanger": draft.get("cliffhanger") or {},

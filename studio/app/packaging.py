@@ -55,17 +55,27 @@ def _clean(d: dict) -> dict:
 
 def build_series_json(series: dict) -> dict:
     seasons = store.list("seasons", {"series_id": series["id"]}, order="number")
+    episodes = store.list("episodes", {"series_id": series["id"]})
     preview_ids = {
-        ep["episode_id"] for ep in store.list("episodes", {"series_id": series["id"]})
+        ep["episode_id"] for ep in episodes
         if ep.get("status") == "preview" or (ep.get("brief") or {}).get("kind") == "clip_preview"
     }
+    # The season's list is appended to as episodes are opened, so it carries the
+    # order they happened to be created in. The engine reads it as the order of
+    # the story: episode three was told it continues episode four, and was
+    # validated against the wrong ending. Episode numbers are what the producer
+    # sees and what the ids are built from, so they decide the order here.
+    # The sort is stable, so episodes the studio never numbered keep the order
+    # they were declared in rather than being shuffled by their ids.
+    number_of = {ep["episode_id"]: int(ep.get("number") or 0) for ep in episodes}
     # Standalone camera tests are not part of the full episode package, and a
     # season left with nothing in it is not either: the engine's schema requires
     # every season to hold at least one episode, so emitting an empty one makes
     # the whole package invalid and every episode of the series unwritable.
     seasons = [
-        {**s, "episode_order": [eid for eid in (s.get("episode_order") or [])
-                                if eid not in preview_ids]}
+        {**s, "episode_order": sorted((eid for eid in (s.get("episode_order") or [])
+                                       if eid not in preview_ids),
+                                      key=lambda eid: number_of.get(eid, 0))}
         for s in seasons
     ]
     seasons = [s for s in seasons if s["episode_order"]]

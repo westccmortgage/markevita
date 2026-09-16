@@ -1082,3 +1082,32 @@ def test_a_series_problem_is_not_sent_back_to_the_model(db, monkeypatch):
     with pytest.raises(authoring.SeriesProblem, match="s01e01"):
         authoring.draft(MIAMI, "s01e02", "a wish")
     assert len(calls) == 1
+
+
+def test_the_story_order_follows_the_episode_numbers(db):
+    """A season lists episodes in the order they were opened. Episode three was
+    told on screen that it "continues s01e04", and was validated against the
+    ending of an episode that comes after it."""
+    from app import packaging
+    for number in (1, 2, 4, 3):
+        db.upsert("episodes", {"series_id": MIAMI, "episode_id": f"s01e{number:02d}",
+                               "season_id": "s01", "number": number, "title": f"E{number}"})
+    db.update("seasons", {"series_id": MIAMI, "season_id": "s01"},
+              {"episode_order": ["s01e01", "s01e02", "s01e04", "s01e03"]})
+    season = packaging.build_series_json(db.get("series", {"id": MIAMI}))["seasons"][0]
+    assert season["episodes"] == ["s01e01", "s01e02", "s01e03", "s01e04"]
+
+
+def test_the_model_does_not_get_to_number_the_episodes(db, monkeypatch):
+    """Episode three of season one was named "S02E02: The Fourth Woman"."""
+    _open_second(db)
+    scenes = [_scene(1, cliff=True)]
+    monkeypatch.setattr(authoring, "validate_candidate",
+                        lambda sid, eid, brief: {"scenes": brief["scenes"],
+                                                 "total_seconds": 4, "warnings": []})
+    _stub(monkeypatch, [json.dumps({"title": "S02E02: The Fourth Woman", "logline": "L",
+                                    "scenes": scenes,
+                                    "cliffhanger": {"scene_id": "sc01", "hook": "?"}})])
+    authoring.draft(MIAMI, "s01e02", "a wish")
+    assert (db.get("episodes", {"series_id": MIAMI, "episode_id": "s01e02"})["title"]
+            == "The Fourth Woman")

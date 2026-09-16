@@ -524,16 +524,13 @@ def selfcheck_page(request: Request):
     from fastapi.testclient import TestClient
     from . import selfcheck
     from .main import app
+    # In-process the routes carry no prefix: STUDIO_BASE_PATH is what the proxy
+    # in front of the service strips, and what links are written with. Asking
+    # for it here produced a 404 for every screen and called them all broken.
     client = TestClient(app, base_url=str(request.base_url).rstrip("/"),
                         raise_server_exceptions=False)
     client.cookies.set(auth.COOKIE, request.cookies.get(auth.COOKIE, ""))
-    prefix = settings.base_path.rstrip("/")
-
-    class _Prefixed:
-        def get(self, path, **kw):
-            return client.get(prefix + path, **kw)
-
-    results = selfcheck.run(_Prefixed())
+    results = selfcheck.run(client)
     return render(request, "selfcheck.html", results=results,
                   settings_in_force=selfcheck.settings_in_force(),
                   failures=[r for r in results if not r["ok"]])

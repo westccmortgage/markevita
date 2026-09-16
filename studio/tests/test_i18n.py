@@ -218,3 +218,18 @@ def test_the_progress_banners_render_in_every_state(language_ui, monkeypatch, st
         assert 'остановилось' in page and 'the model refused' in page
     else:
         assert 'sc01 (speech)' in page
+
+
+def test_the_self_check_finds_the_screens_it_checks(language_ui, monkeypatch):
+    """It reported every screen as broken: it asked for the proxy's prefix,
+    which the routes do not carry in-process, and got a 404 each time."""
+    from app import selfcheck
+    client, store, sid, eid = language_ui
+    store.update('episodes', {'series_id': sid, 'episode_id': eid},
+                 {'spent_usd': 0, 'status': 'draft'})
+    monkeypatch.setattr(selfcheck, 'store', store, raising=False)
+    r = client.get('/studio/selfcheck')
+    assert r.status_code == 200
+    assert 'Not Found' not in r.text, r.text[:600]
+    assert 'сломан' not in r.text
+    assert f'/series/{sid}' in r.text and '/costs' in r.text

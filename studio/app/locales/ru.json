@@ -745,5 +745,7 @@
   "fine": "в порядке",
   "broken": "сломан",
   "Something in the studio broke": "Что-то в студии сломалось",
-  "That is not the engine's own format, so the studio is writing it into scenes. This page refreshes itself.": "Это не формат движка, поэтому студия сама разложит текст на сцены. Страница обновится сама."
+  "That is not the engine's own format, so the studio is writing it into scenes. This page refreshes itself.": "Это не формат движка, поэтому студия сама разложит текст на сцены. Страница обновится сама.",
+  "The model ran out of room before it finished. Ask for fewer scenes, or a shorter episode in the series settings.": "Модели не хватило места, чтобы дописать. Попросите меньше сцен или уменьшите длину серии в настройках сериала.",
+  "The model declined to write this. Rephrase the request.": "Модель отказалась это писать. Переформулируйте запрос."
 }

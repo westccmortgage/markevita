@@ -336,6 +336,30 @@ def _model() -> str:
     return (os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5").strip()
 
 
+# An episode is 12-18 scenes, each with dialogue, camera and continuity, and a
+# whole cast is a paragraph of appearance apiece. At 8000 tokens the answer was
+# cut off mid-JSON and surfaced as "could not read the model's answer" — a
+# parser complaint for what was really a ceiling. The model is billed for what
+# it writes, not for the room it is given, so the ceiling is generous and the
+# call streams, which is what the SDK needs at this size to avoid a timeout.
+SCRIPT_TOKENS = 64000
+BIBLE_TOKENS = 32000
+
+
+def _answer(client, system: str, messages: list[dict], max_tokens: int):
+    """One completed reply, or a plain account of why there isn't one."""
+    with client.messages.stream(model=_model(), max_tokens=max_tokens,
+                                system=system, messages=messages) as stream:
+        response = stream.get_final_message()
+    if response.stop_reason == "max_tokens":
+        raise AuthoringError(
+            "The model ran out of room before it finished. Ask for fewer scenes, "
+            "or a shorter episode in the series settings.")
+    if response.stop_reason == "refusal":
+        raise AuthoringError("The model declined to write this. Rephrase the request.")
+    return response
+
+
 def _extract_json(text: str) -> dict:
     body = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip())
     start, end = body.find("{"), body.rfind("}")
@@ -398,8 +422,7 @@ def _ask(series_id: str, episode_id: str, memory: dict, request: str, current: l
     messages = [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
     last_error = ""
     for attempt in range(2):
-        response = client.messages.create(model=_model(), max_tokens=8000, system=SYSTEM,
-                                          messages=messages)
+        response = _answer(client, SYSTEM, messages, SCRIPT_TOKENS)
         spend += _record_cost(series_id, episode_id, response)
         answer = "".join(block.text for block in response.content if block.type == "text")
         try:
@@ -684,9 +707,9 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
         raise AuthoringError("This series has nothing written yet. Add a logline or an episode first.")
 
     client = _client()
-    response = client.messages.create(
-        model=_model(), max_tokens=8000, system=CAST_SYSTEM,
-        messages=[{"role": "user", "content": json.dumps(material, ensure_ascii=False)}])
+    response = _answer(client, CAST_SYSTEM,
+                       [{"role": "user", "content": json.dumps(material, ensure_ascii=False)}],
+                       BIBLE_TOKENS)
     spend = _record_cost(series_id, "", response)
     answer = "".join(b.text for b in response.content if b.type == "text")
     proposal = _extract_json(answer)

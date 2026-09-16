@@ -168,18 +168,34 @@ def test_the_model_is_told_the_hard_limits():
 
 # ── a draft that fails validation changes nothing ──────────────────────────
 
-def _stub(monkeypatch, answers):
-    """A model that returns the given answers in turn."""
+def _reply(text, stop_reason="end_turn"):
+    return SimpleNamespace(content=[SimpleNamespace(type="text", text=text)],
+                           stop_reason=stop_reason,
+                           usage=SimpleNamespace(input_tokens=1000, output_tokens=2000))
+
+
+def _stub(monkeypatch, answers, stop_reason="end_turn"):
+    """A model with the shape the SDK really has: a streamed reply."""
     replies = iter(answers)
     calls = []
 
+    class _Stream:
+        def __init__(self, kw):
+            self.kw = kw
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get_final_message(self):
+            return _reply(next(replies), stop_reason)
+
     class _Messages:
-        def create(self, **kw):
+        def stream(self, **kw):
             calls.append(kw)
-            text = next(replies)
-            return SimpleNamespace(
-                content=[SimpleNamespace(type="text", text=text)],
-                usage=SimpleNamespace(input_tokens=1000, output_tokens=2000))
+            return _Stream(kw)
 
     monkeypatch.setattr(authoring, "_client", lambda: SimpleNamespace(messages=_Messages()))
     return calls
@@ -640,11 +656,19 @@ def test_the_request_returns_before_the_model_does(db, monkeypatch, slots):
     released, started = threading.Event(), threading.Event()
 
     class _Slow:
-        def create(self, **kw):
+        def stream(self, **kw):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get_final_message(self):
             started.set()
             assert released.wait(5), "the fill never ran"
-            return SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps(CAST))],
-                                   usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+            return _reply(json.dumps(CAST))
 
     monkeypatch.setattr(authoring, "_client", lambda: SimpleNamespace(messages=_Slow()))
     db.delete("characters", {"series_id": MIAMI})
@@ -844,3 +868,30 @@ def test_pasted_prose_goes_to_the_studio_rather_than_the_parser(db, monkeypatch)
     assert response.status_code == 303
     assert "Maya" in handed["text"]
     assert "studio" in response.headers["location"]
+
+
+# ── the model must be given room to finish ─────────────────────────────────
+
+def test_an_answer_cut_off_by_the_ceiling_says_so(db, monkeypatch, slots):
+    """It surfaced as "could not read the model's answer" — a parser complaint
+    for what was really a token ceiling."""
+    _stub(monkeypatch, ['{"characters": [], "locations": []'], stop_reason="max_tokens")
+    with pytest.raises(authoring.AuthoringError, match="ran out of room"):
+        authoring.fill_bible(MIAMI)
+
+
+def test_a_refusal_is_not_reported_as_unreadable(db, monkeypatch, slots):
+    _stub(monkeypatch, ["I will not."], stop_reason="refusal")
+    with pytest.raises(authoring.AuthoringError, match="declined"):
+        authoring.fill_bible(MIAMI)
+
+
+def test_an_episode_is_given_room_for_every_scene(db, monkeypatch):
+    """Eighteen scenes of dialogue, camera and continuity do not fit in 8000."""
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+    _accepting(monkeypatch, [_scene(1, cliff=True)])
+    calls = _stub(monkeypatch, [json.dumps({"title": "T", "scenes": [_scene(1, cliff=True)],
+                                            "cliffhanger": {"scene_id": "sc01", "hook": "?"}})])
+    authoring.draft(MIAMI, episode, "x")
+    assert calls[0]["max_tokens"] >= 32000
+    assert authoring.SCRIPT_TOKENS >= 32000 and authoring.BIBLE_TOKENS >= 16000

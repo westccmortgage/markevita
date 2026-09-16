@@ -441,3 +441,54 @@ def test_producing_an_episode_with_no_script_says_so(monkeypatch):
     with pytest.raises(ValueError, match='no script yet'):
         runner.jobs.start('test_series', 's01e04', ['intake'], 'admin@example.test',
                           approved_digest='d', approve_live=True)
+
+
+# ── a job whose worker died must stop claiming to be running ───────────────
+
+def _abandoned(store, *, lease_deadline=None):
+    """A live job left saying "running" by a worker that is no longer there."""
+    store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['references'], 'mode': 'live',
+        'state': 'running', 'requested_by': 'admin@example.test', 'idempotency_key': 'live:island:s01e04:x',
+        'force': [], 'progress': {'stage': 'references', 'done': ['intake'], 'total': 3},
+        'created_at': '2026-09-16T10:23:00+00:00', 'log': ''})
+    if lease_deadline:
+        store.insert('production_jobs', {
+            'series_id': 'island', 'episode_id': '', 'stages': ['runtime_lease'], 'mode': 'live',
+            'state': 'leased', 'error': 'owner-1', 'finished_at': lease_deadline,
+            'idempotency_key': 'episode-worker-lease:island'})
+
+
+def test_a_job_whose_worker_is_gone_stops_saying_running(monkeypatch):
+    """One job showed "running" on the references stage for three hours. The
+    worker had died with the process; nothing else ever revisits the row."""
+    from datetime import datetime, timedelta, timezone
+    store = StrictStore()
+    monkeypatch.setattr(runner, 'store', store)
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    _abandoned(store, lease_deadline=stale)
+    runner.jobs.reconcile_abandoned('island')
+    job = store.list('production_jobs', {'series_id': 'island', 'episode_id': 's01e04'})[0]
+    assert job['state'] == 'interrupted'
+    assert 'Resume this episode' in job['error']
+
+
+def test_a_live_worker_still_holding_its_lease_is_left_alone(monkeypatch):
+    """Renewing every thirty seconds is what "still working" looks like."""
+    from datetime import datetime, timedelta, timezone
+    store = StrictStore()
+    monkeypatch.setattr(runner, 'store', store)
+    fresh = (datetime.now(timezone.utc) + timedelta(seconds=120)).isoformat()
+    _abandoned(store, lease_deadline=fresh)
+    runner.jobs.reconcile_abandoned('island')
+    job = store.list('production_jobs', {'series_id': 'island', 'episode_id': 's01e04'})[0]
+    assert job['state'] == 'running'
+
+
+def test_a_job_with_no_lease_at_all_is_not_left_running(monkeypatch):
+    store = StrictStore()
+    monkeypatch.setattr(runner, 'store', store)
+    _abandoned(store)
+    runner.jobs.reconcile_abandoned('island')
+    job = store.list('production_jobs', {'series_id': 'island', 'episode_id': 's01e04'})[0]
+    assert job['state'] == 'interrupted'

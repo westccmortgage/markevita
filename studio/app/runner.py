@@ -120,7 +120,32 @@ class JobManager:
 
     # ── queries ────────────────────────────────────────────────────────────
 
+    def reconcile_abandoned(self, series_id: str) -> None:
+        """Stop showing a job as running once its worker is gone.
+
+        A worker records the job's state from inside its own process, so a
+        process that dies — a deploy, a restart, a lost container — leaves the
+        row saying "running" forever. One job sat like that for three hours,
+        and until the next live run came along to clear it, nothing said
+        otherwise. The series lease is the evidence: it is renewed every thirty
+        seconds and expires three minutes after the last renewal, and it lives
+        in the store, so this holds across processes.
+        """
+        from .live_runtime import unexpired
+        lease = store.get("production_jobs", {"idempotency_key": "episode-worker-lease:" + series_id})
+        if lease and lease.get("state") == "leased" and unexpired(lease):
+            return  # a worker is alive and holding this series
+        for job in store.list("production_jobs", {"series_id": series_id, "mode": "live"}):
+            if job.get("stages") == ["runtime_lease"]:
+                continue
+            if job.get("state") in ("queued", "running", "pausing", "cancelling"):
+                store.update("production_jobs", {"id": job["id"]}, {
+                    "state": "interrupted", "finished_at": _now(),
+                    "error": "Worker stopped; saved provider requests will be reused. "
+                             "Resume this episode to carry on from the last checkpoint."})
+
     def active_job(self, series_id: str, episode_id: str) -> dict | None:
+        self.reconcile_abandoned(series_id)
         for job in store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
                               order="created_at", desc=True):
             if job.get("state") in ("queued", "running", "paused"):
@@ -131,6 +156,7 @@ class JobManager:
         return None
 
     def jobs_for(self, series_id: str, episode_id: str | None = None, limit: int = 50) -> list[dict]:
+        self.reconcile_abandoned(series_id)
         where = {"series_id": series_id}
         if episode_id:
             where["episode_id"] = episode_id

@@ -1062,11 +1062,25 @@ def costs_page(request: Request, series_id: str | None = None):
                   selected=series_id)
 
 
+def _listed_jobs():
+    """The jobs list, with any whose worker is gone no longer saying "running"."""
+    def read():
+        return [j for j in store.list("production_jobs", order="created_at", desc=True, limit=100)
+                if j.get("stages") != ["runtime_lease"]]
+
+    jobs = read()
+    series = {j["series_id"] for j in jobs if j.get("mode") == "live"
+              and j.get("state") in ("queued", "running", "pausing", "cancelling")}
+    for series_id in series:
+        runner.jobs.reconcile_abandoned(series_id)
+    return read() if series else jobs
+
+
 @router.get("/jobs", response_class=HTMLResponse)
 def jobs_page(request: Request):
     require_admin(request)
     return render(request, "jobs.html",
-                  jobs=[j for j in store.list("production_jobs", order="created_at", desc=True, limit=100) if j.get("stages") != ["runtime_lease"]])
+                  jobs=_listed_jobs())
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
@@ -1077,6 +1091,9 @@ def job_page(request: Request, job_id: str):
         raise HTTPException(404, "job not found")
     if job.get("stages") == ["clip_preview"]:
         return _redirect("/clip-preview")
+    if job.get("mode") == "live" and job.get("state") in ("queued", "running", "pausing", "cancelling"):
+        runner.jobs.reconcile_abandoned(job["series_id"])
+        job = store.get("production_jobs", {"id": job_id}) or job
     progress = job.get("progress") or {}
     # Older paused jobs have the reason only in their log. Recognize that exact
     # marker so the next action is visible without restarting or changing them.

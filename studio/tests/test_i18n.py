@@ -233,3 +233,16 @@ def test_the_self_check_finds_the_screens_it_checks(language_ui, monkeypatch):
     assert 'Not Found' not in r.text, r.text[:600]
     assert 'сломан' not in r.text
     assert f'/series/{sid}' in r.text and '/costs' in r.text
+
+
+def test_opening_a_buttons_address_returns_to_the_studio():
+    """Reloading after pressing a button answered {"detail":"Method Not
+    Allowed"} on a blank white page, with no way back."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    for path in ("/series/island/fill-bible", "/series/island/episodes/s01e01/draft"):
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 303, path
+        assert response.headers["location"].startswith("/series/island"), path
+    assert client.request("PUT", "/series/island/fill-bible").status_code == 405

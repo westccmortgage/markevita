@@ -88,6 +88,20 @@ async def unauthorized(request: Request, exc):
     return RedirectResponse(settings.url(f"/login?next={target}"), status_code=303)
 
 
+@app.exception_handler(405)
+async def wrong_method(request: Request, exc):
+    """A button's address opened in the browser is not a dead end.
+
+    The action routes accept POST only, so reloading the page after pressing
+    one — or pressing back onto it — answered {"detail":"Method Not Allowed"}
+    on a blank white page, with no way back into the studio.
+    """
+    if request.method != "GET" or request.url.path.startswith("/api/"):
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+    parent = request.url.path.rsplit("/", 1)[0] or "/"
+    return RedirectResponse(settings.url(parent), status_code=303)
+
+
 @app.on_event("startup")
 async def report_configuration() -> None:
     """Print a configuration report at boot.

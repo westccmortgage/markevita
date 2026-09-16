@@ -225,7 +225,7 @@ def test_the_validators_complaint_is_sent_back_once(db, monkeypatch):
     _open_second(db)
     attempts = {"n": 0}
 
-    def validate(series_id, episode_id, brief):
+    def validate(series_id, episode_id, brief, outfits=None):
         attempts["n"] += 1
         if attempts["n"] == 1:
             raise PackageError("sc01: 40 words is too many for 4s")
@@ -276,9 +276,9 @@ def test_a_series_with_no_cast_says_what_is_missing(db):
 
 def _accepting(monkeypatch, scenes):
     monkeypatch.setattr(authoring, "validate_candidate",
-                        lambda sid, eid, brief: {"scenes": brief["scenes"],
-                                                 "total_seconds": 4 * len(brief["scenes"]),
-                                                 "warnings": []})
+                        lambda sid, eid, brief, outfits=None: {"scenes": brief["scenes"],
+                                                               "total_seconds": 4 * len(brief["scenes"]),
+                                                               "warnings": []})
     return _stub(monkeypatch, [json.dumps({"title": "Not his child", "logline": "L",
                                            "scenes": scenes,
                                            "cliffhanger": {"scene_id": scenes[-1]["scene_id"],
@@ -1110,8 +1110,8 @@ def test_the_model_does_not_get_to_number_the_episodes(db, monkeypatch):
     _open_second(db)
     scenes = [_scene(1, cliff=True)]
     monkeypatch.setattr(authoring, "validate_candidate",
-                        lambda sid, eid, brief: {"scenes": brief["scenes"],
-                                                 "total_seconds": 4, "warnings": []})
+                        lambda sid, eid, brief, outfits=None: {"scenes": brief["scenes"],
+                                                               "total_seconds": 4, "warnings": []})
     _stub(monkeypatch, [json.dumps({"title": "S02E02: The Fourth Woman", "logline": "L",
                                     "scenes": scenes,
                                     "cliffhanger": {"scene_id": "sc01", "hook": "?"}})])
@@ -1204,3 +1204,57 @@ def test_filling_the_bible_also_repairs_the_wardrobe_it_just_wrote(db, monkeypat
     text = db.get("clothing", {"series_id": MIAMI, "character_id": "nora",
                                "variant_id": "w_wedding"})["description"]
     assert authoring.refusal_risk(text) == []
+
+
+# ── the script decides what people wear ────────────────────────────────────
+
+def test_a_scene_that_needs_a_new_outfit_gets_one(db, monkeypatch):
+    """No producer should be adding costume rows by hand to match a script."""
+    _open_second(db)
+    scenes = [{**_scene(1, cliff=True), "wardrobe": {"nora": "w_raincoat"}}]
+    monkeypatch.setattr(authoring, "validate_candidate",
+                        lambda sid, eid, brief, outfits=None: {"scenes": brief["scenes"],
+                                                               "total_seconds": 4, "warnings": []})
+    _stub(monkeypatch, [json.dumps({
+        "title": "T", "logline": "L", "scenes": scenes,
+        "cliffhanger": {"scene_id": "sc01", "hook": "?"},
+        "new_wardrobe": [{"character": "nora", "id": "w_raincoat",
+                          "description": "Olive waxed-cotton raincoat over the evening dress."}]})])
+    result = authoring.draft(MIAMI, "s01e02", "she goes out into the rain")
+    assert result["wardrobe"] == ["nora/w_raincoat"]
+    saved = db.get("clothing", {"series_id": MIAMI, "character_id": "nora",
+                                "variant_id": "w_raincoat"})
+    assert saved["description"].startswith("Olive waxed-cotton")
+    assert saved["is_default"] is False
+
+
+def test_an_outfit_the_series_already_has_is_not_rewritten(db):
+    """A script adds what the story needs; it never repaints an existing costume."""
+    draft = {"new_wardrobe": [{"character": "nora", "id": "w_evening",
+                               "description": "something else entirely"}]}
+    assert authoring.new_outfits(MIAMI, draft) == []
+
+
+def test_an_outfit_for_a_character_who_does_not_exist_is_ignored(db):
+    draft = {"new_wardrobe": [{"character": "ghost", "id": "w_x", "description": "A coat."}]}
+    assert authoring.new_outfits(MIAMI, draft) == []
+
+
+def test_a_rejected_draft_leaves_the_wardrobe_untouched(db, monkeypatch):
+    """Nothing reaches the series until the validator has accepted the script."""
+    _open_second(db)
+    monkeypatch.setattr(authoring, "validate_candidate",
+                        lambda *a, **k: (_ for _ in ()).throw(PackageError("no")))
+    answer = json.dumps({"scenes": [_scene(1, cliff=True)],
+                         "new_wardrobe": [{"character": "nora", "id": "w_raincoat",
+                                           "description": "Olive waxed-cotton raincoat."}]})
+    _stub(monkeypatch, [answer, answer])
+    with pytest.raises(authoring.AuthoringError):
+        authoring.draft(MIAMI, "s01e02", "x")
+    assert not db.get("clothing", {"series_id": MIAMI, "character_id": "nora",
+                                   "variant_id": "w_raincoat"})
+
+
+def test_the_script_writer_is_told_the_wardrobe_follows_the_script(db):
+    assert "new_wardrobe" in authoring.SYSTEM
+    assert "The script decides what people wear" in authoring.SYSTEM

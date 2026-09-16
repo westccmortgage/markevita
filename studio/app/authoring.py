@@ -244,7 +244,60 @@ def series_memory(series_id: str, episode_id: str) -> dict:
 
 # ── validating a candidate without touching what exists ────────────────────
 
-def validate_candidate(series_id: str, episode_id: str, brief: dict) -> dict:
+def new_outfits(series_id: str, draft: dict) -> list[dict]:
+    """Outfits the script asks for that the series does not have yet.
+
+    The script decides what people wear; the series follows it. Anything
+    already there is left as it is — a script never rewrites a costume that
+    exists, it only adds the one the story needs.
+    """
+    out, seen = [], set()
+    for entry in (draft.get("new_wardrobe") or []):
+        if not isinstance(entry, dict):
+            continue
+        character_id = _slug_id(entry.get("character") or "")
+        variant_id = _slug_id(entry.get("id") or "")
+        description = (entry.get("description") or "").strip()
+        if not (ID_RE.match(character_id or "") and ID_RE.match(variant_id or "") and description):
+            continue
+        if (character_id, variant_id) in seen:
+            continue
+        if not store.get("characters", {"series_id": series_id, "character_id": character_id}):
+            continue
+        if store.get("clothing", {"series_id": series_id, "character_id": character_id,
+                                  "variant_id": variant_id}):
+            continue
+        seen.add((character_id, variant_id))
+        out.append({"character_id": character_id, "variant_id": variant_id,
+                    "description": description})
+    return out
+
+
+def _add_outfits(root: Path, outfits: list[dict]) -> None:
+    """Put the script's new outfits into a package copy, never into the series.
+
+    Validation has to see them or it rejects the scenes that wear them, but a
+    draft that fails validation must leave the series exactly as it was.
+    """
+    if not outfits:
+        return
+    path = root / "bible" / "characters.json"
+    characters = json.loads(path.read_text(encoding="utf-8"))
+    by_id = {c["id"]: c for c in characters}
+    for outfit in outfits:
+        character = by_id.get(outfit["character_id"])
+        if character is None:
+            continue
+        wardrobe = character.setdefault("wardrobe", {"default": outfit["variant_id"],
+                                                     "variants": {}})
+        wardrobe.setdefault("variants", {})[outfit["variant_id"]] = {
+            "description": outfit["description"]}
+        wardrobe.setdefault("default", outfit["variant_id"])
+    path.write_text(json.dumps(characters, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def validate_candidate(series_id: str, episode_id: str, brief: dict,
+                       outfits: list[dict] | None = None) -> dict:
     """Run the engine's own validator over a draft, in a throwaway copy.
 
     The live package is never written to, so a draft that does not survive
@@ -255,6 +308,7 @@ def validate_candidate(series_id: str, episode_id: str, brief: dict) -> dict:
     try:
         root = scratch / series_id
         shutil.copytree(source, root)
+        _add_outfits(root, outfits or [])
         target = root / "episodes" / episode_id
         target.mkdir(parents=True, exist_ok=True)
         (target / "brief.json").write_text(json.dumps(brief, ensure_ascii=False, indent=2),
@@ -323,7 +377,8 @@ def readable(scenes: list[dict], memory: dict | None = None) -> list[dict]:
 SYSTEM = """You write one episode of an ongoing vertical drama series, as structured JSON.
 
 Return ONLY a JSON object, no prose around it:
-{"title": str, "logline": str, "scenes": [scene], "cliffhanger": {"scene_id": str, "hook": str, "resolves_in": "tbd"}}
+{"title": str, "logline": str, "scenes": [scene], "cliffhanger": {"scene_id": str, "hook": str, "resolves_in": "tbd"},
+ "new_wardrobe": [{"character": id, "id": "snake_case", "description": str}]}
 
 scene = {"scene_id": "scNN", "sequence": int, "duration_seconds": int,
          "location": id, "lighting_state": key, "characters_in_frame": [id],
@@ -335,8 +390,21 @@ scene = {"scene_id": "scNN", "sequence": int, "duration_seconds": int,
 Hard rules. A script breaking any of them is rejected and wastes the producer's time.
 
 IDENTIFIERS
-- Use ONLY character, location, wardrobe-variant and prop ids listed in the series memory.
+- Use ONLY character, location and prop ids listed in the series memory.
   Never invent one, never rename one, never introduce a new character or place.
+
+WARDROBE
+- The script decides what people wear. If a scene needs an outfit the series
+  does not have yet, put a new id in that scene's `wardrobe` and describe it
+  once in `new_wardrobe`. The studio adds it to the series, so what the script
+  says and what the series holds cannot drift apart.
+- Reuse an existing variant id whenever the outfit is the same one. Add a
+  variant only when the story actually changes what someone is wearing.
+- A `description` is one outfit in 15-40 ENGLISH words, and it is read by an
+  image model: name the garment, its cut, fabric and colour. Describe the
+  garment, not the body it exposes — never sheer, unbuttoned, open, plunging,
+  backless or strapless, and never bare skin, cleavage or underwear. Swimwear
+  is "swimwear" with its colour.
 
 LANGUAGE
 - Every `text` is in the series dialogue language given in the memory, whatever
@@ -482,9 +550,11 @@ def _ask(series_id: str, episode_id: str, memory: dict, request: str, current: l
         spend += _record_cost(series_id, episode_id, response)
         answer = "".join(block.text for block in response.content if block.type == "text")
         try:
-            brief = _brief_for(series_id, episode_id, _extract_json(answer))
-            normalized = validate_candidate(series_id, episode_id, brief)
-            return brief, normalized, spend
+            draft = _extract_json(answer)
+            brief = _brief_for(series_id, episode_id, draft)
+            outfits = new_outfits(series_id, draft)
+            normalized = validate_candidate(series_id, episode_id, brief, outfits)
+            return brief, normalized, spend, outfits
         except SeriesProblem:
             raise
         except PackageError as e:
@@ -501,6 +571,25 @@ def _ask(series_id: str, episode_id: str, memory: dict, request: str, current: l
                              {"role": "user", "content": "Return only a single JSON object."}]
     raise AuthoringError("The studio could not produce a script that passes its own checks.\n\n"
                          + last_error)
+
+
+def save_outfits(series_id: str, outfits: list[dict], actor: str = "") -> list[str]:
+    """Add the outfits the accepted script asked for, once it has passed.
+
+    Written here and nowhere earlier: a draft the validator rejects must leave
+    the series holding exactly what it held before.
+    """
+    saved = []
+    for outfit in outfits or []:
+        store.upsert("clothing", {
+            "series_id": series_id, "character_id": outfit["character_id"],
+            "variant_id": outfit["variant_id"], "is_default": False,
+            "description": outfit["description"], "immutable": []})
+        saved.append(f"{outfit['character_id']}/{outfit['variant_id']}")
+    if saved:
+        history(series_id, "", "bible.drafted", entity_type="series", entity_id=series_id,
+                actor=actor, detail={"wardrobe": saved})
+    return saved
 
 
 def _commit(series_id: str, episode_id: str, brief: dict, actor: str, source: str) -> dict:
@@ -563,11 +652,12 @@ def draft(series_id: str, episode_id: str, wish: str = "", actor: str = "") -> d
         "Resolve nothing that was left deliberately open until the final scene."
         if memory["previous_episode"] else
         "Write the opening episode of this series.")
-    brief, normalized, spend = _ask(series_id, episode_id, memory, request, None)
+    brief, normalized, spend, outfits = _ask(series_id, episode_id, memory, request, None)
+    dressed = save_outfits(series_id, outfits, actor)
     result = _commit(series_id, episode_id, brief, actor, "studio")
     return {**result, "clips": len(normalized["scenes"]),
             "seconds": normalized["total_seconds"], "spend_usd": spend,
-            "warnings": normalized.get("warnings") or []}
+            "wardrobe": dressed, "warnings": normalized.get("warnings") or []}
 
 
 def revise(series_id: str, episode_id: str, instruction: str, actor: str = "") -> dict:
@@ -581,15 +671,16 @@ def revise(series_id: str, episode_id: str, instruction: str, actor: str = "") -
         raise AuthoringError("There is no script to change yet.")
     memory = series_memory(series_id, episode_id)
     before = {s["scene_id"]: s for s in scenes}
-    brief, normalized, spend = _ask(
+    brief, normalized, spend, outfits = _ask(
         series_id, episode_id, memory,
         "Apply this change and return the complete script. Leave every scene the change does "
         "not concern exactly as it is, including its wording.\n\n" + instruction,
         readable(scenes, memory))
+    dressed = save_outfits(series_id, outfits, actor)
     result = _commit(series_id, episode_id, brief, actor, "revision")
     return {**result, "clips": len(normalized["scenes"]),
             "seconds": normalized["total_seconds"], "spend_usd": spend,
-            "changed": changed_scenes(before, brief["scenes"]),
+            "wardrobe": dressed, "changed": changed_scenes(before, brief["scenes"]),
             "warnings": normalized.get("warnings") or []}
 
 

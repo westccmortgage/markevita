@@ -164,7 +164,9 @@ class SeriesPackage:
     def load_episode(self, episode_id: str) -> dict:
         p = self.episode_dir(episode_id) / "brief.json"
         if not p.exists():
-            raise PackageError(f"missing {p}")
+            # The absolute path is a throwaway working copy; naming it tells the
+            # reader nothing and hides the one fact that matters.
+            raise PackageError(f"episode {episode_id} has no script yet")
         ep = _load(p)
         _validate(ep, schema.EPISODE, f"episodes/{episode_id}/brief.json")
         if ep["series_id"] != self.series["series_id"]:

@@ -431,3 +431,13 @@ def test_live_orchestration_pauses_for_refs_resumes_and_delivers_32s(short_packa
 
 from serial.llm import LLM as _LLM
 original_direct = _LLM.direct
+
+
+def test_producing_an_episode_with_no_script_says_so(monkeypatch):
+    """The internal path of a throwaway working copy was shown instead:
+    'missing /app/studio/.studio-packages/_live_jobs/<uuid>/episodes/s01e04/brief.json'."""
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', StrictStore())
+    with pytest.raises(ValueError, match='no script yet'):
+        runner.jobs.start('test_series', 's01e04', ['intake'], 'admin@example.test',
+                          approved_digest='d', approve_live=True)

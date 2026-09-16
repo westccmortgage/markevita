@@ -165,6 +165,9 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         raise PermissionError('Publishing is a separate action and is not available here.')
     if force:
         raise ValueError('Forced live regeneration is not available in this release. Existing takes are retained.')
+    if not runner.store.list('scenes', {'series_id': series_id, 'episode_id': episode_id}):
+        raise ValueError('This episode has no script yet. Describe what should happen and let the '
+                         'studio write it first; there is nothing to produce until then.')
     source = materialize(series_id)
     frozen = settings.package_dir / '_live_jobs' / str(uuid.uuid4())
     shutil.copytree(source, frozen)

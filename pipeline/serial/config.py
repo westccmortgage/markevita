@@ -56,6 +56,10 @@ class Config:
     max_episode_budget_usd: float = 50.0
     max_scene_regenerations: int = 2
     max_clip_seconds: int = 10
+    # How long one queued provider request may stay unfinished before the run
+    # gives up waiting. Without it a job sits in "running" forever: the worker
+    # keeps renewing its lease, the stage never advances, and nobody is told.
+    fal_request_timeout_seconds: int = 1800
     allowed_clip_seconds: tuple = (4, 6, 8)
     min_scenes: int = 12
     max_scenes: int = 18
@@ -111,6 +115,7 @@ class Config:
             max_episode_budget_usd=float(_env("MAX_EPISODE_BUDGET_USD", "50")),
             max_scene_regenerations=int(_env("MAX_SCENE_REGENERATIONS", "2")),
             max_clip_seconds=int(_env("MAX_CLIP_SECONDS", "10")),
+            fal_request_timeout_seconds=int(_env("FAL_REQUEST_TIMEOUT_SECONDS", "1800")),
             video_resolution=_env("VIDEO_RESOLUTION", "1080p"),
             video_generate_audio=_bool(os.getenv("VIDEO_GENERATE_AUDIO"), False),
             video_auto_fix=_bool(os.getenv("VIDEO_AUTO_FIX"), False),

@@ -205,3 +205,61 @@ def test_submit_refusal_is_also_logged(tmp_path, monkeypatch, capsys):
         fal.run("fal-ai/nano-banana-2/edit", {}, "t1", 1, "keyframe", None)
     out = capsys.readouterr().out
     assert "[fal] HTTP 403 request -: Forbidden: PRIVATE_SUBMIT_REASON" in out
+
+
+# ── a wait that never ends is how a job sits in "running" for three hours ──
+
+def _clock(monkeypatch, step=30):
+    """A clock that advances by itself, so the test does not wait in real time."""
+    ticks = {"t": 0.0}
+
+    def monotonic():
+        ticks["t"] += step
+        return ticks["t"]
+
+    monkeypatch.setattr("app.live_providers.time.monotonic", monotonic)
+    monkeypatch.setattr("app.live_providers.time.sleep", lambda s: None)
+
+
+def test_a_request_that_never_finishes_stops_being_waited_for(tmp_path, monkeypatch):
+    """The references stage held one job in "running" for three hours: the queue
+    never said COMPLETED and the loop had no end."""
+    fal, state = _fal(tmp_path)
+    fal.cfg.fal_request_timeout_seconds = 600
+    _clock(monkeypatch)
+    polls = {"n": 0}
+
+    def get(url, headers=None, **kw):
+        polls["n"] += 1
+        return _resp(200, {"status": "IN_QUEUE"})
+
+    monkeypatch.setattr("app.live_providers.requests.get", get)
+    with pytest.raises(RuntimeError, match=RID):
+        fal._wait("fal-ai/nano-banana-2/edit", RID)
+    assert polls["n"] < 100
+
+
+def test_giving_up_on_the_wait_keeps_the_request_for_a_later_poll(tmp_path, monkeypatch):
+    """No second paid submission may come out of a wait that timed out."""
+    fal, state = _fal(tmp_path)
+    fal.cfg.fal_request_timeout_seconds = 600
+    state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID, "endpoint": "e"}
+    state.save()
+    _clock(monkeypatch)
+    monkeypatch.setattr("app.live_providers.requests.get",
+                        lambda *a, **k: _resp(200, {"status": "IN_PROGRESS"}))
+    monkeypatch.setattr("app.live_providers.requests.post",
+                        lambda *a, **k: pytest.fail("a timed-out wait must not resubmit"))
+    with pytest.raises(ProviderFailure):
+        fal.run("e", {}, "t1", 1, "keyframe", None)
+    take = State(tmp_path).data["takes"]["t1"]
+    assert take["request_id"] == RID and take["status"] == "submitted"
+
+
+def test_a_queue_failure_is_not_polled_forever(tmp_path, monkeypatch):
+    fal, _ = _fal(tmp_path)
+    _clock(monkeypatch)
+    monkeypatch.setattr("app.live_providers.requests.get",
+                        lambda *a, **k: _resp(200, {"status": "FAILED"}))
+    with pytest.raises(RuntimeError, match="FAILED"):
+        fal._wait("fal-ai/nano-banana-2/edit", RID)

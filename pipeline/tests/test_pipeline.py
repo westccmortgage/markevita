@@ -423,3 +423,25 @@ def test_every_stage_leaves_room_for_thinking_and_the_answer(cfg):
     from serial import llm as mod
     caps = [int(m) for m in re.findall(r"max_tokens=(\d+)\)", inspect.getsource(mod))]
     assert caps and min(caps) >= 4000, caps
+
+
+def test_the_queue_wait_gives_up_instead_of_running_forever(monkeypatch, cfg):
+    """A queued request that never completes held a job in "running" for hours."""
+    import fal_client
+    from types import SimpleNamespace
+    from serial.providers import Fal
+    fal = Fal.__new__(Fal)
+    fal.cfg = SimpleNamespace(fal_request_timeout_seconds=600)
+    fal._client = SimpleNamespace(status=lambda *a, **k: object(),
+                                  result=lambda *a, **k: pytest.fail("never completed"))
+    ticks = {"t": 0.0}
+
+    def monotonic():
+        ticks["t"] += 30
+        return ticks["t"]
+
+    monkeypatch.setattr("serial.providers.time.monotonic", monotonic)
+    monkeypatch.setattr("serial.providers.time.sleep", lambda s: None)
+    assert not isinstance(object(), fal_client.Completed)
+    with pytest.raises(RuntimeError, match="still unfinished"):
+        fal._wait("fal-ai/nano-banana-2/edit", "req-1")

@@ -18,6 +18,9 @@ from .provider_errors import ProviderFailure, fal_diagnostic
 
 _ACCESS_REFUSALS = {401, 402, 403}
 _UNCERTAIN = {'reserved', 'failed', 'submission_unknown'}
+# Terminal queue states. Polling one of these forever is how a job spends
+# three hours in "running" with the stage never moving.
+_QUEUE_FAILED = {'FAILED', 'ERROR', 'CANCELLED', 'CANCELED', 'TIMED_OUT'}
 
 
 def _known_refusal(take):
@@ -158,7 +161,7 @@ class DurableFal(Fal):
         """The single credential used for submission AND polling."""
         return {'Authorization': 'Key ' + self.cfg.fal_key, 'X-Fal-No-Retry': '1'}
 
-    def _wait(self, endpoint, request_id):
+    def _wait(self, endpoint, request_id):  # noqa: C901
         """Poll the queue's own request URLs with the submission credential."""
         take = next((t for t in self.state.data.get('takes', {}).values()
                      if t.get('request_id') == request_id), {})
@@ -166,14 +169,27 @@ class DurableFal(Fal):
         status_url = take.get('status_url') or base + '/status'
         response_url = take.get('response_url') or base
         headers = self._auth_headers()
-        delay = 3
+        limit = int(getattr(self.cfg, 'fal_request_timeout_seconds', 1800) or 0)
+        started, delay = time.monotonic(), 3
         while True:
             status = requests.get(status_url, headers=headers, timeout=60, allow_redirects=False)
             status.raise_for_status()
-            if (status.json() or {}).get('status') == 'COMPLETED':
+            state = (status.json() or {}).get('status')
+            if state == 'COMPLETED':
                 result = requests.get(response_url, headers=headers, timeout=60, allow_redirects=False)
                 result.raise_for_status()
                 return result.json()
+            if state in _QUEUE_FAILED:
+                raise RuntimeError(f'the queue reports request {request_id} as {state}')
+            waited = time.monotonic() - started
+            if limit and waited > limit:
+                # The request is left exactly as it is: the take keeps its id and
+                # its submitted status, so resuming polls this same request. No
+                # second paid submission comes out of giving up on the wait.
+                raise RuntimeError(
+                    f'request {request_id} is still {state or "unfinished"} after '
+                    f'{int(waited / 60)} minutes. It is kept as it is — resuming this episode '
+                    'polls the same request again and does not pay for another.')
             time.sleep(delay)
             delay = min(delay + 2, 15)
 

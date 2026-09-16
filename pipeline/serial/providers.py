@@ -101,11 +101,20 @@ class Fal:
 
     def _wait(self, endpoint: str, request_id: str) -> dict:
         import fal_client
-        delay = 3
+        # Без предела ожидание queue-запроса длится вечно: стадия не двигается,
+        # работа остаётся "running", и никто об этом не узнаёт. Запрос при этом
+        # сохраняется как есть — возобновление опрашивает его же, второй платной
+        # отправки не происходит.
+        limit = int(getattr(self.cfg, "fal_request_timeout_seconds", 1800) or 0)
+        started, delay = time.monotonic(), 3
         while True:
             st = self.client.status(endpoint, request_id, with_logs=False)
             if isinstance(st, fal_client.Completed):
                 return self.client.result(endpoint, request_id)
+            waited = time.monotonic() - started
+            if limit and waited > limit:
+                raise RuntimeError(f"request {request_id} is still unfinished after "
+                                   f"{int(waited / 60)} minutes; it is kept for a later poll")
             time.sleep(delay)
             delay = min(delay + 2, 15)
 

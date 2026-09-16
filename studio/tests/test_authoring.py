@@ -468,8 +468,15 @@ CAST = {"style": STYLE, "characters": [
                 "lighting_states": {"default": "dusk", "night": "lanterns"}}]}
 
 
+# "ivory slip dress" is wording an image provider refuses, so the fill also
+# makes the repair call. Kept deliberately: the fixture should look like what
+# the model actually writes.
+REPAIR = {"0": "Ivory silk floor-length gown with narrow shoulder straps and a soft skirt."}
+
+
 def _cast(monkeypatch, answer=None):
-    return _stub(monkeypatch, [json.dumps(answer if answer is not None else CAST)])
+    return _stub(monkeypatch, [json.dumps(answer if answer is not None else CAST),
+                               json.dumps(REPAIR)])
 
 
 def test_a_series_started_from_a_clip_gets_its_cast(db, monkeypatch):
@@ -1132,3 +1139,68 @@ def test_wording_an_image_provider_refuses_is_flagged_before_the_run(db):
     assert authoring.refusal_risk(
         "Cream short-sleeve camp-collar shirt worn loose over tan shorts.") == []
     assert authoring.refusal_risk(None) == []
+
+
+# ── the studio fixes its own wardrobe, so nobody edits costume notes by hand ─
+
+def _wardrobe(db, character_id="adrian", variant_id="casual_resort_shirt",
+              description="Unbuttoned cream short-sleeve shirt over tan shorts."):
+    db.upsert("characters", {"series_id": MIAMI, "character_id": character_id,
+                             "name": character_id.title(), "visual": True, "appearance": "…"})
+    db.upsert("clothing", {"series_id": MIAMI, "character_id": character_id,
+                           "variant_id": variant_id, "is_default": True,
+                           "description": description})
+    db.insert("generation_history", {"series_id": MIAMI, "event": "bible.drafted",
+                                     "detail": {"added": [character_id]}})
+
+
+def test_the_studio_rewrites_the_wardrobe_its_own_draft_got_refused(db, monkeypatch):
+    """Two paid runs died on one word the studio itself wrote. Fixing it by
+    hand, outfit by outfit, is not the producer's job."""
+    _wardrobe(db)
+    clean = "Cream short-sleeve camp-collar shirt worn loose over tan shorts for daytime scenes."
+    _stub(monkeypatch, [json.dumps({"0": clean})])
+    done, spend = authoring.repair_wardrobe(MIAMI, {"adrian"})
+    assert done == ["adrian/casual_resort_shirt"]
+    assert db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
+                               "variant_id": "casual_resort_shirt"})["description"] == clean
+    assert spend > 0
+
+
+def test_a_rewrite_that_would_be_refused_again_is_not_applied(db, monkeypatch):
+    """Replacing one refusal with another is not a fix."""
+    _wardrobe(db)
+    _stub(monkeypatch, [json.dumps({"0": "Sheer cream shirt, unbuttoned, over tan shorts."})])
+    done, _ = authoring.repair_wardrobe(MIAMI, {"adrian"})
+    assert done == []
+    assert "Unbuttoned" in db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
+                                               "variant_id": "casual_resort_shirt"})["description"]
+
+
+def test_wardrobe_a_person_wrote_is_never_rewritten(db, monkeypatch):
+    """Only the studio's own drafts are the studio's to change."""
+    _wardrobe(db, character_id="nora")
+    db.delete("generation_history", {"series_id": MIAMI})
+    _stub(monkeypatch, [json.dumps({"0": "anything"})])
+    done, spend = authoring.repair_wardrobe(MIAMI, authoring.drafted_ids(MIAMI))
+    assert done == [] and spend == 0.0
+
+
+def test_clean_wardrobe_costs_nothing_to_leave_alone(db, monkeypatch):
+    _wardrobe(db, description="Cream short-sleeve camp-collar shirt over tan shorts.")
+    monkeypatch.setattr(authoring, "_client",
+                        lambda: pytest.fail("no model call when nothing is at risk"))
+    assert authoring.repair_wardrobe(MIAMI, {"adrian"}) == ([], 0.0)
+
+
+def test_filling_the_bible_also_repairs_the_wardrobe_it_just_wrote(db, monkeypatch):
+    """End to end: the producer presses one button and never edits a costume."""
+    db.delete("characters", {"series_id": MIAMI})
+    db.delete("clothing", {"series_id": MIAMI})
+    db.update("series", {"id": MIAMI}, {"logline": "A wedding on an island."})
+    _cast(monkeypatch)
+    result = authoring.fill_bible(MIAMI, "admin@example.test")
+    assert result["wardrobe"] == ["nora/w_wedding"]
+    text = db.get("clothing", {"series_id": MIAMI, "character_id": "nora",
+                               "variant_id": "w_wedding"})["description"]
+    assert authoring.refusal_risk(text) == []

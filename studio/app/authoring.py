@@ -889,11 +889,72 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
             "lighting_states": states, "marks": "", "immutable": [], "seed_assets": []})
         places.append(lid)
 
+    rewritten, repair_spend = repair_wardrobe(series_id, drafted_ids(series_id) | set(added) | set(completed))
+    spend += repair_spend
+
     history(series_id, "", "bible.drafted", entity_type="series", entity_id=series_id,
-            actor=actor, detail={"added": added, "completed": completed, "locations": places})
+            actor=actor, detail={"added": added, "completed": completed, "locations": places,
+                                 "wardrobe": rewritten})
     return {"added": added, "completed": completed, "locations": places,
-            "style": wrote_style, "spend_usd": spend,
+            "style": wrote_style, "spend_usd": spend, "wardrobe": rewritten,
             "remaining": setup_problems(series_id)}
+
+
+WARDROBE_SYSTEM = """You rewrite costume notes for a drama series so an image model will draw them.
+
+You are given outfits that an image provider refused. Each is a real costume
+and must stay recognisably the same costume: same garments, same colours, same
+fabrics, same occasion, same level of glamour. Only the wording changes.
+
+Describe the garment, not the body it exposes. Name the piece, its cut, fabric
+and colour. Never write that something is sheer, unbuttoned, open, plunging,
+backless, strapless or see-through, and never mention bare skin, cleavage,
+underwear or nudity. Swimwear is "swimwear" with its colour.
+
+Return ONLY a JSON object: {"<index>": "<rewritten description>"} using the
+index given with each outfit. 15-40 ENGLISH words each."""
+
+
+def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float]:
+    """Rewrite the studio's own wardrobe text that an image provider refuses.
+
+    A producer should not be hand-editing costume notes to get past a content
+    filter. The studio wrote these, so the studio fixes them — and only these:
+    a description a person wrote is never touched, and neither is one that
+    reads cleanly.
+    """
+    risky = []
+    for character_id in sorted(drafted):
+        for variant in store.list("clothing", {"series_id": series_id,
+                                               "character_id": character_id}, order="variant_id"):
+            if refusal_risk(variant.get("description")):
+                risky.append(variant)
+    if not risky:
+        return [], 0.0
+
+    request = {str(i): {"character": v["character_id"], "outfit": v["variant_id"],
+                        "description": v.get("description") or ""}
+               for i, v in enumerate(risky)}
+    response = _answer(_client(), WARDROBE_SYSTEM,
+                       [{"role": "user", "content": json.dumps(request, ensure_ascii=False)}],
+                       BIBLE_TOKENS)
+    spend = _record_cost(series_id, "", response)
+    answer = "".join(b.text for b in response.content if b.type == "text")
+    try:
+        rewrites = _extract_json(answer)
+    except AuthoringError:
+        return [], spend
+
+    done = []
+    for index, variant in enumerate(risky):
+        text = rewrites.get(str(index))
+        # A rewrite that still trips the filter is no rewrite: keep what is
+        # there rather than replace one refusal with another.
+        if not isinstance(text, str) or not text.strip() or refusal_risk(text):
+            continue
+        store.upsert("clothing", {**variant, "description": text.strip()})
+        done.append(f"{variant['character_id']}/{variant['variant_id']}")
+    return done, spend
 
 
 # ── voice slots ────────────────────────────────────────────────────────────

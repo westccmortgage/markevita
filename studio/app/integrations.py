@@ -27,7 +27,7 @@ PROVIDERS: dict[str, dict] = {
         "label": "Anthropic",
         "required": ["ANTHROPIC_API_KEY"],
         "model_env": "ANTHROPIC_MODEL",
-        "model_default": "claude-sonnet-5",
+        "model_default": "claude-opus-5",
         "powers": "Scene direction and vision QC",
     },
     "openai": {

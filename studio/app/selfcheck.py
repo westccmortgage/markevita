@@ -42,6 +42,35 @@ def paths() -> list[str]:
     return out
 
 
+def settings_in_force() -> list[dict]:
+    """Numbers the operator sets on the server, read back from the server.
+
+    Kept off /healthz on purpose — that endpoint is public and says nothing
+    about configuration. Here it is behind the sign-in, where an administrator
+    can confirm a change took effect instead of taking it on trust.
+    """
+    import os
+    return [
+        {"name": "MAX_EPISODE_BUDGET_USD",
+         "value": os.getenv("MAX_EPISODE_BUDGET_USD") or "50 (default)",
+         "means": "the hard ceiling on one episode; a series budget is clamped to it"},
+        {"name": "ANTHROPIC_MODEL",
+         "value": os.getenv("ANTHROPIC_MODEL") or "claude-opus-5 (default)",
+         "means": "writes the scripts and the cast descriptions"},
+        {"name": "VIDEO_GENERATE_AUDIO / picture",
+         "value": "chosen per series",
+         "means": "resolution, reference sharpness and lip-sync follow the series' Picture setting"},
+        {"name": "voice slots",
+         "value": ", ".join(s["env"] for s in _slots()) or "none configured",
+         "means": "a character can only be given a voice that exists here"},
+    ]
+
+
+def _slots():
+    from .authoring import voice_slots
+    return voice_slots()
+
+
 def run(client) -> list[dict]:
     """Fetch each screen in-process and report how it answered."""
     results = []

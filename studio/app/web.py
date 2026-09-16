@@ -296,7 +296,8 @@ def _video_model_choices() -> dict:
         audio = costs.video_cost(1, True, "1080p", endpoint)
         rates[endpoint] = f"${silent:.2f}/s, ${audio:.2f}/s with native audio"
     return {"video_models": sorted(VIDEO_MODELS.items(), key=lambda kv: kv[1]),
-            "video_model_default": DEFAULT_VIDEO_MODEL, "video_model_rates": rates}
+            "video_model_default": DEFAULT_VIDEO_MODEL, "video_model_rates": rates,
+            "picture_levels": list(live_jobs.PICTURE)}
 
 
 @router.post("/series/{series_id}/settings")
@@ -308,7 +309,7 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
                     max_seconds: str = Form(""), style_sentence: str = Form(""),
                     camera_rules: str = Form(""), color_rules: str = Form(""),
                     negative_image: str = Form(""), negative_video: str = Form(""),
-                    video_model: str = Form("")):
+                    video_model: str = Form(""), picture: str = Form("")):
     a = require_admin(request)
     s = store.get("series", {"id": series_id})
     if not s:
@@ -323,6 +324,10 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
         if video_model not in VIDEO_MODELS:
             return _redirect(f"/series/{series_id}", err="Choose one of the supported video models.")
         limits["video_model"] = video_model
+    if picture:
+        if picture not in live_jobs.PICTURE:
+            return _redirect(f"/series/{series_id}", err="Choose one of the picture settings.")
+        limits["picture"] = picture
     try:
         limits["maximum_episode_budget_usd"] = float(budget)
         limits["maximum_regenerations_per_scene"] = int(regenerations)
@@ -419,6 +424,8 @@ def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> di
         # The figure must be the chosen model's, not the server default's:
         # Veo 3.1 bills about twice what Fast does per second of video.
         cfg.fal_video_model = video_model(pkg)
+        for field, value in live_jobs.PICTURE[live_jobs.picture(pkg)].items():
+            setattr(cfg, field, value)
         # Native scene audio is what the form offers first, and Veo bills more
         # for it. Estimating silent here would understate the usual run.
         cfg.video_generate_audio = audio_mode != "voices"
@@ -528,6 +535,7 @@ def selfcheck_page(request: Request):
 
     results = selfcheck.run(_Prefixed())
     return render(request, "selfcheck.html", results=results,
+                  settings_in_force=selfcheck.settings_in_force(),
                   failures=[r for r in results if not r["ok"]])
 
 

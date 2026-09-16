@@ -36,10 +36,8 @@ class LLM:
         if guard:
             # Token counting is free and gives a pre-call upper cost bound.
             count = self.client.messages.count_tokens(**{k: v for k, v in params.items() if k != "max_tokens"})
-            rates = {"claude-sonnet-5": (2.0, 10.0)}
-            if self.cfg.anthropic_model not in rates:
-                raise RuntimeError("Live cost accounting currently supports claude-sonnet-5; configure ANTHROPIC_MODEL accordingly.")
-            input_rate, output_rate = rates[self.cfg.anthropic_model]
+            from .costs import anthropic_rates
+            input_rate, output_rate = anthropic_rates(self.cfg.anthropic_model)
             reserve = (count.input_tokens * input_rate + max_tokens * output_rate) / 1_000_000
             def actual(result):
                 u = result["usage"]

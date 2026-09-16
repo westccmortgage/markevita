@@ -20,12 +20,15 @@ from .store import store
 SCHEMA_VERSION = "2.0"
 
 DEFAULT_LIMITS = {
-    "maximum_episode_budget_usd": 50,
+    "maximum_episode_budget_usd": 150,
     "maximum_regenerations_per_scene": 2,
     "allowed_clip_seconds": [4, 6, 8],
-    "video_model": "fal-ai/veo3.1/fast/image-to-video",
-    "min_scenes": 12, "max_scenes": 18,
-    "min_episode_seconds": 90, "max_episode_seconds": 120,
+    # A new series is set up for the best picture the studio can make. Both are
+    # series settings, so any series can be turned down without touching code.
+    "video_model": "fal-ai/veo3.1/image-to-video",
+    "picture": "maximum",
+    "min_scenes": 23, "max_scenes": 34,
+    "min_episode_seconds": 180, "max_episode_seconds": 240,
 }
 
 DEFAULT_STYLE = {

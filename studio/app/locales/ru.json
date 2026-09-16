@@ -747,5 +747,15 @@
   "Something in the studio broke": "Что-то в студии сломалось",
   "That is not the engine's own format, so the studio is writing it into scenes. This page refreshes itself.": "Это не формат движка, поэтому студия сама разложит текст на сцены. Страница обновится сама.",
   "The model ran out of room before it finished. Ask for fewer scenes, or a shorter episode in the series settings.": "Модели не хватило места, чтобы дописать. Попросите меньше сцен или уменьшите длину серии в настройках сериала.",
-  "The model declined to write this. Rephrase the request.": "Модель отказалась это писать. Переформулируйте запрос."
+  "The model declined to write this. Rephrase the request.": "Модель отказалась это писать. Переформулируйте запрос.",
+  "Picture": "Картинка",
+  "Standard — 1080p, faster and cheapest": "Стандарт — 1080p, быстрее и дешевле всего",
+  "High — 1080p, sharper references and better lip-sync": "Высокое — 1080p, более чёткие референсы и лучший липсинк",
+  "Maximum — 4K, everything at its best": "Максимум — 4K, всё на максимуме",
+  "This is where the money goes: video resolution, reference sharpness and lip-sync. A three-minute episode at Maximum runs well over a hundred dollars, so raise the budget above to match — and the server's own ceiling caps it regardless.": "Именно сюда уходят деньги: разрешение видео, чёткость референсов и липсинк. Трёхминутная серия на «Максимуме» стоит заметно больше сотни долларов — поднимите бюджет выше соответственно, и учтите, что потолок сервера всё равно ограничивает сверху.",
+  "Choose one of the picture settings.": "Выберите один из вариантов картинки.",
+  "This series is set to an unknown picture quality: {quality!r}.": "У сериала задано неизвестное качество картинки.",
+  "This series is set to spend up to ${wanted:.0f} per episode, but the server caps every episode at ${ceiling:.0f}. Raise MAX_EPISODE_BUDGET_USD to at least ${wanted:.0f} in the service environment, or lower the series budget.": "У сериала задано до ${wanted:.0f} на серию, но сервер ограничивает любую серию суммой ${ceiling:.0f}. Поднимите MAX_EPISODE_BUDGET_USD минимум до ${wanted:.0f} в окружении сервиса — или уменьшите бюджет сериала.",
+  "Series settings": "Настройки сериала",
+  "Set on this server": "Задано на этом сервере"
 }

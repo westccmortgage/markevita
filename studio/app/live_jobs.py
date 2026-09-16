@@ -109,7 +109,25 @@ def video_model(pkg):
     return chosen or DEFAULT_VIDEO_MODEL
 
 
-def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL):
+# What a producer is really choosing when they ask for it to look like cinema.
+# The language model writes the words and costs cents; the picture is where the
+# money goes, so these three settings move together under one name.
+PICTURE = {
+    "standard": {"video_resolution": "1080p", "image_resolution": "1K",
+                 "lipsync_variant": "lipsync-2"},
+    "high": {"video_resolution": "1080p", "image_resolution": "2K",
+             "lipsync_variant": "lipsync-2-pro"},
+    "maximum": {"video_resolution": "4k", "image_resolution": "2K",
+                "lipsync_variant": "lipsync-2-pro"},
+}
+
+
+def picture(pkg) -> str:
+    chosen = (pkg.series.get('production_limits') or {}).get('picture')
+    return chosen if chosen in PICTURE else 'standard'
+
+
+def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
     if not settings.allow_paid:
         raise PermissionError('STUDIO_ALLOW_PAID must be enabled for live production.')
     cfg = Config.load(PIPELINE_DIR, live=True)
@@ -122,13 +140,20 @@ def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL):
     if model not in VIDEO_MODELS:
         raise ValueError(f'This series is set to an unsupported video model: {model!r}.')
     cfg.fal_video_model = model
+    if quality not in PICTURE:
+        raise ValueError(f'This series is set to an unknown picture quality: {quality!r}.')
+    for field, value in PICTURE[quality].items():
+        setattr(cfg, field, value)
     cfg.native_dialogue = audio_mode == 'native'
     # Veo generates its own speech unless told not to. With assigned character
     # voices that speech would play underneath ElevenLabs and the lipsync take.
     cfg.video_generate_audio = cfg.native_dialogue
     cfg.video_auto_fix = False
-    if cfg.anthropic_model != 'claude-sonnet-5':
-        raise ValueError('Set ANTHROPIC_MODEL=claude-sonnet-5 for the supported cost accounting.')
+    from serial.costs import UnknownLanguageModel, anthropic_rates
+    try:
+        anthropic_rates(cfg.anthropic_model)
+    except UnknownLanguageModel as exc:
+        raise ValueError(str(exc)) from None
     return cfg
 
 
@@ -144,7 +169,7 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     frozen = settings.package_dir / '_live_jobs' / str(uuid.uuid4())
     shutil.copytree(source, frozen)
     pkg = SeriesPackage(frozen)
-    cfg = configuration(audio_mode, video_model(pkg))
+    cfg = configuration(audio_mode, video_model(pkg), picture(pkg))
     actual_digest = package_digest(pkg, episode_id)
     if not digest or actual_digest != digest:
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
@@ -210,7 +235,7 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
 def check_configuration(series_id, episode_id, stages, audio_mode):
     """Read-only local checks; no lease, checkpoint mutation or paid request."""
     pkg = SeriesPackage(materialize(series_id))
-    cfg = configuration(audio_mode, video_model(pkg))
+    cfg = configuration(audio_mode, video_model(pkg), picture(pkg))
     errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     try:
         validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
@@ -309,7 +334,8 @@ def run(manager, job, control, cfg, pkg, cp, lease):
 def approve_references(series_id, actor, note):
     from . import runner
     from serial.pipeline import SeriesState
-    cfg = configuration('native', video_model(SeriesPackage(materialize(series_id))))
+    pkg_now = SeriesPackage(materialize(series_id))
+    cfg = configuration('native', video_model(pkg_now), picture(pkg_now))
     lease = SeriesLease(runner.store, series_id, actor)
     try:
         cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)

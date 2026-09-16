@@ -187,6 +187,18 @@
         </select>
         <p class="hint">{{ _("Used for every episode of this series, including the ones the studio writes next. Veo 3.1 costs about twice Fast per second of video; the estimate before each run uses the model chosen here.") }}</p>
       </div>
+      <div class="field" style="max-width:520px"><label>{{ _("Picture") }}</label>
+        <select name="picture">
+          {% set chosen_picture = lim.get('picture', 'standard') %}
+          {% for value, label in [
+              ('standard', _("Standard — 1080p, faster and cheapest")),
+              ('high', _("High — 1080p, sharper references and better lip-sync")),
+              ('maximum', _("Maximum — 4K, everything at its best")) ] %}
+            <option value="{{ value }}" {{ 'selected' if chosen_picture == value }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ _("This is where the money goes: video resolution, reference sharpness and lip-sync. A three-minute episode at Maximum runs well over a hundred dollars, so raise the budget above to match — and the server's own ceiling caps it regardless.") }}</p>
+      </div>
       <p class="hint">{{ _("For four 8-second scenes, choose minimum 30 seconds and maximum 40 seconds, with minimum 4 scenes. Budget and regeneration limits are capped by (") }}<code>MAX_EPISODE_BUDGET_USD</code>, <code>MAX_SCENE_REGENERATIONS</code>{{ _(") are the ceiling.") }}</p>
     </fieldset>
 

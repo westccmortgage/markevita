@@ -333,7 +333,7 @@ def _client():
 
 
 def _model() -> str:
-    return (os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5").strip()
+    return (os.getenv("ANTHROPIC_MODEL") or "claude-opus-5").strip()
 
 
 # An episode is 12-18 scenes, each with dialogue, camera and continuity, and a
@@ -401,8 +401,12 @@ def _record_cost(series_id: str, episode_id: str, response) -> float:
     usage = getattr(response, "usage", None)
     if usage is None:
         return 0.0
-    amount = round(getattr(usage, "input_tokens", 0) / 1e6 * 2.0
-                   + getattr(usage, "output_tokens", 0) / 1e6 * 10.0, 4)
+    from serial.costs import anthropic_rates
+    # Priced from the model that actually answered, never a fixed tariff: the
+    # figures in Costs are what the producer reads before approving a run.
+    input_rate, output_rate = anthropic_rates(_model())
+    amount = round(getattr(usage, "input_tokens", 0) / 1e6 * input_rate
+                   + getattr(usage, "output_tokens", 0) / 1e6 * output_rate, 4)
     store.insert("costs", {"series_id": series_id, "episode_id": episode_id, "stage": "authoring",
                            "provider": "anthropic", "endpoint": _model(), "take_id": "",
                            "estimated_usd": amount, "actual_usd": amount, "created_at": _now()})
@@ -581,7 +585,7 @@ def setup_problems(series_id: str) -> list[dict]:
 
     def add(message, label, page, **values):
         out.append({"message": message, "names": values, "label": label,
-                    "href": f"/series/{series_id}/{page}"})
+                    "href": f"/series/{series_id}/{page}".rstrip("/")})
 
     characters = store.list("characters", {"series_id": series_id}, order="character_id")
     if not characters:
@@ -597,6 +601,18 @@ def setup_problems(series_id: str) -> list[dict]:
         if not store.list("clothing", {"series_id": series_id, "character_id": c["character_id"]}):
             add("{who}: no clothing variant. Every on-camera character needs at least one.",
                 "Add clothing", "characters", who=who)
+
+    # The engine clamps a series' budget to the server's own ceiling, silently.
+    # Raising the series setting alone then does nothing, and the run stops at a
+    # number nobody chose.
+    limits = (store.get("series", {"id": series_id}) or {}).get("production_limits") or {}
+    wanted = float(limits.get("maximum_episode_budget_usd") or 0)
+    ceiling = float(os.getenv("MAX_EPISODE_BUDGET_USD") or 50)
+    if wanted > ceiling:
+        add("This series is set to spend up to ${wanted:.0f} per episode, but the server "
+            "caps every episode at ${ceiling:.0f}. Raise MAX_EPISODE_BUDGET_USD to at least "
+            "${wanted:.0f} in the service environment, or lower the series budget.",
+            "Series settings", "", wanted=wanted, ceiling=ceiling)
 
     locations = store.list("locations", {"series_id": series_id}, order="location_id")
     if not locations:
@@ -615,7 +631,9 @@ def setup_problems(series_id: str) -> list[dict]:
 CAST_SYSTEM = """You complete the production bible of an existing vertical drama series.
 
 Return ONLY a JSON object:
-{"characters": [{"id": "snake_case", "name": str, "role": str, "age": str,
+{"style": {"style_sentence": str, "camera_rules": str, "color_rules": str,
+           "negative_image": str, "negative_video": str},
+ "characters": [{"id": "snake_case", "name": str, "role": str, "age": str,
                  "visual": bool, "appearance": str, "behavior": str,
                  "wardrobe": [{"id": "snake_case", "description": str, "is_default": bool}]}],
  "locations": [{"id": "snake_case", "name": str, "description": str,
@@ -633,6 +651,15 @@ These entries are read by image and video models, so:
 - `lighting_states` always has "default"; add "night" or others only if the story
   needs them. Each value describes that light in English.
 - ids are lowercase snake_case, derived from the name, never renamed later.
+- The style block is appended to EVERY image and video prompt, so it is the
+  single strongest control over how the series looks. `style_sentence` is one
+  dense English sentence naming the photographic look: film stock or sensor
+  character, lens behaviour, depth of field, light quality and direction,
+  contrast and grain, skin rendering. `camera_rules` states how the camera
+  behaves across the series; `color_rules` the palette and grade.
+  `negative_image` and `negative_video` list what must never appear.
+  Write them for the genre and format given, and for a face that must stay the
+  same across hundreds of clips.
 
 Only characters and places the given material actually implies. Do not invent a
 cast the story does not have. Keep every id, name and relationship already listed
@@ -684,6 +711,16 @@ def drafted_ids(series_id: str) -> set[str]:
         for key in ("added", "completed", "locations"):
             out.update(detail.get(key) or [])
     return out
+
+
+STYLE_FIELDS = ("style_sentence", "camera_rules", "color_rules",
+                "negative_image", "negative_video")
+
+
+def _is_written(value) -> bool:
+    """Text a person actually wrote, as opposed to nothing or a seed marker."""
+    text = (value or "").strip()
+    return bool(text) and "PLACEHOLDER" not in text.upper()
 
 
 def _slug_id(value: str) -> str:
@@ -759,6 +796,20 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
                     "variant_id": _slug_id(v["id"]), "is_default": bool(v.get("is_default")),
                     "description": v.get("description", ""), "immutable": []})
 
+    # The style block is what makes a series look like one thing. It is written
+    # only when nobody has written it: a placeholder left by the seed counts as
+    # nobody, an actual sentence does not.
+    style = dict(store.get("series", {"id": series_id}) or {}).get("style") or {}
+    proposed_style = proposal.get("style") or {}
+    wrote_style = False
+    if proposed_style and not _is_written(style.get("style_sentence")):
+        store.update("series", {"id": series_id},
+                     {"style": {**style,
+                                **{k: str(v) for k, v in proposed_style.items()
+                                   if k in STYLE_FIELDS and not _is_written(style.get(k))}},
+                      "updated_at": _now()})
+        wrote_style = True
+
     places = []
     for l in proposal.get("locations") or []:
         lid = _slug_id(l.get("id") or l.get("name") or "")
@@ -778,7 +829,8 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
 
     history(series_id, "", "bible.drafted", entity_type="series", entity_id=series_id,
             actor=actor, detail={"added": added, "completed": completed, "locations": places})
-    return {"added": added, "completed": completed, "locations": places, "spend_usd": spend,
+    return {"added": added, "completed": completed, "locations": places,
+            "style": wrote_style, "spend_usd": spend,
             "remaining": setup_problems(series_id)}
 
 

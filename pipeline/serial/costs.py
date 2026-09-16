@@ -16,6 +16,30 @@ def load_prices() -> dict:
 PRICE = load_prices()
 
 
+# Published per-million-token rates, read 2026-09-16. A model with no entry is
+# refused rather than priced at another model's tariff: mispricing a run is
+# worse than not starting it, because the budget stop then guards nothing.
+ANTHROPIC_RATES = {
+    "claude-opus-5": (5.0, 25.0),
+    "claude-sonnet-5": (2.0, 10.0),
+    "claude-haiku-4-5": (1.0, 5.0),
+    "claude-fable-5-1": (10.0, 50.0),
+}
+
+
+class UnknownLanguageModel(ValueError):
+    pass
+
+
+def anthropic_rates(model: str) -> tuple[float, float]:
+    try:
+        return ANTHROPIC_RATES[model]
+    except KeyError:
+        raise UnknownLanguageModel(
+            f"No published price for {model!r}. Known: "
+            f"{', '.join(sorted(ANTHROPIC_RATES))}.") from None
+
+
 class BudgetExceeded(RuntimeError):
     pass
 

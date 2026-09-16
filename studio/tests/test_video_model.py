@@ -84,9 +84,13 @@ def test_the_choice_is_part_of_the_package_schema():
     assert set(allowed) == {FAST, FULL}
 
 
-def test_a_new_series_starts_on_the_fast_model():
-    from app.packaging import DEFAULT_LIMITS
-    assert DEFAULT_LIMITS["video_model"] == DEFAULT_VIDEO_MODEL
+def test_the_fast_model_stays_the_fallback_when_a_series_never_chose():
+    """New series start on the full model; a package without the setting — an
+    older one, or one built elsewhere — still runs rather than failing."""
+    from app import live_jobs
+    from types import SimpleNamespace
+    assert live_jobs.video_model(SimpleNamespace(series={})) == DEFAULT_VIDEO_MODEL
+    assert DEFAULT_VIDEO_MODEL == FAST
 
 
 def test_the_estimate_follows_the_model_and_not_the_server_default():
@@ -174,3 +178,84 @@ def test_the_live_transport_also_polls_the_original_model():
     fal.run(FULL, {"prompt": "p"}, "sc01/video", 1.0, "video sc01", stub=dict)
     assert polled["endpoint"] == FAST
     assert takes["sc01/video"]["endpoint"] == FAST
+
+
+# ── picture quality, and what it actually changes ──────────────────────────
+
+def _pkg(limits):
+    from types import SimpleNamespace
+    return SimpleNamespace(series={"production_limits": limits})
+
+
+def test_the_series_chooses_the_picture(monkeypatch):
+    from app import live_jobs
+    assert live_jobs.picture(_pkg({"picture": "maximum"})) == "maximum"
+    assert live_jobs.picture(_pkg({})) == "standard"
+    assert live_jobs.picture(_pkg({"picture": "cinema"})) == "standard"
+
+
+@pytest.mark.parametrize("level,video,image,lipsync", [
+    ("standard", "1080p", "1K", "lipsync-2"),
+    ("high", "1080p", "2K", "lipsync-2-pro"),
+    ("maximum", "4k", "2K", "lipsync-2-pro"),
+])
+def test_each_level_sets_every_knob(monkeypatch, level, video, image, lipsync):
+    from app import live_jobs
+    from app.config import settings
+    monkeypatch.setattr(settings, "allow_paid", True)
+    monkeypatch.setattr(settings, "store_driver", "supabase")
+    monkeypatch.setenv("PIPELINE_ALLOW_PAID", "true")
+    cfg = live_jobs.configuration("native", FULL, level)
+    assert (cfg.video_resolution, cfg.image_resolution, cfg.lipsync_variant) == (video, image, lipsync)
+
+
+def test_an_unknown_picture_level_does_not_start(monkeypatch):
+    from app import live_jobs
+    from app.config import settings
+    monkeypatch.setattr(settings, "allow_paid", True)
+    monkeypatch.setattr(settings, "store_driver", "supabase")
+    monkeypatch.setenv("PIPELINE_ALLOW_PAID", "true")
+    with pytest.raises(ValueError, match="unknown picture quality"):
+        live_jobs.configuration("native", FULL, "cinema")
+
+
+def test_maximum_costs_more_than_standard_on_the_same_episode():
+    """The producer is told what the choice buys before approving it."""
+    from serial import costs
+    from app.live_jobs import PICTURE
+    def episode(level, endpoint):
+        p = PICTURE[level]
+        return (costs.video_cost(180, True, p["video_resolution"], endpoint)
+                + 23 * costs.image_cost(False, p["image_resolution"]))
+    assert episode("maximum", FULL) > episode("high", FULL) > episode("standard", FAST)
+
+
+def test_three_minutes_is_what_a_new_series_asks_for():
+    from app.packaging import DEFAULT_LIMITS
+    assert DEFAULT_LIMITS["min_episode_seconds"] >= 180
+    # Enough scenes to fill it at the longest clip the models make.
+    assert DEFAULT_LIMITS["max_scenes"] * 8 >= DEFAULT_LIMITS["max_episode_seconds"]
+    assert DEFAULT_LIMITS["min_scenes"] * 8 >= DEFAULT_LIMITS["min_episode_seconds"]
+
+
+def test_the_language_model_is_priced_from_the_model_that_answered():
+    from serial.costs import UnknownLanguageModel, anthropic_rates
+    assert anthropic_rates("claude-opus-5") == (5.0, 25.0)
+    assert anthropic_rates("claude-sonnet-5") == (2.0, 10.0)
+    with pytest.raises(UnknownLanguageModel, match="No published price"):
+        anthropic_rates("claude-imaginary-9")
+
+
+def test_a_new_series_is_set_up_for_the_best_picture():
+    """Asked for, explicitly: maximum, and a budget that can pay for it."""
+    from app.packaging import DEFAULT_LIMITS
+    from app.live_jobs import PICTURE
+    assert DEFAULT_LIMITS["video_model"] == FULL
+    assert DEFAULT_LIMITS["picture"] == "maximum"
+    assert PICTURE[DEFAULT_LIMITS["picture"]]["video_resolution"] == "4k"
+    # A three-minute 4K episode costs well over a hundred; the series budget
+    # must not be the thing that stops it.
+    from serial import costs
+    seconds = DEFAULT_LIMITS["min_episode_seconds"]
+    video = costs.video_cost(seconds, True, "4k", FULL)
+    assert DEFAULT_LIMITS["maximum_episode_budget_usd"] >= video

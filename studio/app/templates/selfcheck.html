@@ -14,6 +14,19 @@
 {% endif %}
 
 <div class="card">
+  <h2>{{ _("Set on this server") }}</h2>
+  <div class="table-scroll"><table>
+    <tbody>
+    {% for row in settings_in_force %}
+      <tr><td class="small mono">{{ row.name }}</td>
+          <td class="small"><b>{{ row.value }}</b></td>
+          <td class="small muted">{{ row.means }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
   <div class="table-scroll"><table>
     <thead><tr><th></th><th>{{ _("Screen") }}</th><th>{{ _("Answer") }}</th><th>{{ _("Detail") }}</th></tr></thead>
     <tbody>

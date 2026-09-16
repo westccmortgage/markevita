@@ -69,7 +69,7 @@ def test_known_pre_queue_refusal_can_reach_resume_recovery(tmp_path):
 def test_check_action_does_not_create_job_or_require_paid_approval(short_package, monkeypatch):
     store, sid, eid = short_package
     monkeypatch.setattr(settings, 'allow_paid', True)
-    monkeypatch.setattr(live_jobs, 'configuration', lambda mode, model=None: configured())
+    monkeypatch.setattr(live_jobs, 'configuration', lambda mode, model=None, quality='standard': configured())
     monkeypatch.setattr(web, 'require_admin', lambda r: {'email': 'tester'})
     monkeypatch.setattr(web, '_check_form', lambda *a: None)
     monkeypatch.setattr(runner.jobs, 'start', lambda *a, **k: pytest.fail('check must not start production'))

@@ -30,7 +30,7 @@ DEFAULT_VIDEO_MODEL = "fal-ai/veo3.1/fast/image-to-video"
 class Config:
     # LLM
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-5"
+    anthropic_model: str = "claude-opus-5"
     # fal
     fal_key: str = ""
     fal_video_model: str = DEFAULT_VIDEO_MODEL
@@ -91,7 +91,7 @@ class Config:
         acc = _env("R2_ACCOUNT_ID")
         c = cls(
             anthropic_api_key=_env("ANTHROPIC_API_KEY"),
-            anthropic_model=_env("ANTHROPIC_MODEL", "claude-sonnet-5"),
+            anthropic_model=_env("ANTHROPIC_MODEL", "claude-opus-5"),
             fal_key=normalize_key(_env("FAL_KEY")),
             fal_video_model=_env("FAL_VIDEO_MODEL", DEFAULT_VIDEO_MODEL),
             fal_image_model=_env("FAL_IMAGE_MODEL", "fal-ai/nano-banana-2/edit"),

@@ -447,7 +447,13 @@ def test_a_complete_series_shows_no_blockers(db, monkeypatch):
 
 # ── filling the bible from what the series already knows ───────────────────
 
-CAST = {"characters": [
+STYLE = {"style_sentence": "Anamorphic 35mm, shallow focus, hard low sun, fine grain.",
+         "camera_rules": "Locked or slow push. No handheld.",
+         "color_rules": "Bleached sand, deep teal water, warm skin.",
+         "negative_image": "text, watermark, extra fingers",
+         "negative_video": "subtitles, captions, cuts"}
+
+CAST = {"style": STYLE, "characters": [
     {"id": "nora", "name": "Nora", "role": "protagonist", "age": "29", "visual": True,
      "appearance": "A " + "detailed word " * 50, "behavior": "watchful",
      "wardrobe": [{"id": "w_wedding", "description": "ivory slip dress", "is_default": True}]},
@@ -895,3 +901,71 @@ def test_an_episode_is_given_room_for_every_scene(db, monkeypatch):
     authoring.draft(MIAMI, episode, "x")
     assert calls[0]["max_tokens"] >= 32000
     assert authoring.SCRIPT_TOKENS >= 32000 and authoring.BIBLE_TOKENS >= 16000
+
+
+def test_a_budget_the_server_will_not_honour_is_named(db, monkeypatch):
+    """The engine clamps to the server ceiling silently; the run then stops at
+    a number nobody chose."""
+    monkeypatch.setenv("MAX_EPISODE_BUDGET_USD", "50")
+    db.update("series", {"id": MIAMI}, {"production_limits": {"maximum_episode_budget_usd": 150}})
+    problem = next(p for p in authoring.setup_problems(MIAMI)
+                   if "MAX_EPISODE_BUDGET_USD" in p["message"])
+    assert problem["names"] == {"wanted": 150.0, "ceiling": 50.0}
+
+
+def test_a_ceiling_that_covers_the_budget_says_nothing(db, monkeypatch):
+    monkeypatch.setenv("MAX_EPISODE_BUDGET_USD", "200")
+    db.update("series", {"id": MIAMI}, {"production_limits": {"maximum_episode_budget_usd": 150}})
+    assert not [p for p in authoring.setup_problems(MIAMI)
+                if "MAX_EPISODE_BUDGET_USD" in p["message"]]
+
+
+def test_the_self_check_reads_the_ceiling_back_from_the_server(db, monkeypatch):
+    """So a change to the service environment can be confirmed, not assumed."""
+    from app import selfcheck
+    monkeypatch.setenv("MAX_EPISODE_BUDGET_USD", "200")
+    rows = {r["name"]: r["value"] for r in selfcheck.settings_in_force()}
+    assert rows["MAX_EPISODE_BUDGET_USD"] == "200"
+
+
+def test_an_unset_ceiling_is_shown_as_the_default_it_falls_back_to(db, monkeypatch):
+    from app import selfcheck
+    monkeypatch.delenv("MAX_EPISODE_BUDGET_USD", raising=False)
+    rows = {r["name"]: r["value"] for r in selfcheck.settings_in_force()}
+    assert "default" in rows["MAX_EPISODE_BUDGET_USD"]
+
+
+# ── the visual style is the strongest free lever on how a series looks ─────
+
+def test_the_style_is_written_when_nobody_has_written_it(db, monkeypatch, slots):
+    _cast(monkeypatch)
+    result = authoring.fill_bible(MIAMI)
+    style = db.get("series", {"id": MIAMI})["style"]
+    assert result["style"] is True
+    assert style["style_sentence"] == STYLE["style_sentence"]
+    assert style["negative_video"] == STYLE["negative_video"]
+
+
+def test_a_style_someone_wrote_is_left_alone(db, monkeypatch, slots):
+    db.update("series", {"id": MIAMI}, {"style": {"style_sentence": "Mine.",
+                                                  "camera_rules": "Mine too."}})
+    _cast(monkeypatch)
+    result = authoring.fill_bible(MIAMI)
+    style = db.get("series", {"id": MIAMI})["style"]
+    assert result["style"] is False
+    assert style["style_sentence"] == "Mine." and style["camera_rules"] == "Mine too."
+
+
+def test_a_seed_placeholder_does_not_count_as_written(db, monkeypatch, slots):
+    """The series arrived with "PLACEHOLDER style sentence: ..." in it."""
+    db.update("series", {"id": MIAMI},
+              {"style": {"style_sentence": "PLACEHOLDER style sentence: cinematic photorealism"}})
+    _cast(monkeypatch)
+    authoring.fill_bible(MIAMI)
+    assert db.get("series", {"id": MIAMI})["style"]["style_sentence"] == STYLE["style_sentence"]
+
+
+def test_the_model_is_told_the_style_reaches_every_prompt():
+    assert "appended to EVERY image and video prompt" in authoring.CAST_SYSTEM
+    for field in authoring.STYLE_FIELDS:
+        assert field in authoring.CAST_SYSTEM

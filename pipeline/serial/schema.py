@@ -35,6 +35,7 @@ SERIES = {
                            "allowed_clip_seconds": {"type": "array", "items": {"enum": [4, 6, 8]}},
                            "video_model": {"enum": ["fal-ai/veo3.1/fast/image-to-video",
                                                    "fal-ai/veo3.1/image-to-video"]},
+                           "picture": {"enum": ["standard", "high", "maximum"]},
                            "min_scenes": {"type": "integer"}, "max_scenes": {"type": "integer"},
                            "min_episode_seconds": {"type": "integer"}, "max_episode_seconds": {"type": "integer"}},
         },

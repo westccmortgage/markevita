@@ -56,13 +56,16 @@ def build_series_json(series: dict) -> dict:
         ep["episode_id"] for ep in store.list("episodes", {"series_id": series["id"]})
         if ep.get("status") == "preview" or (ep.get("brief") or {}).get("kind") == "clip_preview"
     }
-    # Standalone camera tests are not part of the full episode package.
+    # Standalone camera tests are not part of the full episode package, and a
+    # season left with nothing in it is not either: the engine's schema requires
+    # every season to hold at least one episode, so emitting an empty one makes
+    # the whole package invalid and every episode of the series unwritable.
     seasons = [
         {**s, "episode_order": [eid for eid in (s.get("episode_order") or [])
                                 if eid not in preview_ids]}
         for s in seasons
-        if not s.get("episode_order") or any(eid not in preview_ids for eid in s["episode_order"])
     ]
+    seasons = [s for s in seasons if s["episode_order"]]
     return {
         "schema_version": SCHEMA_VERSION,
         "series_id": series["id"],

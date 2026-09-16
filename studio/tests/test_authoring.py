@@ -788,3 +788,59 @@ def test_the_self_check_reports_a_broken_screen(db):
         selfcheck.store = selfcheck_store
     assert results and all(not r["ok"] for r in results)
     assert "column does not exist" in results[0]["detail"]
+
+
+# ── an empty season must never reach the package ───────────────────────────
+
+def test_reusing_an_episode_leaves_no_empty_season_behind(db):
+    """Opening a season before the reuse check left one empty, and an empty
+    season makes the whole package invalid: no episode can then be written."""
+    _preview_only(db)
+    db.upsert("episodes", {"series_id": MIAMI, "season_id": "previews",
+                           "episode_id": "s02e01", "number": 2, "status": "draft"})
+    first = authoring.next_episode(MIAMI)
+    assert first["reused"] is True and first["episode_id"] == "s02e01"
+    assert [s["season_id"] for s in db.list("seasons", {"series_id": MIAMI})] == ["previews"]
+
+
+def test_a_season_with_nothing_in_it_is_not_packaged(db):
+    from app import packaging
+    db.upsert("seasons", {"series_id": MIAMI, "season_id": "s09", "number": 9,
+                          "episode_order": []})
+    db.upsert("episodes", {"series_id": MIAMI, "episode_id": "s01e01", "season_id": "s01",
+                           "number": 1, "status": "draft"})
+    db.update("seasons", {"series_id": MIAMI, "season_id": "s01"},
+              {"episode_order": ["s01e01"]})
+    built = packaging.build_series_json(db.get("series", {"id": MIAMI}))
+    assert [s["season_id"] for s in built["seasons"]] == ["s01"]
+    assert all(s["episodes"] for s in built["seasons"])
+
+
+def test_a_package_with_an_empty_season_is_what_the_engine_refuses(db):
+    """The rule this guards, stated by the engine itself."""
+    import jsonschema
+    from serial.schema import SERIES
+    bad = {"schema_version": "2.0", "series_id": "x", "title": "X", "language": "en-US",
+           "format": {"aspect_ratio": "9:16", "width": 1080, "height": 1920},
+           "seasons": [{"season_id": "s01", "number": 1, "episodes": []}]}
+    with pytest.raises(jsonschema.ValidationError, match="non-empty"):
+        jsonschema.Draft202012Validator(SERIES).validate(bad)
+
+
+def test_pasted_prose_goes_to_the_studio_rather_than_the_parser(db, monkeypatch):
+    """"Content before the first SCENE header" is not an answer to prose."""
+    import asyncio
+    from app import web
+    episode = authoring.next_episode(MIAMI)["episode_id"]
+    monkeypatch.setattr(web, "store", db, raising=False)
+    monkeypatch.setattr(web, "require_admin", lambda r: {"email": "a@b.test"})
+    handed = {}
+    monkeypatch.setattr(web.authoring, "start_draft",
+                        lambda sid, eid, text, actor="": handed.update(text=text))
+    response = asyncio.run(web.post_script(
+        None, MIAMI, episode,
+        content='Continue right after Maya says "I am pregnant". Nora turns to Adrian.',
+        upload=None))
+    assert response.status_code == 303
+    assert "Maya" in handed["text"]
+    assert "studio" in response.headers["location"]

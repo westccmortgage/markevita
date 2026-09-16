@@ -856,13 +856,23 @@ async def post_script(request: Request, series_id: str, episode_id: str,
             return _redirect(f"/series/{series_id}/episodes/{episode_id}",
                              err="The uploaded file is not UTF-8 text.")
         filename, source = upload.filename, "upload"
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
     try:
         result = scriptmod.save_script(series_id, episode_id, content,
                                        source=source, filename=filename, actor=a["email"])
     except scriptmod.ScriptError as e:
-        return _redirect(f"/series/{series_id}/episodes/{episode_id}", err=str(e))
-    return _redirect(f"/series/{series_id}/episodes/{episode_id}",
-                     ok=f"Script v{result['version']} saved — {result['scenes']} scenes.")
+        # Plain prose belongs here as much as the engine's own markup. Rather
+        # than refusing it over a missing SCENE header, hand it to the studio,
+        # which is what the wish field does with the same text.
+        if (content or "").strip():
+            try:
+                authoring.start_draft(series_id, episode_id, content, a["email"])
+            except authoring.AuthoringError as reason:
+                return _redirect(back, err=str(reason))
+            return _redirect(back, ok="That is not the engine's own format, so the studio "
+                                      "is writing it into scenes. This page refreshes itself.")
+        return _redirect(back, err=str(e))
+    return _redirect(back, ok=f"Script v{result['version']} saved — {result['scenes']} scenes.")
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/scenes/{scene_id}/dialogue")

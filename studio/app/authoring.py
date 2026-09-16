@@ -91,13 +91,16 @@ def next_episode(series_id: str, actor: str = "") -> dict:
     series = store.get("series", {"id": series_id})
     if not series:
         raise AuthoringError(f"Series {series_id!r} not found.")
-    season = _season_of(series_id, actor)
     existing = store.list("episodes", {"series_id": series_id}, order="number")
 
     for episode in reversed(existing):
         if episode_is_untouched(series_id, episode["episode_id"]):
             return {**episode, "reused": True}
 
+    # Only now, when an episode is actually going to be placed in it. Opening a
+    # season first left an empty one behind whenever the button reused an
+    # episode, and an empty season invalidates the package.
+    season = _season_of(series_id, actor)
     number = max([int(e.get("number") or 0) for e in existing], default=0) + 1
     episode_id = f"{season['season_id']}e{number:02d}"
     if store.get("episodes", {"series_id": series_id, "episode_id": episode_id}):

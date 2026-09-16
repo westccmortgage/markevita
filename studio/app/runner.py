@@ -336,6 +336,7 @@ def validate_series(series_id: str) -> dict:
             result["episodes"].append({"episode_id": ep_id, "ok": None, "message": "No brief yet — add scenes."})
             prev_end = None
             continue
+        ep = None
         try:
             ep = pkg.load_episode(ep_id)
             norm = validate_episode(pkg, ep, prev_end, cfg)
@@ -349,7 +350,15 @@ def validate_series(series_id: str) -> dict:
         except PackageError as e:
             result["episodes"].append({"episode_id": ep_id, "ok": False, "message": str(e)})
             all_ok = False
-            prev_end = None
+            # A rejected episode still leaves the characters somewhere. Carry
+            # that forward when it can be read at all, so the episodes after it
+            # are judged against the real state instead of collecting a second,
+            # invented set of complaints.
+            try:
+                prev_end = (validate_episode(pkg, ep, prev_end, cfg, size_limits=False)["end_state"]
+                            if ep is not None else None)
+            except PackageError:
+                prev_end = None
     result["ok"] = all_ok
     return result
 

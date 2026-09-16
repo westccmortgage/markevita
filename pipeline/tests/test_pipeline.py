@@ -109,6 +109,31 @@ def test_schema_rejects_bad_duration(fx, cfg):
     assert "duration_seconds" in str(ei.value)
 
 
+def test_size_limits_can_be_waived_for_an_episode_already_shot(fx, cfg):
+    """Raising a series' length limits must not make a finished episode
+    unreadable: its knowledge and relationships are unchanged by the change,
+    and the episode after it needs exactly those."""
+    reference = pkgmod.validate_episode(_pkg(fx), _pkg(fx).load_episode("s01e01"), None, cfg)
+    series = json.loads((fx / "series.json").read_text())
+    series["production_limits"].update(min_scenes=30, max_scenes=40, min_episode_seconds=180)
+    (fx / "series.json").write_text(json.dumps(series))
+    pkg = _pkg(fx)
+    with pytest.raises(pkgmod.PackageError) as ei:
+        pkgmod.validate_episode(pkg, pkg.load_episode("s01e01"), None, cfg)
+    assert "scenes: " in str(ei.value)
+    norm = pkgmod.validate_episode(pkg, pkg.load_episode("s01e01"), None, cfg, size_limits=False)
+    assert set(norm["end_state"]["knowledge"]) == set(reference["end_state"]["knowledge"])
+
+
+def test_waiving_size_limits_still_judges_everything_else(fx, cfg):
+    """It is a length waiver, not a pass: continuity is checked as always."""
+    pkg = _pkg(fx)
+    e = _ep(fx); e["scenes"][0]["location"] = "loc_missing"; _write_ep(fx, "s01e01", e)
+    with pytest.raises(pkgmod.PackageError) as ei:
+        pkgmod.validate_episode(pkg, pkg.load_episode("s01e01"), None, cfg, size_limits=False)
+    assert "unknown location" in str(ei.value)
+
+
 def test_cross_episode_opening_state(fx, cfg):
     pkg = _pkg(fx)
     e1 = pkgmod.validate_episode(pkg, pkg.load_episode("s01e01"), None, cfg)

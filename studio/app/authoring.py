@@ -39,6 +39,15 @@ class AuthoringError(ValueError):
     """Something the producer can read and act on."""
 
 
+class SeriesProblem(AuthoringError):
+    """The series itself is in the way; no draft can fix it.
+
+    Raising this stops the drafting loop instead of sending the complaint back
+    to the model, which cannot see — let alone repair — an episode other than
+    the one it was asked to write.
+    """
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -231,7 +240,18 @@ def validate_candidate(series_id: str, episode_id: str, brief: dict) -> dict:
         prev = pkg.previous_episode(episode_id)
         prev_end = None
         if prev and (pkg.episode_dir(prev) / "brief.json").exists():
-            prev_end = validate_episode(pkg, pkg.load_episode(prev), None, cfg)["end_state"]
+            # The previous episode is read for one thing only: where it leaves
+            # the characters. Its length is not judged here — raising the
+            # series' limits must not retroactively condemn an episode that is
+            # already written, or worse, block every episode after it.
+            try:
+                prev_end = validate_episode(pkg, pkg.load_episode(prev), None, cfg,
+                                            size_limits=False)["end_state"]
+            except PackageError as exc:
+                raise SeriesProblem(
+                    f"Episode {prev} can no longer be read, so the studio cannot tell where "
+                    f"{episode_id} starts:\n\n{exc}\n\nNothing was written. Fix {prev} first — "
+                    "usually a bible entry it refers to was renamed or removed.") from exc
         return validate_episode(pkg, pkg.load_episode(episode_id), prev_end, cfg)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
@@ -433,6 +453,8 @@ def _ask(series_id: str, episode_id: str, memory: dict, request: str, current: l
             brief = _brief_for(series_id, episode_id, _extract_json(answer))
             normalized = validate_candidate(series_id, episode_id, brief)
             return brief, normalized, spend
+        except SeriesProblem:
+            raise
         except PackageError as e:
             last_error = str(e)
             if attempt == 0:

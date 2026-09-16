@@ -45,8 +45,14 @@ def _scene(n, speaker="nora", text="You knew?", cliff=False):
 def _open_second(db):
     """Open s01e02 the way the producer does, with episode one already shot."""
     db.upsert("episodes", {"series_id": MIAMI, "episode_id": "s01e01", "season_id": "s01",
-                           "number": 1, "title": "Pilot"})
-    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", **_scene(1)})
+                           "number": 1, "title": "Pilot",
+                           "cliffhanger": {"scene_id": "sc01", "hook": "Who was listening?"}})
+    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", **_scene(1, cliff=True)})
+    # The season has to list it the way the studio lists an episode it opened
+    # itself; otherwise the package has no previous episode at all and nothing
+    # here would ever exercise carried state.
+    db.update("seasons", {"series_id": MIAMI, "season_id": "s01"},
+              {"episode_order": ["s01e01"]})
     return authoring.next_episode(MIAMI)["episode_id"]
 
 
@@ -1018,3 +1024,61 @@ def test_a_provider_failure_never_echoes_the_key(db, monkeypatch):
     result = integrations.voice_catalogue()
     assert result["ok"] is False
     assert "secret-key" not in result["reason"] and "RuntimeError" in result["reason"]
+
+
+# ── raising the limits must not condemn the episodes already written ───────
+
+def _long_episode(count=23, seconds=8):
+    """A script that satisfies the studio's own maximum-quality defaults."""
+    scenes = []
+    for n in range(1, count + 1):
+        scene = _scene(n, text="You knew.")
+        scene["duration_seconds"] = seconds
+        scene["is_cliffhanger"] = n == count
+        scenes.append(scene)
+    scenes[-1]["continuity_out"] = "hard cut to black"
+    return scenes
+
+
+def _brief(episode_id, scenes):
+    return authoring._brief_for(MIAMI, episode_id, {
+        "title": "T", "logline": "L", "scenes": scenes,
+        "cliffhanger": {"scene_id": scenes[-1]["scene_id"], "hook": "Who was on the terrace?"}})
+
+
+def test_a_short_earlier_episode_does_not_block_the_next_one(db):
+    """The real validator, not a stub: episode one was shot when a series was
+    allowed to be 100 seconds long. Raising the limits afterwards must not
+    make every episode after it unwritable."""
+    _open_second(db)
+    scenes = _long_episode()
+    normalized = authoring.validate_candidate(MIAMI, "s01e02", _brief("s01e02", scenes))
+    assert normalized["total_seconds"] == 23 * 8
+
+
+def test_an_earlier_episode_that_cannot_be_read_stops_the_draft(db):
+    """A bible entry the previous episode needs was removed: that is a series
+    problem, and the model is never asked to fix it."""
+    _open_second(db)
+    db.delete("locations", {"series_id": MIAMI, "location_id": "villa_terrace"})
+    db.upsert("locations", {"series_id": MIAMI, "location_id": "pier", "name": "Pier",
+                            "description": "Wooden pier.", "lighting_states": {"default": "dusk"}})
+    scenes = _long_episode()
+    for scene in scenes:
+        scene["location"] = "pier"
+    with pytest.raises(authoring.SeriesProblem, match="s01e01 can no longer be read"):
+        authoring.validate_candidate(MIAMI, "s01e02", _brief("s01e02", scenes))
+
+
+def test_a_series_problem_is_not_sent_back_to_the_model(db, monkeypatch):
+    """Two paid attempts were once spent asking the model to repair an episode
+    it was not writing and cannot see."""
+    _open_second(db)
+    monkeypatch.setattr(authoring, "validate_candidate",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            authoring.SeriesProblem("Episode s01e01 can no longer be read")))
+    calls = _stub(monkeypatch, [json.dumps({"scenes": [_scene(1, cliff=True)]}),
+                                json.dumps({"scenes": [_scene(1, cliff=True)]})])
+    with pytest.raises(authoring.SeriesProblem, match="s01e01"):
+        authoring.draft(MIAMI, "s01e02", "a wish")
+    assert len(calls) == 1

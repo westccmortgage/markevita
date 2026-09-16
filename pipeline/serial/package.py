@@ -207,12 +207,21 @@ def _visible_speakers(scene: dict) -> list[str]:
     return seen
 
 
-def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, cfg) -> dict:
-    """Возвращает normalized episode: сцены во внутреннем формате + ledgers + end_state. Бросает PackageError со списком ошибок."""
+def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, cfg,
+                     *, size_limits: bool = True) -> dict:
+    """Возвращает normalized episode: сцены во внутреннем формате + ledgers + end_state. Бросает PackageError со списком ошибок.
+
+    ``size_limits=False`` пропускает проверки длины — число сцен, разрешённые
+    длительности клипов, общий хронометраж. Это для случая, когда серия уже
+    снята и нужно только её конечное состояние: производственные лимиты можно
+    поднять задним числом, и старая серия под них не подходит, но её знание и
+    отношения от этого не меняются. Всё остальное — непрерывность, реплики,
+    клиффхэнгер — проверяется как обычно.
+    """
     L = pkg.limits(cfg)
     errs, warns = [], []
     scenes = sorted(ep["scenes"], key=lambda s: s["sequence"])
-    if not (L["min_scenes"] <= len(scenes) <= L["max_scenes"]):
+    if size_limits and not (L["min_scenes"] <= len(scenes) <= L["max_scenes"]):
         errs.append(f"scenes: {len(scenes)}, need {L['min_scenes']}-{L['max_scenes']}")
 
     # --- opening state vs previous episode ---
@@ -249,7 +258,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
             errs.append(f"duplicate scene_id {sid}")
         seen_ids.add(sid)
         d = sc["duration_seconds"]
-        if d not in L["allowed"]:
+        if size_limits and d not in L["allowed"]:
             errs.append(f"{sid}: duration {d}s not in {L['allowed']}")
         total += d
         if sc["location"] not in pkg.locations:
@@ -323,8 +332,9 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
         lines = sc.get("dialogue", [])
         parts = _partition(d, len(lines), L["allowed"])
         if not parts:
-            errs.append(f"{sid}: {len(lines)} lines by {len(speakers)} visible speakers cannot be split into clips of {L['allowed']} summing to {d}s; "
-                        f"change the duration or split the scene in the brief")
+            if size_limits:
+                errs.append(f"{sid}: {len(lines)} lines by {len(speakers)} visible speakers cannot be split into clips of {L['allowed']} summing to {d}s; "
+                            f"change the duration or split the scene in the brief")
             continue
         for i, (line, part) in enumerate(zip(lines, parts)):
             seq += 1
@@ -337,7 +347,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
                          "continuity_out": sc.get("continuity_out") if i == len(lines) - 1 else "hold positions; cut on the line",
                          "is_cliffhanger": bool(sc.get("is_cliffhanger")) and i == len(lines) - 1})
 
-    if not (L["min_sec"] <= total <= L["max_sec"]):
+    if size_limits and not (L["min_sec"] <= total <= L["max_sec"]):
         errs.append(f"total {total}s not within {L['min_sec']}-{L['max_sec']}")
 
     # --- cliffhanger ---

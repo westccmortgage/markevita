@@ -89,6 +89,37 @@ def drop_voice_work(state):
     state.save()
 
 
+SCENE_WORK = ('keyframe', 'video', 'lipsync', 'voice', 'final')
+PLANNING_STAGES = ('intake', 'direction')
+
+
+def scene_work_exists(state) -> bool:
+    """Has anything been generated that is bound to this episode's scenes?
+
+    Reference images are not: they belong to the series and the engine remakes
+    them whenever the bible version changes. Keyframes, video, speech and
+    lipsync are, and those are what a changed script or setting would
+    contradict.
+    """
+    for take in (state.data.get('takes') or {}).values():
+        if take.get('scene_id') and take.get('status') in ('succeeded', 'submitted'):
+            return True
+    return any(any(scene.get(k) for k in SCENE_WORK)
+               for scene in (state.data.get('scenes') or {}).values())
+
+
+def drop_planning(state):
+    """Let the plan be made again from the bible as it now reads.
+
+    Prompts written by the director stage quote the wardrobe and the
+    appearance. Keeping them after the bible changed would send the old
+    wording to the image provider — the same refusal, one stage later.
+    """
+    for stage in PLANNING_STAGES:
+        state.data.get('stages', {}).pop(stage, None)
+    state.save()
+
+
 def review(series_id, episode_id):
     try:
         pkg = SeriesPackage(materialize(series_id))
@@ -195,14 +226,22 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
             reworded = bool(saved) and (
                 spoken_words_removed(old.data.get('package_checksums'), saved, episode_id)
                 == spoken_words_removed(pkg.checksums, norm['scenes'], episode_id))
-            if not reworded:
+            if reworded:
+                # Speech is remade from the new wording. References, keyframes
+                # and video stay: they were generated from the visible action.
+                drop_voice_work(old)
+            elif scene_work_exists(old):
                 raise ValueError('This episode has saved production for a different script or settings. '
                                  'Only the wording of spoken lines can be changed here. Anything else — a clip '
                                  'duration, the action, who is in frame — would not match the video already '
                                  'generated, so it needs a new episode.')
-            # Speech is remade from the new wording. References, keyframes and
-            # video stay: they were generated from the visible action.
-            drop_voice_work(old)
+            else:
+                # Nothing bound to a scene has been made yet, so the new script
+                # or settings contradict nothing. Correcting the bible after a
+                # provider refused a reference used to leave the episode
+                # unproducible for good: the refusal blocked the run, and the
+                # correction blocked the resume.
+                drop_planning(old)
         if old.data.get('audio_mode', audio_mode) != audio_mode:
             raise ValueError('Keep the original audio mode when resuming this episode.')
         errors = preflight.recovery_problems(stages, old)

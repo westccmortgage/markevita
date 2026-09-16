@@ -250,3 +250,50 @@ def test_an_unknown_scene_is_refused(store):
     from app.scripts import ScriptError, reword_scene
     with pytest.raises(ScriptError, match="not found"):
         reword_scene("miami", EPISODE, "sc99", ["x"], "admin@example.test")
+
+
+# ── correcting the bible after a provider refused a reference ──────────────
+
+class _Plain:
+    """Just enough of the engine's episode state for these checks."""
+
+    def __init__(self, data):
+        self.data = data
+        self.saved = 0
+
+    def save(self):
+        self.saved += 1
+
+
+def test_a_refused_reference_does_not_strand_the_episode():
+    """fal refused a wardrobe reference under its content policy. Rewriting the
+    wardrobe changed the package digest, and the resume then refused with "it
+    needs a new episode" — so the only fix for the failure also made the
+    episode unproducible."""
+    from app.live_jobs import scene_work_exists
+    state = _Plain({"stages": {"intake": "done", "direction": "done"},
+                    "takes": {"ref_v1_maya_fullbody_front__beach_bikini":
+                              {"status": "failed", "what": "ref maya/fullbody"}},
+                    "scenes": {}})
+    assert scene_work_exists(state) is False
+
+
+def test_a_generated_clip_still_blocks_a_changed_script():
+    """The guard must keep doing its job where there is something to protect."""
+    from app.live_jobs import scene_work_exists
+    assert scene_work_exists(_Plain({"takes": {}, "scenes": {"sc05": {"video": "sc05.mp4"}}}))
+    assert scene_work_exists(_Plain({"scenes": {}, "takes": {
+        "s01e01_sc05_vid_0": {"scene_id": "sc05", "status": "succeeded"}}}))
+    assert scene_work_exists(_Plain({"scenes": {}, "takes": {
+        "s01e01_sc05_kf_0": {"scene_id": "sc05", "status": "submitted"}}}))
+
+
+def test_the_plan_is_made_again_from_the_corrected_bible():
+    """The director's prompts quote the wardrobe. Keeping them would send the
+    refused wording to the image provider one stage later."""
+    from app.live_jobs import drop_planning
+    state = _Plain({"stages": {"intake": "done", "direction": "done", "references": "done"}})
+    drop_planning(state)
+    assert "intake" not in state.data["stages"] and "direction" not in state.data["stages"]
+    assert state.data["stages"]["references"] == "done"
+    assert state.saved == 1

@@ -29,6 +29,25 @@ class LLM:
             import anthropic
             self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key, max_retries=0, timeout=180)
 
+    def _message(self, params):
+        """One completed reply, streamed.
+
+        The direction stage asks for tens of thousands of tokens and the models
+        this engine runs on think before they answer, so a plain create() sat
+        past the HTTP timeout and the whole run died on APITimeoutError with
+        nothing to show for the tokens already spent. Streaming is what the SDK
+        needs at this size; the request itself is unchanged.
+        """
+        with self.client.messages.stream(**params) as stream:
+            message = stream.get_final_message()
+        if message.stop_reason == "max_tokens":
+            raise RuntimeError(
+                f"The model ran out of room: {params['max_tokens']} tokens was not enough "
+                "to finish. Thinking counts against the same limit.")
+        if message.stop_reason == "refusal":
+            raise RuntimeError("The model declined this request.")
+        return message
+
     def _create(self, system, content, max_tokens):
         params = dict(model=self.cfg.anthropic_model, max_tokens=max_tokens, system=system,
                       messages=[{"role": "user", "content": content}])
@@ -43,9 +62,9 @@ class LLM:
                 u = result["usage"]
                 return (u["input_tokens"] * input_rate + u["output_tokens"] * output_rate) / 1_000_000
             result = guard.once("anthropic", params, reserve,
-                                lambda: self.client.messages.create(**params).model_dump(mode="json"), actual)
+                                lambda: self._message(params).model_dump(mode="json"), actual)
             return "".join(b["text"] for b in result["content"] if b.get("type") == "text")
-        resp = self.client.messages.create(**params)
+        resp = self._message(params)
         return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
 
     def _json(self, system: str, content, max_tokens: int = 8000) -> dict:
@@ -64,7 +83,7 @@ class LLM:
         """Только для tools/import_bible_md.py: markdown -> JSON-пакет v2. В пайплайне не используется."""
         if self.cfg.dry_run:
             raise RuntimeError("import needs --live (Anthropic call, not a generation cost)")
-        return self._json(prompts.BIBLE_PARSE, bible_md, max_tokens=16000)
+        return self._json(prompts.BIBLE_PARSE, bible_md, max_tokens=32000)
 
     # ---------- direction ----------
 
@@ -80,7 +99,7 @@ class LLM:
             } for s in scenes]}
         payload = {"BIBLE": {k: bible[k] for k in ("characters", "locations", "props", "relationships", "secrets") if k in bible},
                    "STYLE": bible.get("style_sentence", ""), "CAMERA_RULES": bible.get("camera_rules", ""), "SCENES": scenes}
-        return self._json(prompts.DIRECTION, json.dumps(payload, ensure_ascii=False), max_tokens=24000)
+        return self._json(prompts.DIRECTION, json.dumps(payload, ensure_ascii=False), max_tokens=48000)
 
     # ---------- QC ----------
 
@@ -97,7 +116,7 @@ class LLM:
         content = self._refs_content(refs)
         content.append({"type": "text", "text": f"CANDIDATE frame. EXPECTED: {expected}"})
         content.append(_img_block(candidate))
-        return self._json(prompts.QC_IMAGE, content, max_tokens=800)
+        return self._json(prompts.QC_IMAGE, content, max_tokens=4000)
 
     def qc_video(self, refs: list[tuple[str, Path]], frames: list[Path], expected: str) -> dict:
         if self.cfg.dry_run:
@@ -105,4 +124,4 @@ class LLM:
         content = self._refs_content(refs)
         content.append({"type": "text", "text": f"CLIP FRAMES start/middle/end. EXPECTED: {expected}"})
         content += [_img_block(f) for f in frames]
-        return self._json(prompts.QC_VIDEO, content, max_tokens=800)
+        return self._json(prompts.QC_VIDEO, content, max_tokens=4000)

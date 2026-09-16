@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 import os
 import sys
 from pathlib import Path
@@ -338,3 +339,62 @@ def test_turning_subtitles_off_does_not_disable_the_subtitle_check(fx, cfg, tmp_
     _run(cfg, pkg, runs, stages=["publish"])
     published = State(runs / "fixture_series" / "s01e01").data["public"]
     assert "episode.mp4" in published and "episode.srt" not in published
+
+
+# ---------------- language model transport ----------------
+
+def _llm(monkeypatch, cfg, stop_reason="end_turn", text='{"ok": true}'):
+    from serial.llm import LLM
+    from types import SimpleNamespace
+    seen = {}
+
+    class _Stream:
+        def __init__(self, kw):
+            seen.update(kw)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get_final_message(self):
+            return SimpleNamespace(
+                stop_reason=stop_reason,
+                content=[SimpleNamespace(type="text", text=text)],
+                model_dump=lambda mode=None: {
+                    "content": [{"type": "text", "text": text}],
+                    "usage": {"input_tokens": 10, "output_tokens": 20}})
+
+    class _Messages:
+        def stream(self, **kw):
+            return _Stream(kw)
+
+        def create(self, **kw):
+            raise AssertionError("a plain create() sits past the HTTP timeout at this size")
+
+    llm = LLM(cfg, lambda *a: None)          # dry_run keeps the constructor offline
+    llm.client = SimpleNamespace(messages=_Messages())
+    return llm, seen
+
+
+def test_the_engine_streams_its_model_calls(cfg, monkeypatch):
+    """A plain create() at direction size died on APITimeoutError mid-run."""
+    llm, seen = _llm(monkeypatch, cfg)
+    assert llm._json("system", "content", max_tokens=48000) == {"ok": True}
+    assert seen["max_tokens"] == 48000
+
+
+def test_an_answer_cut_off_by_the_ceiling_stops_the_run(cfg):
+    llm, _ = _llm(None, cfg, stop_reason="max_tokens")
+    with pytest.raises(RuntimeError, match="ran out of room"):
+        llm._create("system", "content", 800)
+
+
+def test_every_stage_leaves_room_for_thinking_and_the_answer(cfg):
+    """Thinking counts against the same ceiling as the reply, so a cap sized
+    for the answer alone truncates before the answer starts."""
+    import inspect
+    from serial import llm as mod
+    caps = [int(m) for m in re.findall(r"max_tokens=(\d+)\)", inspect.getsource(mod))]
+    assert caps and min(caps) >= 4000, caps

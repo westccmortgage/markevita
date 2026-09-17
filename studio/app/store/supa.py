@@ -25,7 +25,17 @@ class SupabaseDriver:
             q = q.order(order, desc=desc)
         if limit:
             q = q.limit(limit)
-        return q.execute().data or []
+        try:
+            return q.execute().data or []
+        except Exception as exc:
+            # An id the database cannot even parse matches nothing. Saying so
+            # is the honest answer; raising turned a mistyped or truncated link
+            # into "Something in the studio broke" with a stack trace. Only
+            # this one error is treated as an empty result — anything else is
+            # a real fault and must not be hidden as "not found".
+            if '22P02' in str(exc):
+                return []
+            raise
 
     def get(self, table, where):
         rows = self.list(table, where, limit=1)

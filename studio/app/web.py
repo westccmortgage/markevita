@@ -1269,7 +1269,11 @@ def integrations_page(request: Request):
                   mail={"transport": transport(), "from": sender_address(),
                         "problem": configuration_problem(),
                         "to": notifications.recipients(store),
-                        "public_url": settings.public_url},
+                        "public_url": settings.public_url,
+                        # The studio's own front door: a real page, so following
+                        # it proves the address in a letter goes somewhere. A
+                        # job-shaped example invites a click into a dead end.
+                        "example": settings.absolute_url("/")},
                   csrf_token=_csrf_token(request, require_admin(request)))
 
 

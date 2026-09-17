@@ -164,13 +164,25 @@ class Settings:
             path = "/" + path
         return f"{self.base_path}{path}" if self.base_path else path
 
+    def remember_origin(self, origin: str) -> None:
+        """Learn this studio's public address from a page someone opened.
+
+        Behind a proxy the service only ever sees the platform's own host, and
+        mail is sent from a background thread with no request to ask. Rather
+        than depend on an environment variable being set correctly, the studio
+        remembers the address its own screens were served on.
+        """
+        if origin and origin.startswith(("http://", "https://")):
+            self._seen_origin = origin.rstrip("/")
+
     def absolute_url(self, path: str = "/") -> str:
         """A URL that works outside the browser that is already on the site.
 
         A letter carrying "/studio/jobs/…" is not a link: nothing to click,
         and no host to paste it against. Mail needs the whole address.
         """
-        return (self.public_url + self.url(path)) if self.public_url else self.url(path)
+        origin = self.public_url or getattr(self, "_seen_origin", "")
+        return (origin + self.url(path)) if origin else self.url(path)
 
     @property
     def supabase_configured(self) -> bool:

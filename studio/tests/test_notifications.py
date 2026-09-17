@@ -304,3 +304,21 @@ def test_a_letter_carries_an_address_not_a_path(monkeypatch):
     monkeypatch.setattr(settings, 'public_url', 'https://markevita.com')
     monkeypatch.setattr(settings, 'base_path', '/studio')
     assert 'https://markevita.com/studio/jobs/abc' in notifications.email_body(job, 'failed', 'en')
+
+
+def test_the_studio_learns_its_own_address_from_its_own_screens(monkeypatch):
+    """Depending on an environment variable being set correctly is how a
+    letter ends up carrying a path nobody can click."""
+    monkeypatch.setattr(settings, 'public_url', '')
+    monkeypatch.setattr(settings, 'base_path', '/studio')
+    monkeypatch.setattr(settings, '_seen_origin', '', raising=False)
+    assert settings.absolute_url('/jobs/abc') == '/studio/jobs/abc'
+
+    settings.remember_origin('https://markevita.com/')
+    assert settings.absolute_url('/jobs/abc') == 'https://markevita.com/studio/jobs/abc'
+
+    settings.remember_origin('not-a-url')
+    assert settings.absolute_url('/jobs/abc') == 'https://markevita.com/studio/jobs/abc'
+
+    monkeypatch.setattr(settings, 'public_url', 'https://configured.test')
+    assert settings.absolute_url('/jobs/abc') == 'https://configured.test/studio/jobs/abc'

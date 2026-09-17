@@ -9,8 +9,11 @@
        {{ _("Every production event is emailed once, with the reason in the letter.") }}</p>
     <p class="small muted">{{ _("Sent to:") }} <code>{{ mail.to|join(', ') }}</code>
        {{ _("Set NOTIFICATION_TO to choose the readers.") }}</p>
-    {% if not mail.public_url %}
-      <div class="notice bad">{{ _("Links in those letters are not clickable: set STUDIO_PUBLIC_URL to this studio's address.") }}</div>
+    <p class="small muted">{{ _("Letters link back to") }}
+       <a href="{{ mail.example }}"><code>{{ mail.example }}</code></a>.
+       {{ _("Open it: if it lands in the studio, the links in letters work.") }}</p>
+    {% if not mail.example.startswith('http') %}
+      <div class="notice bad">{{ _("That is a path, not an address: open any studio screen once, or set STUDIO_PUBLIC_URL.") }}</div>
     {% endif %}
     <form method="post" action="{{ base }}/integrations/email/test">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

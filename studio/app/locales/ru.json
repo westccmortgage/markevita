@@ -795,5 +795,7 @@
   "Sent to:": "Кому уходит:",
   "Set NOTIFICATION_TO to choose the readers.": "Переменная NOTIFICATION_TO задаёт получателей.",
   "Send a test message": "Отправить тестовое письмо",
-  "Links in those letters are not clickable: set STUDIO_PUBLIC_URL to this studio's address.": "Ссылки в этих письмах некликабельны: задайте STUDIO_PUBLIC_URL — адрес этой студии."
+  "That is a path, not an address: open any studio screen once, or set STUDIO_PUBLIC_URL.": "Это путь, а не адрес: откройте любой экран студии один раз или задайте STUDIO_PUBLIC_URL.",
+  "Letters link back to": "Письма ведут на",
+  "Open it: if it lands in the studio, the links in letters work.": "Откройте: если попадёте в студию, ссылки в письмах работают."
 }

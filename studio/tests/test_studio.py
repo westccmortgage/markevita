@@ -600,3 +600,37 @@ def test_an_attempt_still_under_way_is_never_removed(monkeypatch):
                                             "idempotency_key": "k2", "stages": ["references"]})
     web.forget_job(SimpleNamespace(url=SimpleNamespace(path="/")), done["id"], "t")
     assert not store.get("production_jobs", {"id": done["id"]})
+
+
+def test_an_id_the_database_cannot_read_matches_nothing():
+    from types import SimpleNamespace
+    """Following a truncated or mistyped link answered "Something in the studio
+    broke" with a database error and a stack trace. An id Postgres cannot even
+    parse matches no row, and saying so is the honest answer."""
+    from app.store.supa import SupabaseDriver
+
+    class _Refuses:
+        def __init__(self, message):
+            self.message = message
+
+        def select(self, *a):
+            return self
+
+        def eq(self, *a):
+            return self
+
+        def limit(self, *a):
+            return self
+
+        def execute(self):
+            raise RuntimeError(self.message)
+
+    driver = SupabaseDriver.__new__(SupabaseDriver)
+    driver.client = SimpleNamespace(
+        table=lambda _t: _Refuses("{'message': 'invalid input syntax for type uuid: \"x\"', "
+                                  "'code': '22P02'}"))
+    assert driver.list('production_jobs', {'id': 'x'}) == []
+
+    driver.client = SimpleNamespace(table=lambda _t: _Refuses("connection refused"))
+    with pytest.raises(RuntimeError, match='connection refused'):
+        driver.list('production_jobs', {'id': 'x'}), "a real fault is never hidden as not found"

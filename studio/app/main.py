@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import logging
 import os
+import threading
 import re
 import traceback
 import uuid
@@ -100,6 +101,26 @@ async def wrong_method(request: Request, exc):
         return JSONResponse({"error": "Method not allowed"}, status_code=405)
     parent = request.url.path.rsplit("/", 1)[0] or "/"
     return RedirectResponse(settings.url(parent), status_code=303)
+
+
+@app.on_event("startup")
+async def carry_on_after_restart() -> None:
+    """Resume an episode whose worker went down with the process.
+
+    The worker runs here, so every restart stops production mid-pack and it
+    used to stay stopped until a person noticed. That is what turns three
+    minutes of film into days.
+    """
+    def run() -> None:
+        try:
+            from .live_jobs import resume_interrupted
+            from . import runner
+            for job_id in resume_interrupted(runner.jobs):
+                print(f"[studio] carried on interrupted production as job {job_id}", flush=True)
+        except Exception as exc:                        # never block the server from starting
+            print(f"[studio] could not carry on after restart: {type(exc).__name__}", flush=True)
+
+    threading.Thread(target=run, daemon=True, name="carry-on").start()
 
 
 @app.on_event("startup")

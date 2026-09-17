@@ -503,3 +503,57 @@ def test_the_live_transport_logs_where_the_producer_reads():
     source = inspect.getsource(live_jobs.run)
     assert source.index("pipeline.log = live_log") < source.index("pipeline.fal = DurableFal")
     assert "DurableFal(cfg, live_log," in source
+
+
+# ── production carries on after the process it ran in went away ────────────
+
+def _interrupted(store, digest='d1'):
+    store.insert('series', {'id': 'island', 'title': 'Island'})
+    return store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['references'], 'mode': 'live',
+        'state': 'interrupted', 'requested_by': 'admin@example.test',
+        'idempotency_key': 'live:island:s01e04:x', 'force': [],
+        'progress': {'stage': 'references', 'input_digest': digest, 'audio_mode': 'voices',
+                     'done': ['intake'], 'total': 3},
+        'created_at': '2026-09-17T15:54:00+00:00', 'log': ''})
+
+
+def test_an_episode_carries_on_after_the_worker_went_down(monkeypatch):
+    """The worker lives in the server process: a restart stopped production
+    mid-pack and it stayed stopped until somebody noticed."""
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'review', lambda *a: 'd1')
+    seen = {}
+    monkeypatch.setattr(runner.jobs, 'resume',
+                        lambda *a, **k: seen.update(args=a, kw=k) or {'id': 'new-job'})
+    _interrupted(store)
+    assert live_jobs.resume_interrupted(runner.jobs) == ['new-job']
+    assert seen['args'][:3] == ('island', 's01e04', 'admin@example.test')
+    assert seen['kw'] == {'approved_digest': 'd1', 'approve_live': True, 'audio_mode': 'voices'}
+
+
+def test_a_script_changed_since_the_approval_is_not_carried_on(monkeypatch):
+    """What the producer approved is no longer what would be made."""
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'review', lambda *a: 'something-else')
+    monkeypatch.setattr(runner.jobs, 'resume',
+                        lambda *a, **k: pytest.fail('resumed work nobody approved'))
+    _interrupted(store)
+    assert live_jobs.resume_interrupted(runner.jobs) == []
+
+
+def test_nothing_is_carried_on_where_paid_calls_are_off(monkeypatch):
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', False)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(runner.jobs, 'resume',
+                        lambda *a, **k: pytest.fail('paid work started in a mock build'))
+    _interrupted(store)
+    assert live_jobs.resume_interrupted(runner.jobs) == []

@@ -188,6 +188,50 @@ def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
     return cfg
 
 
+def resume_interrupted(manager) -> list[str]:
+    """Pick production back up after the worker's process went away.
+
+    The worker lives in the server process, so a restart — a deploy, a
+    container recycled, the host moving the instance — leaves the episode
+    stopped mid-pack with everything generated so far paid for. Waiting for
+    someone to notice and press Resume is how three minutes of film takes days.
+
+    This continues work a producer already approved, at the budget they
+    approved, from the last checkpoint, reusing every saved request. It is not
+    a fresh authorisation: an episode whose script or settings have changed
+    since that approval is left alone, because what was approved is no longer
+    what would be made.
+    """
+    from . import runner
+    resumed = []
+    if not settings.allow_paid:
+        return resumed
+    for job in runner.store.list('production_jobs', {'mode': 'live', 'state': 'interrupted'},
+                                 order='created_at', desc=True):
+        if job.get('stages') == ['runtime_lease']:
+            continue
+        progress = job.get('progress') or {}
+        digest = progress.get('input_digest')
+        if not digest or digest != review(job['series_id'], job['episode_id']):
+            continue   # the script or settings moved on; the approval was for something else
+        try:
+            started = runner.jobs.resume(job['series_id'], job['episode_id'],
+                                         job.get('requested_by') or '',
+                                         approved_digest=digest, approve_live=True,
+                                         audio_mode=(progress.get('audio_mode') or 'native'))
+        except Exception as exc:
+            runner.store.update('production_jobs', {'id': job['id']},
+                                {'error': f"{job.get('error') or ''}\nCould not carry on by itself: "
+                                          f"{type(exc).__name__}. Resume this episode by hand.".strip()})
+            continue
+        runner.history(job['series_id'], job['episode_id'], 'job.resumed_after_restart',
+                       entity_type='job', entity_id=started['id'], actor='system',
+                       detail={'interrupted_job': job['id']})
+        resumed.append(started['id'])
+        break   # one series holds one production lease; the rest wait their turn
+    return resumed
+
+
 def start(manager, series_id, episode_id, stages, actor, force, digest, approved, audio_mode):
     from . import runner
     if not approved or not actor:

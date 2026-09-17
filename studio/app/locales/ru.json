@@ -799,5 +799,10 @@
   "Letters link back to": "Письма ведут на",
   "Open it: if it lands in the studio, the links in letters work.": "Откройте: если попадёте в студию, ссылки в письмах работают.",
   "Waiting for you to approve the reference pack.": "Ждёт, пока вы утвердите пакет референсов.",
-  "Open References": "Открыть Референсы"
+  "Open References": "Открыть Референсы",
+  "These images are from an earlier version of the bible.": "Эти изображения — от прежней версии библии.",
+  "The cast, wardrobe or style changed after they were made, so they cannot be approved for what the studio would generate now.": "Состав, гардероб или стиль изменились после того, как их сделали, поэтому утвердить их для текущих настроек нельзя.",
+  "Run the episode again: the pack is rebuilt for the current bible, and then it can be approved.": "Запустите серию заново: пакет пересоберётся под текущую библию, и тогда его можно будет утвердить.",
+  "On screen:": "На экране:",
+  "needed:": "нужна:"
 }

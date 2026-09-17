@@ -1043,8 +1043,19 @@ def references_page(request: Request, series_id: str):
         grouped.setdefault(r.get("kind", "other"), []).append(r)
     locked = {c["character_id"]: (c.get("seed_assets") or [None])[0]
               for c in store.list("characters", {"series_id": series_id})}
+    # What the engine will ask for, computed from the bible as it reads now —
+    # not the version the last run happened to leave behind. The screen showed
+    # a pack as current and offered Approve; approving then answered "generate
+    # the pack for the current settings first", because the two disagreed.
+    try:
+        from serial.package import SeriesPackage
+        from .packaging import materialize
+        wanted = SeriesPackage(materialize(series_id)).bible_version
+    except Exception:
+        wanted = current
     return render(request, "references.html", s=s, grouped=grouped, total=len(refs),
                   bible_version=current, superseded=len(superseded), locked=locked,
+                  wanted_version=wanted, stale=bool(wanted and current and wanted != current),
                   csrf_token=_csrf_token(request, require_admin(request)),
                   approvals=store.list("approvals", {"series_id": series_id,
                                                      "subject_type": "references"}))

@@ -16,6 +16,13 @@
   </div>
 {% endif %}
 
+{% if stale %}
+  <div class="notice bad"><b>{{ _("These images are from an earlier version of the bible.") }}</b><br>
+    {{ _("The cast, wardrobe or style changed after they were made, so they cannot be approved for what the studio would generate now.") }}
+    {{ _("Run the episode again: the pack is rebuilt for the current bible, and then it can be approved.") }}<br>
+    <span class="small muted">{{ _("On screen:") }} <code>{{ bible_version }}</code> · {{ _("needed:") }} <code>{{ wanted_version }}</code></span></div>
+{% endif %}
+
 {% if superseded %}
   <div class="notice">{{ _("Showing the current pack") }} <code>{{ bible_version }}</code>.
     {{ _("{count} image(s) from earlier versions of the bible are kept but not shown: they are not what the next episode uses.", count=superseded) }}</div>

@@ -277,6 +277,7 @@ def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
     pending = [(c, list(c.get("seed_assets") or [])) for c in characters]
     if not any(keys for _, keys in pending):
         return fetched
+    import hashlib
     from .config import PIPELINE_DIR
     from serial.config import Config
     from serial.storage import R2
@@ -289,9 +290,16 @@ def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
     for character, keys in pending:
         local: list[str] = []
         for key in keys:
-            name = f"assets/{character['id']}_{key.rsplit('/', 1)[-1]}"
+            # The file is named after the key, so a different portrait is a
+            # different file and the one already on disk is never stale. The
+            # package is rebuilt on every page that estimates a cost, and
+            # fetching the same bytes each time would put storage in the way of
+            # reading a screen.
+            stamp = hashlib.sha256(key.encode()).hexdigest()[:12]
+            name = f"assets/{character['id']}_{stamp}_{key.rsplit('/', 1)[-1]}"
             try:
-                storage.get(key, root / name)
+                if not (root / name).exists() or not (root / name).stat().st_size:
+                    storage.get(key, root / name)
                 if (root / name).stat().st_size:
                     local.append(name)
             except Exception:

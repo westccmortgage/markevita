@@ -1279,12 +1279,24 @@ def test_a_kept_face_is_fetched_into_the_package(db, tmp_path, monkeypatch):
             return dest
 
     monkeypatch.setattr("serial.storage.R2", _R2)
-    characters = [{"id": "adrian", "seed_assets": ["series/x/bible/characters/adrian/v1/front.png"]}]
+    key = "series/x/bible/characters/adrian/v1/front.png"
+    characters = [{"id": "adrian", "seed_assets": [key]}]
     fetched = packaging.fetch_seeds(tmp_path, characters)
-    assert fetched == ["assets/adrian_front.png"]
-    assert characters[0]["seed_assets"] == ["assets/adrian_front.png"]
-    assert (tmp_path / "assets" / "adrian_front.png").read_bytes() == b"face"
-    assert calls == ["series/x/bible/characters/adrian/v1/front.png"]
+    assert len(fetched) == 1 and fetched[0].startswith("assets/adrian_")
+    assert characters[0]["seed_assets"] == fetched
+    assert (tmp_path / fetched[0]).read_bytes() == b"face"
+    assert calls == [key]
+
+    # The package is rebuilt on every screen that estimates a cost; the bytes
+    # already on disk are not fetched again.
+    again = [{"id": "adrian", "seed_assets": [key]}]
+    assert packaging.fetch_seeds(tmp_path, again) == fetched
+    assert calls == [key]
+
+    # A different portrait is a different file, so the old one is never stale.
+    other = [{"id": "adrian", "seed_assets": ["series/x/bible/characters/adrian/v2/front.png"]}]
+    packaging.fetch_seeds(tmp_path, other)
+    assert other[0]["seed_assets"] != fetched and len(calls) == 2
 
 
 def test_a_face_that_cannot_be_fetched_is_dropped_not_faked(db, tmp_path, monkeypatch):

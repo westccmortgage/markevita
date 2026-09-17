@@ -1299,9 +1299,15 @@ def test_a_kept_face_is_fetched_into_the_package(db, tmp_path, monkeypatch):
     assert other[0]["seed_assets"] != fetched and len(calls) == 2
 
 
-def test_a_face_that_cannot_be_fetched_is_dropped_not_faked(db, tmp_path, monkeypatch):
-    """An empty file would be rejected by the provider; drawing the character
-    afresh is worse than keeping one face, but better than drawing nothing."""
+def test_a_face_that_cannot_be_fetched_stops_rather_than_rewriting_the_bible(db, tmp_path, monkeypatch):
+    """bible_version is the checksum of these files.
+
+    Dropping an unreachable face changed characters.json, so the same bible
+    hashed differently depending on whether one download happened to succeed
+    in that process. The reference pack was then regenerated against a target
+    that moved every time and could never be approved. A locked face that
+    cannot be read stops the work and says which character it was.
+    """
     from app import packaging
 
     class _R2:
@@ -1313,8 +1319,29 @@ def test_a_face_that_cannot_be_fetched_is_dropped_not_faked(db, tmp_path, monkey
 
     monkeypatch.setattr("serial.storage.R2", _R2)
     characters = [{"id": "adrian", "seed_assets": ["gone.png"]}]
-    assert packaging.fetch_seeds(tmp_path, characters) == []
-    assert "seed_assets" not in characters[0]
+    with pytest.raises(packaging.SeedUnavailable, match="adrian"):
+        packaging.fetch_seeds(tmp_path, characters)
+
+
+def test_the_package_says_the_same_thing_however_the_face_got_there(db, tmp_path, monkeypatch):
+    """Two processes must compute one bible_version from one bible."""
+    from app import packaging
+    key = "series/x/bible/characters/adrian/v1/front.png"
+
+    class _R2:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, k, dest):
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(b"face")
+
+    monkeypatch.setattr("serial.storage.R2", _R2)
+    warm = [{"id": "adrian", "seed_assets": [key]}]
+    packaging.fetch_seeds(tmp_path, warm)
+    cold = [{"id": "adrian", "seed_assets": [key]}]
+    packaging.fetch_seeds(tmp_path / "elsewhere", cold)
+    assert warm[0]["seed_assets"] == cold[0]["seed_assets"]
 
 
 def test_a_character_with_no_kept_face_needs_no_storage(db, tmp_path, monkeypatch):

@@ -261,6 +261,10 @@ def _scene_json(s: dict) -> dict:
 
 # ── materialisation ────────────────────────────────────────────────────────
 
+class SeedUnavailable(RuntimeError):
+    """A locked face is on record but could not be brought into the package."""
+
+
 def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
     """Bring each character's locked face into the package as a file.
 
@@ -269,9 +273,18 @@ def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
     A locked face is stored as a storage key; the engine needs a file inside
     the package, and generates "the same person as this reference" from it.
 
-    A face that cannot be fetched is dropped rather than faked: an empty file
-    would make the provider reject the request, and a run that draws the
-    character afresh is better than one that cannot draw them at all.
+    What the bible records is the storage key, and the package name is a pure
+    function of it, so characters.json says the same thing in every process
+    that writes it. It has to: bible_version is the checksum of these files,
+    and production will not start until the reference pack on record carries
+    that version. Dropping an unreachable face instead rewrote the bible from
+    the luck of one download, so the page and the worker computed different
+    versions of the same bible and the pack could never catch up — it was
+    regenerated against a target that moved every time.
+
+    A locked face that cannot be brought in stops the work and says so. The
+    alternative is drawing the character afresh, which is the one thing
+    locking a face exists to prevent.
     """
     fetched: list[str] = []
     pending = [(c, list(c.get("seed_assets") or [])) for c in characters]
@@ -283,10 +296,10 @@ def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
     from serial.storage import R2
     try:
         storage = R2(Config.load(PIPELINE_DIR, live=True), lambda _message: None)
-    except Exception:
-        for character, _ in pending:
-            character.pop("seed_assets", None)
-        return fetched
+    except Exception as exc:
+        raise SeedUnavailable('Locked character faces are stored in R2 and it is not reachable '
+                              f'right now ({type(exc).__name__}). Try again in a moment, or '
+                              'unlock the face to draw the character from their description.')
     for character, keys in pending:
         local: list[str] = []
         for key in keys:
@@ -297,18 +310,19 @@ def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
             # reading a screen.
             stamp = hashlib.sha256(key.encode()).hexdigest()[:12]
             name = f"assets/{character['id']}_{stamp}_{key.rsplit('/', 1)[-1]}"
-            try:
-                if not (root / name).exists() or not (root / name).stat().st_size:
+            if not (root / name).exists() or not (root / name).stat().st_size:
+                try:
                     storage.get(key, root / name)
-                if (root / name).stat().st_size:
-                    local.append(name)
-            except Exception:
-                continue
-        if local:
-            character["seed_assets"] = local
-            fetched += local
-        else:
-            character.pop("seed_assets", None)
+                except Exception as exc:
+                    raise SeedUnavailable(
+                        f"{character['id']}: the locked face could not be read from storage "
+                        f'({type(exc).__name__}). Try again in a moment, or unlock the face.')
+            if not (root / name).stat().st_size:
+                raise SeedUnavailable(f"{character['id']}: the locked face arrived empty. Try "
+                                      'again in a moment, or unlock the face.')
+            local.append(name)
+        character["seed_assets"] = local
+        fetched += local
     return fetched
 
 

@@ -794,5 +794,6 @@
   "needs review": "нужна проверка",
   "Sent to:": "Кому уходит:",
   "Set NOTIFICATION_TO to choose the readers.": "Переменная NOTIFICATION_TO задаёт получателей.",
-  "Send a test message": "Отправить тестовое письмо"
+  "Send a test message": "Отправить тестовое письмо",
+  "Links in those letters are not clickable: set STUDIO_PUBLIC_URL to this studio's address.": "Ссылки в этих письмах некликабельны: задайте STUDIO_PUBLIC_URL — адрес этой студии."
 }

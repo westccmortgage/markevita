@@ -30,10 +30,27 @@ def gettext(context, value, **values):
     return translate(value, language(context["request"]), **values)
 
 
+def collapse(text: str) -> str:
+    """Fold a line repeated over and over into one, with the count.
+
+    A retry that appended its complaint each time left a hundred identical
+    lines on one screen. The repetition is itself the finding, so it is said
+    once and counted, rather than scrolled through.
+    """
+    out: list[str] = []
+    for line in str(text or "").split("\n"):
+        if out and line.strip() and line == out[-1][0]:
+            out[-1][1] += 1
+        else:
+            out.append([line, 1])
+    return "\n".join(line if times == 1 else f"{line}   (\u00d7{times})"
+                     for line, times in out)
+
+
 @pass_context
 def notice(context, value):
     """Translate known application diagnostics, retaining unknown provider detail."""
-    text = str(value or "")
+    text = collapse(value)
     if language(context["request"]) != "ru":
         return text
     if '\n' in text:

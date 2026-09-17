@@ -1268,7 +1268,8 @@ def integrations_page(request: Request):
                   voices=integrations.voice_catalogue(),
                   mail={"transport": transport(), "from": sender_address(),
                         "problem": configuration_problem(),
-                        "to": notifications.recipients(store)},
+                        "to": notifications.recipients(store),
+                        "public_url": settings.public_url},
                   csrf_token=_csrf_token(request, require_admin(request)))
 
 

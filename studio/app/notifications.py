@@ -184,7 +184,7 @@ def email_body(job, kind, language):
         lines.append(translate('Stage:', language) + ' ' + str(stage))
     if kind == 'failed' and (job.get('error') or '').strip():
         lines += ['', job['error'].strip()]
-    lines += ['', settings.url(f"/jobs/{quote(job['id'], safe='')}")]
+    lines += ['', settings.absolute_url(f"/jobs/{quote(job['id'], safe='')}")]
     return '\n'.join(lines)
 
 

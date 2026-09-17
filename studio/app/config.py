@@ -164,6 +164,14 @@ class Settings:
             path = "/" + path
         return f"{self.base_path}{path}" if self.base_path else path
 
+    def absolute_url(self, path: str = "/") -> str:
+        """A URL that works outside the browser that is already on the site.
+
+        A letter carrying "/studio/jobs/…" is not a link: nothing to click,
+        and no host to paste it against. Mail needs the whole address.
+        """
+        return (self.public_url + self.url(path)) if self.public_url else self.url(path)
+
     @property
     def supabase_configured(self) -> bool:
         """Supabase usable as the RECORD STORE (server-side, service role)."""

@@ -293,3 +293,14 @@ def test_switching_email_on_does_not_post_every_old_failure(monkeypatch):
     sent = []
     assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: sent.append(a)) == 1
     assert 's01e04' in sent[0][2]
+
+
+def test_a_letter_carries_an_address_not_a_path(monkeypatch):
+    """The first real letter arrived with "/studio/jobs/…" in it — nothing to
+    click, and no host to paste it against."""
+    from app import notifications
+    job = {'id': 'abc', 'series_id': 'island', 'episode_id': 's01e03',
+           'progress': {'stage': 'direction'}, 'error': 'stopped'}
+    monkeypatch.setattr(settings, 'public_url', 'https://markevita.com')
+    monkeypatch.setattr(settings, 'base_path', '/studio')
+    assert 'https://markevita.com/studio/jobs/abc' in notifications.email_body(job, 'failed', 'en')

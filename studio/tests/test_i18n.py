@@ -246,3 +246,16 @@ def test_opening_a_buttons_address_returns_to_the_studio():
         assert response.status_code == 303, path
         assert response.headers["location"].startswith("/series/island"), path
     assert client.request("PUT", "/series/island/fill-bible").status_code == 405
+
+
+def test_a_line_repeated_a_hundred_times_is_said_once():
+    """A retry that appended its complaint each pass filled the screen; the
+    repetition is the finding, so it is counted rather than scrolled."""
+    from app.i18n import collapse
+    text = "\n".join(["Worker stopped."] + ["Could not carry on: ValueError."] * 100)
+    folded = collapse(text)
+    assert folded.count("Could not carry on") == 1
+    assert "(×100)" in folded
+    assert folded.startswith("Worker stopped.")
+    assert collapse("one\ntwo\none") == "one\ntwo\none", "only consecutive repeats fold"
+    assert collapse("") == ""

@@ -9,6 +9,9 @@
        {{ _("Every production event is emailed once, with the reason in the letter.") }}</p>
     <p class="small muted">{{ _("Sent to:") }} <code>{{ mail.to|join(', ') }}</code>
        {{ _("Set NOTIFICATION_TO to choose the readers.") }}</p>
+    {% if not mail.public_url %}
+      <div class="notice bad">{{ _("Links in those letters are not clickable: set STUDIO_PUBLIC_URL to this studio's address.") }}</div>
+    {% endif %}
     <form method="post" action="{{ base }}/integrations/email/test">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn" type="submit">{{ _("Send a test message") }}</button></form>

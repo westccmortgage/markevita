@@ -11,7 +11,11 @@
         <tr><td><code>{{ j.id[:8] }}</code></td><td class="small">{{ j.series_id }}</td>
             <td class="small"><a href="{{ base }}/series/{{ j.series_id }}/episodes/{{ j.episode_id }}">{{ j.episode_id }}</a></td>
             <td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else ('gold' if j.state == 'running' else 'mute')) }}">{{ (j.state)|ui }}</span></td>
-            <td class="small mono">{{ ((j.progress or {}).get('stage') or '—')|ui }}</td>
+            <td class="small mono">{{ ((j.progress or {}).get('stage') or '—')|ui }}
+              {% if (j.progress or {}).get('waiting_for') == 'reference_approval' %}
+                <div class="small" style="color:#e0a33e">{{ _("Waiting for you to approve the reference pack.") }}
+                  <a href="{{ base }}/series/{{ j.series_id }}/references">{{ _("Open References") }}</a></div>
+              {% endif %}</td>
             <td class="small muted">{{ (j.mode)|ui }}</td>
             <td class="small muted">{{ j.requested_by }}</td>
             <td class="small muted">{{ j.created_at|time }}</td>

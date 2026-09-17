@@ -797,5 +797,7 @@
   "Send a test message": "Отправить тестовое письмо",
   "That is a path, not an address: open any studio screen once, or set STUDIO_PUBLIC_URL.": "Это путь, а не адрес: откройте любой экран студии один раз или задайте STUDIO_PUBLIC_URL.",
   "Letters link back to": "Письма ведут на",
-  "Open it: if it lands in the studio, the links in letters work.": "Откройте: если попадёте в студию, ссылки в письмах работают."
+  "Open it: if it lands in the studio, the links in letters work.": "Откройте: если попадёте в студию, ссылки в письмах работают.",
+  "Waiting for you to approve the reference pack.": "Ждёт, пока вы утвердите пакет референсов.",
+  "Open References": "Открыть Референсы"
 }

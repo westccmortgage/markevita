@@ -259,3 +259,25 @@ def test_a_line_repeated_a_hundred_times_is_said_once():
     assert folded.startswith("Worker stopped.")
     assert collapse("one\ntwo\none") == "one\ntwo\none", "only consecutive repeats fold"
     assert collapse("") == ""
+
+
+def test_a_job_waiting_on_you_says_so_on_the_list(monkeypatch):
+    """Four jobs read "paused" at the references stage with no reason given,
+    and it looked like production had died."""
+    from fastapi.testclient import TestClient
+    from test_clip_preview import StrictStore
+    from app import web
+    from app.main import app
+    store = StrictStore()
+    store.insert('series', {'id': 'island', 'title': 'Island'})
+    store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['references'],
+        'mode': 'live', 'state': 'paused', 'idempotency_key': 'k1',
+        'progress': {'stage': 'references', 'waiting_for': 'reference_approval'}})
+    # Through monkeypatch, so the replacement is undone: set directly, it
+    # leaked into every test that ran after this one.
+    monkeypatch.setattr(web, 'store', store)
+    monkeypatch.setattr(web, 'require_admin', lambda request: {'email': 'admin@example.test'})
+    page = TestClient(app).get('/jobs').text
+    assert 'approve the reference pack' in page or 'утвердите пакет референсов' in page
+    assert '/series/island/references' in page

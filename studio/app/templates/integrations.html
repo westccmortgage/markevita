@@ -7,6 +7,11 @@
     <p class="small">{{ _("Delivered by") }} <b>{{ mail.transport }}</b>
        {{ _("from") }} <code>{{ mail["from"] }}</code>.
        {{ _("Every production event is emailed once, with the reason in the letter.") }}</p>
+    <p class="small muted">{{ _("Sent to:") }} <code>{{ mail.to|join(', ') }}</code>
+       {{ _("Set NOTIFICATION_TO to choose the readers.") }}</p>
+    <form method="post" action="{{ base }}/integrations/email/test">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn" type="submit">{{ _("Send a test message") }}</button></form>
   {% else %}
     <div class="notice bad"><b>{{ _("Nothing is delivered by email.") }}</b><br>{{ mail.problem }}</div>
   {% endif %}

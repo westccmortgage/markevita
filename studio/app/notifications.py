@@ -189,7 +189,19 @@ def email_body(job, kind, language):
 
 
 def recipients(store):
-    """Everyone who should hear about production, whatever their browser did."""
+    """Everyone who should hear about production, whatever their browser did.
+
+    NOTIFICATION_TO decides it outright when set — who gets told that an
+    episode stopped is not the same question as who may sign in, and
+    STUDIO_ADMIN_EMAIL answers the second one. Without it, everyone who can
+    sign in is told, which is the safer default: better an extra reader than
+    a stoppage nobody hears about.
+    """
+    import os
+    explicit = [a.strip() for a in (os.getenv('NOTIFICATION_TO') or '').replace(';', ',').split(',')
+                if a.strip()]
+    if explicit:
+        return list(dict.fromkeys(explicit))
     found = []
     try:
         for admin in store.list('studio_admins'):
@@ -199,7 +211,7 @@ def recipients(store):
         pass
     if settings.admin_email and settings.admin_email not in found:
         found.append(settings.admin_email)
-    return found
+    return list(dict.fromkeys(found))
 
 
 def dispatch_email_once(repo, store, deliver=None):

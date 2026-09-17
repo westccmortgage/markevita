@@ -244,3 +244,16 @@ def test_nothing_is_emailed_with_no_transport(monkeypatch):
     _failed_job(store)
     assert notifications.dispatch_email_once(
         _Repo(), store, deliver=lambda *a: pytest.fail('sent with nowhere to send')) == 0
+
+
+def test_who_is_told_is_not_who_may_sign_in(monkeypatch):
+    """Coupling the two meant adding a reader by handing them a way in."""
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    store.insert('studio_admins', {'email': 'someone@example.test'})
+    monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
+    monkeypatch.setenv('NOTIFICATION_TO', 'crd@example.test, second@example.test')
+    assert notifications.recipients(store) == ['crd@example.test', 'second@example.test']
+    monkeypatch.delenv('NOTIFICATION_TO')
+    assert notifications.recipients(store) == ['someone@example.test', 'admin@example.test']

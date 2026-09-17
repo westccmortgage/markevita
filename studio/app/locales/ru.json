@@ -791,5 +791,8 @@
   "ready": "готово",
   "completed": "этапы завершены",
   "needs attention": "нужно внимание",
-  "needs review": "нужна проверка"
+  "needs review": "нужна проверка",
+  "Sent to:": "Кому уходит:",
+  "Set NOTIFICATION_TO to choose the readers.": "Переменная NOTIFICATION_TO задаёт получателей.",
+  "Send a test message": "Отправить тестовое письмо"
 }

@@ -557,3 +557,30 @@ def test_nothing_is_carried_on_where_paid_calls_are_off(monkeypatch):
                         lambda *a, **k: pytest.fail('paid work started in a mock build'))
     _interrupted(store)
     assert live_jobs.resume_interrupted(runner.jobs) == []
+
+
+def test_a_resume_that_cannot_work_is_recorded_once_and_stops(monkeypatch):
+    """The watchdog retried every thirty seconds and appended a line to the job
+    each time — hundreds of them — against a refusal that would never change."""
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'review', lambda *a: 'd1')
+    attempts = {'n': 0}
+
+    def refuse(*a, **k):
+        attempts['n'] += 1
+        raise ValueError('An image provider refuses wording like this: adrian/casual_resort_shirt.')
+
+    monkeypatch.setattr(runner.jobs, 'resume', refuse)
+    job = _interrupted(store)
+    assert live_jobs.resume_interrupted(runner.jobs) == []
+    row = store.get('production_jobs', {'id': job['id']})
+    assert row['state'] == 'failed', 'handed to a person rather than retried forever'
+    assert row['error'].count('could not carry on') == 1
+    assert 'adrian/casual_resort_shirt' in row['error'], 'the reason, not just a class name'
+
+    # The next pass leaves it alone.
+    assert live_jobs.resume_interrupted(runner.jobs) == []
+    assert attempts['n'] == 1

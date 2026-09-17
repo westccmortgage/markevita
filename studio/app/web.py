@@ -1262,11 +1262,44 @@ def release_saved_request(request: Request, job_id: str, request_id: str = Form(
 @router.get("/integrations", response_class=HTMLResponse)
 def integrations_page(request: Request):
     require_admin(request)
+    from . import notifications
     from .mail import configuration_problem, sender_address, transport
     return render(request, "integrations.html", providers=integrations.status_all(),
                   voices=integrations.voice_catalogue(),
                   mail={"transport": transport(), "from": sender_address(),
-                        "problem": configuration_problem()})
+                        "problem": configuration_problem(),
+                        "to": notifications.recipients(store)},
+                  csrf_token=_csrf_token(request, require_admin(request)))
+
+
+@router.post("/integrations/email/test")
+def test_email(request: Request, csrf_token: str = Form("")):
+    """Send one real message, because "configured" and "arrives" are not the same.
+
+    A verified key and a from-address prove nothing about a domain the
+    provider has not finished verifying, or a recipient that bounces. This
+    turns the question into an answer.
+    """
+    a = require_admin(request)
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
+    from . import notifications
+    from .mail import deliver, sender_address
+    people = notifications.recipients(store)
+    if not people:
+        return _redirect("/integrations", err="Nobody would receive it: set NOTIFICATION_TO.")
+    try:
+        for person in people:
+            deliver(person, "MarkeVita · test message",
+                    "This is the studio checking that email reaches you.\n\n"
+                    f"From: {sender_address()}\n"
+                    "Production notifications will arrive the same way, with the reason "
+                    "for any stoppage written in the letter itself.")
+    except Exception as exc:
+        return _redirect("/integrations",
+                         err=f"Not delivered ({type(exc).__name__}). Check the from-address "
+                             "domain is verified with the provider, and the key is current.")
+    return _redirect("/integrations", ok="Sent to " + ", ".join(people) + ". Check the inbox.")
 
 
 @router.post("/integrations/{provider}/test")

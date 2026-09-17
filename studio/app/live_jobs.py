@@ -220,9 +220,17 @@ def resume_interrupted(manager) -> list[str]:
                                          approved_digest=digest, approve_live=True,
                                          audio_mode=(progress.get('audio_mode') or 'native'))
         except Exception as exc:
-            runner.store.update('production_jobs', {'id': job['id']},
-                                {'error': f"{job.get('error') or ''}\nCould not carry on by itself: "
-                                          f"{type(exc).__name__}. Resume this episode by hand.".strip()})
+            # Recorded once and taken out of the queue. Retrying every pass
+            # appended a line to the job each time — hundreds of them — and
+            # hammered a refusal that was never going to change by itself.
+            # Whatever stops an automatic resume needs a person, so the job is
+            # handed to one; Resume by hand still works.
+            detail = (str(exc) if isinstance(exc, (ValueError, PermissionError))
+                      else type(exc).__name__)
+            runner.store.update('production_jobs', {'id': job['id']}, {
+                'state': 'failed', 'finished_at': now(),
+                'error': 'Production stopped and could not carry on by itself:\n\n'
+                         f'{detail}\n\nFix that, then resume this episode.'})
             continue
         runner.history(job['series_id'], job['episode_id'], 'job.resumed_after_restart',
                        entity_type='job', entity_id=started['id'], actor='system',

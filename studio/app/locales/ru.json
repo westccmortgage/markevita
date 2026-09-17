@@ -773,5 +773,6 @@
   "This face is kept": "Это лицо закреплено",
   "Release it": "Открепить",
   "Keep this face": "Закрепить это лицо",
-  "another portrait is kept": "закреплён другой портрет"
+  "another portrait is kept": "закреплён другой портрет",
+  "{name}. Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.": "{name}. Производство остановлено. Запросы сохранены; «Продолжить» не отправит повторно запрос с неизвестным результатом."
 }

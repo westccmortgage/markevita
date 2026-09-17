@@ -134,3 +134,14 @@ def test_validation_and_production_share_one_set_of_constants():
     assert pipeline.LEAD_IN is package.LEAD_IN
     assert pipeline.GAP is package.GAP
     assert pipeline.MAX_TEMPO is package.MAX_TEMPO
+
+
+def test_an_unrecognised_failure_still_names_itself():
+    """A failure with no advice was replaced by a sentence about uncertain
+    requests, so the screen described a situation that may not be this one and
+    said nothing about what actually broke."""
+    import inspect
+    from app import live_jobs
+    source = inspect.getsource(live_jobs.run)
+    assert "f'{type(exc).__name__}: {advice}' if advice else (" in source
+    assert "f'{type(exc).__name__}. Production stopped." in source

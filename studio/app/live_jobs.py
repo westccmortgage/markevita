@@ -355,9 +355,19 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         except Exception:
             pass
         # Keep provider payloads/tokens out of the UI. Details are in private checkpoints.
-        message = str(exc) if isinstance(exc, (ValueError, PermissionError, ProviderFailure)) else type(exc).__name__ + ': ' + runner.explain(type(exc).__name__ + ': ' + str(exc))
-        if not message.split(':', 1)[-1].strip():
-            message = 'Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.'
+        if isinstance(exc, (ValueError, PermissionError, ProviderFailure)):
+            message = str(exc)
+        else:
+            advice = runner.explain(type(exc).__name__ + ': ' + str(exc))
+            # The class name always survives. Replacing an unrecognised failure
+            # with a sentence about uncertain requests said nothing about what
+            # happened, and described a situation that may not be this one.
+            message = f'{type(exc).__name__}: {advice}' if advice else (
+                f'{type(exc).__name__}. Production stopped. Saved requests are retained; '
+                'Resume will not resubmit an uncertain request.')
+        if not message.strip(' :.'):
+            message = ('Production stopped. Saved requests are retained; '
+                       'Resume will not resubmit an uncertain request.')
         try:
             update(state='failed', error=message, finished_at=now())
         except Exception:

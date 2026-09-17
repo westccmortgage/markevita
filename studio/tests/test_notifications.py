@@ -156,3 +156,91 @@ def test_parallel_restore_preserves_files_paths_and_detects_corruption(checkpoin
     assert json.loads((other.root/'state.json').read_text())['path'] == str(other.root/'0.mp4')
     key = cp.prefix+'objects/'+cp.files['0.mp4']['sha256']; client.objects[key] = b'corrupt'
     with pytest.raises(ValueError, match='checksum'): other.restore()
+
+
+# ── email, because a browser subscription is not where the producer lives ──
+
+class _Repo:
+    def __init__(self):
+        self.store = {}
+
+    def read(self, key):
+        return (self.store.get(key), 'etag')
+
+    def write(self, key, value, etag=None):
+        self.store[key] = value
+        return {'ETag': 'etag'}
+
+    def keys(self, prefix):
+        return [k for k in self.store if k.startswith(prefix)]
+
+    def delete(self, key):
+        self.store.pop(key, None)
+
+
+def _failed_job(store):
+    store.insert('series', {'id': 'island', 'title': 'Island'})
+    return store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['references'],
+        'mode': 'live', 'state': 'failed', 'requested_by': 'admin@example.test',
+        'idempotency_key': 'k1', 'error': 'fal.ai HTTP 422 · ref adrian/fullbody: refused.',
+        'progress': {'stage': 'references', 'done': ['intake'], 'total': 3}})
+
+
+def test_a_failure_is_emailed_with_the_reason_in_it(monkeypatch):
+    """Push needed a live browser. A producer who closed the tab heard nothing
+    for hours while the episode sat stopped."""
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
+    monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    _failed_job(store)
+    sent = []
+    assert notifications.dispatch_email_once(_Repo(), store,
+                                             deliver=lambda *a: sent.append(a)) == 1
+    to, subject, body = sent[0]
+    assert to == 'admin@example.test'
+    assert 'island / s01e04' in body
+    assert 'HTTP 422' in body, 'the reason travels in the letter, not behind a link'
+    assert '/jobs/' in body
+
+
+def test_the_same_event_is_not_emailed_twice(monkeypatch):
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
+    monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    _failed_job(store)
+    repo = _Repo()
+    assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: None) == 1
+    assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: None) == 0
+
+
+def test_a_message_that_could_not_be_sent_is_tried_again(monkeypatch):
+    """Losing the one letter that says why production stopped is worse than
+    sending it late."""
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
+    monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    _failed_job(store)
+    repo = _Repo()
+
+    def refuse(*a):
+        raise RuntimeError('mail server down')
+
+    assert notifications.dispatch_email_once(repo, store, deliver=refuse) == 0
+    assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: None) == 1
+
+
+def test_nothing_is_emailed_with_no_transport(monkeypatch):
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    monkeypatch.setattr('app.mail.transport', lambda: '')
+    _failed_job(store)
+    assert notifications.dispatch_email_once(
+        _Repo(), store, deliver=lambda *a: pytest.fail('sent with nowhere to send')) == 0

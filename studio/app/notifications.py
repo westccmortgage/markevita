@@ -169,6 +169,81 @@ def send(repo, subscription, message):
             raise RuntimeError('Push service did not accept the notification.')
 
 
+EMAIL_PREFIX = PREFIX + 'email/'
+
+
+def email_body(job, kind, language):
+    """What went wrong, in the letter itself — not behind a link."""
+    lines = [translate({'ready': 'Your episode is ready',
+                        'completed': 'Selected stages completed',
+                        'failed': 'Production needs attention',
+                        'review': 'References need your review'}[kind], language),
+             '', f"{job['series_id']} / {job['episode_id']}"]
+    stage = (job.get('progress') or {}).get('stage')
+    if stage:
+        lines.append(translate('Stage:', language) + ' ' + str(stage))
+    if kind == 'failed' and (job.get('error') or '').strip():
+        lines += ['', job['error'].strip()]
+    lines += ['', settings.url(f"/jobs/{quote(job['id'], safe='')}")]
+    return '\n'.join(lines)
+
+
+def recipients(store):
+    """Everyone who should hear about production, whatever their browser did."""
+    found = []
+    try:
+        for admin in store.list('studio_admins'):
+            if admin.get('email'):
+                found.append(admin['email'])
+    except Exception:
+        pass
+    if settings.admin_email and settings.admin_email not in found:
+        found.append(settings.admin_email)
+    return found
+
+
+def dispatch_email_once(repo, store, deliver=None):
+    """Email each new job event once. Delivery is not tied to any browser."""
+    from .mail import deliver as send_mail, transport
+    deliver = deliver or send_mail
+    if not transport():
+        return 0
+    sent = 0
+    for actor in recipients(store):
+        key = EMAIL_PREFIX + b64(actor.encode())
+        try:
+            record, etag = repo.read(key)
+        except Exception:
+            continue
+        record = record or {'actor': actor, 'seen': []}
+        seen = set(record.get('seen', []))
+        for job in reversed(store.list('production_jobs', order='created_at',
+                                       desc=True, limit=100)):
+            entry = event(job)
+            if not entry or entry[0] in seen:
+                continue
+            subject = f"MarkeVita · {job['series_id']} / {job['episode_id']} — " + \
+                      translate({'ready': 'ready', 'completed': 'completed',
+                                 'failed': 'needs attention', 'review': 'needs review'}[entry[1]],
+                                record.get('language', 'en'))
+            try:
+                deliver(actor, subject, email_body(job, entry[1], record.get('language', 'en')))
+            except Exception as exc:
+                # Left unseen on purpose: the next pass tries again rather than
+                # losing the one message that says why production stopped.
+                log.warning('Email notification deferred (%s)', type(exc).__name__)
+                break
+            sent += 1
+            seen.add(entry[0])
+            record['seen'] = [*record.get('seen', []), entry[0]][-500:]
+            try:
+                result = repo.write(key, record, etag)
+                etag = result['ETag']
+            except Exception:
+                break
+    return sent
+
+
 def jobs_for(store, actor):
     return store.list('production_jobs', {'requested_by': actor}, order='created_at', desc=True, limit=100)
 
@@ -218,7 +293,23 @@ class Dispatcher:
     def run(self):
         from .store import store
         while not self.stop.wait(30):
-            try:
-                dispatch_once(repository(), store)
-            except Exception as exc:
-                log.warning('Notification check deferred (%s)', type(exc).__name__)
+            repo = repository()
+            for name, work in (('push', lambda: dispatch_once(repo, store)),
+                               ('email', lambda: dispatch_email_once(repo, store)),
+                               ('recovery', self.carry_on)):
+                try:
+                    work()
+                except Exception as exc:
+                    log.warning('%s check deferred (%s)', name, type(exc).__name__)
+
+    @staticmethod
+    def carry_on():
+        """Pick up an episode whose worker died while the server kept running.
+
+        Resuming at boot only covers a restart. A worker can also lose its
+        lease or its thread while the process lives on, and that episode used
+        to wait for a person.
+        """
+        from .live_jobs import resume_interrupted
+        from . import runner
+        resume_interrupted(runner.jobs)

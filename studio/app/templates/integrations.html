@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Integrations — Series Studio") }}{% endblock %}
 {% block content %}
+<div class="card">
+  <h2>{{ _("Email notifications") }}</h2>
+  {% if mail.transport %}
+    <p class="small">{{ _("Delivered by") }} <b>{{ mail.transport }}</b>
+       {{ _("from") }} <code>{{ mail["from"] }}</code>.
+       {{ _("Every production event is emailed once, with the reason in the letter.") }}</p>
+  {% else %}
+    <div class="notice bad"><b>{{ _("Nothing is delivered by email.") }}</b><br>{{ mail.problem }}</div>
+  {% endif %}
+</div>
+
 <div class="page-head"><div>
   <h1>{{ _("Integrations") }}</h1>
   <p class="sub">{{ _("Configured through backend environment variables only. This page shows whether a credential is present — never its value. No secret is sent to the browser or stored in the database.") }}</p>

@@ -1262,8 +1262,11 @@ def release_saved_request(request: Request, job_id: str, request_id: str = Form(
 @router.get("/integrations", response_class=HTMLResponse)
 def integrations_page(request: Request):
     require_admin(request)
+    from .mail import configuration_problem, sender_address, transport
     return render(request, "integrations.html", providers=integrations.status_all(),
-                  voices=integrations.voice_catalogue())
+                  voices=integrations.voice_catalogue(),
+                  mail={"transport": transport(), "from": sender_address(),
+                        "problem": configuration_problem()})
 
 
 @router.post("/integrations/{provider}/test")

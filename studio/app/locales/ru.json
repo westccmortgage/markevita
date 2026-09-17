@@ -781,5 +781,15 @@
   "Show only what is finished or under way": "Показать только готовое и то, что в работе",
   "That job is already gone.": "Этой задачи уже нет.",
   "This job is still under way. Pause or cancel it first.": "Эта задача ещё выполняется. Сначала поставьте на паузу или отмените.",
-  "Removed from the list. Saved provider requests are untouched.": "Убрано из списка. Сохранённые запросы провайдера не тронуты."
+  "Removed from the list. Saved provider requests are untouched.": "Убрано из списка. Сохранённые запросы провайдера не тронуты.",
+  "Email notifications": "Уведомления на почту",
+  "Delivered by": "Доставляет",
+  "from": "с адреса",
+  "Every production event is emailed once, with the reason in the letter.": "Каждое событие производства уходит письмом один раз, причина — в самом письме.",
+  "Nothing is delivered by email.": "Почтой ничего не доставляется.",
+  "Stage:": "Этап:",
+  "ready": "готово",
+  "completed": "этапы завершены",
+  "needs attention": "нужно внимание",
+  "needs review": "нужна проверка"
 }

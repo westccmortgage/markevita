@@ -1258,3 +1258,55 @@ def test_a_rejected_draft_leaves_the_wardrobe_untouched(db, monkeypatch):
 def test_the_script_writer_is_told_the_wardrobe_follows_the_script(db):
     assert "new_wardrobe" in authoring.SYSTEM
     assert "The script decides what people wear" in authoring.SYSTEM
+
+
+# ── one face, kept ─────────────────────────────────────────────────────────
+
+def test_a_kept_face_is_fetched_into_the_package(db, tmp_path, monkeypatch):
+    """Without a seed the character is drawn from their description again on
+    every bible version — four Adrians across four wardrobe edits."""
+    from app import packaging
+    calls = []
+
+    class _R2:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, key, dest):
+            calls.append(key)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(b"face")
+            return dest
+
+    monkeypatch.setattr("serial.storage.R2", _R2)
+    characters = [{"id": "adrian", "seed_assets": ["series/x/bible/characters/adrian/v1/front.png"]}]
+    fetched = packaging.fetch_seeds(tmp_path, characters)
+    assert fetched == ["assets/adrian_front.png"]
+    assert characters[0]["seed_assets"] == ["assets/adrian_front.png"]
+    assert (tmp_path / "assets" / "adrian_front.png").read_bytes() == b"face"
+    assert calls == ["series/x/bible/characters/adrian/v1/front.png"]
+
+
+def test_a_face_that_cannot_be_fetched_is_dropped_not_faked(db, tmp_path, monkeypatch):
+    """An empty file would be rejected by the provider; drawing the character
+    afresh is worse than keeping one face, but better than drawing nothing."""
+    from app import packaging
+
+    class _R2:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, key, dest):
+            raise OSError("no such object")
+
+    monkeypatch.setattr("serial.storage.R2", _R2)
+    characters = [{"id": "adrian", "seed_assets": ["gone.png"]}]
+    assert packaging.fetch_seeds(tmp_path, characters) == []
+    assert "seed_assets" not in characters[0]
+
+
+def test_a_character_with_no_kept_face_needs_no_storage(db, tmp_path, monkeypatch):
+    from app import packaging
+    monkeypatch.setattr("serial.config.Config.load",
+                        lambda *a, **k: pytest.fail("storage opened with nothing to fetch"))
+    assert packaging.fetch_seeds(tmp_path, [{"id": "adrian", "seed_assets": []}]) == []

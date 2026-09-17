@@ -16,6 +16,11 @@
   </div>
 {% endif %}
 
+{% if superseded %}
+  <div class="notice">{{ _("Showing the current pack") }} <code>{{ bible_version }}</code>.
+    {{ _("{count} image(s) from earlier versions of the bible are kept but not shown: they are not what the next episode uses.", count=superseded) }}</div>
+{% endif %}
+
 <div class="card">
   <h2>{{ _("Reference images: {count}", count=total) }}</h2>
   {% if grouped %}
@@ -24,7 +29,21 @@
       <div class="table-scroll"><table>
         <thead><tr><th>{{ _("Preview") }}</th><th>{{ _("Owner") }}</th><th>{{ _("Asset") }}</th><th>{{ _("Approval") }}</th><th>{{ _("Object key") }}</th><th>{{ _("Checksum") }}</th></tr></thead>
         <tbody>{% for r in items %}
-          <tr><td>{% if r.r2_key %}<a href="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" target="_blank" rel="noopener"><img src="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" alt="{{ r.owner_id }} {{ r.name }}" loading="lazy" style="width:120px;max-height:160px;object-fit:contain"></a>{% endif %}</td><td><code>{{ r.owner_id }}</code></td><td class="small">{{ r.name }}</td>
+          <tr><td>{% if r.r2_key %}<a href="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" target="_blank" rel="noopener"><img src="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/image" alt="{{ r.owner_id }} {{ r.name }}" loading="lazy" style="width:120px;max-height:160px;object-fit:contain"></a>{% endif %}</td><td><code>{{ r.owner_id }}</code>
+            {% if r.kind == 'character' and r.name == 'front_headshot' %}
+              {% set fixed = locked.get(r.owner_id) %}
+              {% if fixed == r.r2_key %}
+                <div class="small" style="color:#6fbf73">{{ _("This face is kept") }}</div>
+                <form method="post" action="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/unlock-face">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn-sm" type="submit">{{ _("Release it") }}</button></form>
+              {% else %}
+                <form method="post" action="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/lock-face">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn-sm" type="submit">{{ _("Keep this face") }}</button></form>
+                {% if fixed %}<div class="small muted">{{ _("another portrait is kept") }}</div>{% endif %}
+              {% endif %}
+            {% endif %}</td><td class="small">{{ r.name }}</td>
               <td><span class="pill {{ 'ok' if r.approval == 'approved' else 'warn' }}">{{ (r.approval)|ui }}</span></td>
               <td class="small muted mono">{{ r.r2_key or '(local, R2 not configured)' }}</td>
               <td class="small muted mono">{{ (r.checksum or '')[:12] }}</td></tr>

@@ -1011,13 +1011,68 @@ def references_page(request: Request, series_id: str):
     if not s:
         raise HTTPException(404, "series not found")
     refs = store.list("reference_assets", {"series_id": series_id}, order="owner_id")
+    # Every bible version ever generated was listed together, so one character
+    # appeared several times with a different face each time and nothing said
+    # which pack the next episode would actually use.
+    current = (s.get("bible_version") or "").strip()
+    superseded = [r for r in refs if current and (r.get("bible_version") or "") != current]
+    if current:
+        refs = [r for r in refs if (r.get("bible_version") or "") == current]
     grouped: dict[str, list] = {}
     for r in refs:
         grouped.setdefault(r.get("kind", "other"), []).append(r)
+    locked = {c["character_id"]: (c.get("seed_assets") or [None])[0]
+              for c in store.list("characters", {"series_id": series_id})}
     return render(request, "references.html", s=s, grouped=grouped, total=len(refs),
+                  bible_version=current, superseded=len(superseded), locked=locked,
                   csrf_token=_csrf_token(request, require_admin(request)),
                   approvals=store.list("approvals", {"series_id": series_id,
                                                      "subject_type": "references"}))
+
+
+@router.post("/series/{series_id}/references/{asset_id}/lock-face")
+def lock_face(request: Request, series_id: str, asset_id: str, csrf_token: str = Form("")):
+    """Make this portrait the character's face for good.
+
+    Without one, every version of the bible draws the character from their
+    description again and produces a different person — four Adrians across
+    four wardrobe edits. With one, the studio generates "the same person as
+    this reference" instead.
+    """
+    a = require_admin(request)
+    back = f"/series/{series_id}/references"
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
+    asset = store.get("reference_assets", {"series_id": series_id, "id": asset_id})
+    if not asset or not asset.get("r2_key"):
+        return _redirect(back, err="That reference image is not available.")
+    if asset.get("kind") != "character":
+        return _redirect(back, err="Only a character's portrait can be locked as their face.")
+    character = store.get("characters", {"series_id": series_id,
+                                         "character_id": asset["owner_id"]})
+    if not character:
+        return _redirect(back, err="That character is no longer in this series.")
+    store.update("characters", {"series_id": series_id, "character_id": asset["owner_id"]},
+                 {"seed_assets": [asset["r2_key"]], "updated_at": _now()})
+    authoring.history(series_id, "", "face.locked", entity_type="character",
+                      entity_id=asset["owner_id"], actor=a["email"],
+                      detail={"reference": asset.get("name") or "",
+                              "bible_version": asset.get("bible_version") or ""})
+    return _redirect(back, ok=f"{asset['owner_id']}: this face is now the one the studio keeps.")
+
+
+@router.post("/series/{series_id}/references/{asset_id}/unlock-face")
+def unlock_face(request: Request, series_id: str, asset_id: str, csrf_token: str = Form("")):
+    a = require_admin(request)
+    back = f"/series/{series_id}/references"
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
+    asset = store.get("reference_assets", {"series_id": series_id, "id": asset_id})
+    if not asset:
+        return _redirect(back, err="That reference image is not available.")
+    store.update("characters", {"series_id": series_id, "character_id": asset["owner_id"]},
+                 {"seed_assets": [], "updated_at": _now()})
+    return _redirect(back, ok=f"{asset['owner_id']}: the face is no longer fixed.")
 
 
 @router.post("/series/{series_id}/references/approve")

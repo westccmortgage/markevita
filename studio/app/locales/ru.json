@@ -767,5 +767,11 @@
   "ELEVENLABS_API_KEY is not set on this server.": "ELEVENLABS_API_KEY не задан на этом сервере.",
   "fal.ai refused to generate this under its content policy. Nothing is retried on its own: change the wording it was given — for a reference that is the character's appearance or the wardrobe item, for a clip it is the scene's action — and run the episode again.": "fal.ai отказался это создавать по своим правилам. Само по себе ничего не повторяется: измените описание, которое ему дали — для референса это внешность персонажа или предмет одежды, для клипа — действие в сцене, — и запустите серию снова.",
   "An image provider is likely to refuse this wording:": "Провайдер изображений, скорее всего, откажет из-за этих слов:",
-  "Describe the garment rather than what it leaves bare.": "Опишите сам предмет одежды, а не то, что он открывает."
+  "Describe the garment rather than what it leaves bare.": "Опишите сам предмет одежды, а не то, что он открывает.",
+  "Showing the current pack": "Показан текущий пакет",
+  "{count} image(s) from earlier versions of the bible are kept but not shown: they are not what the next episode uses.": "{count} изобр. от прежних версий библии сохранены, но не показаны: следующая серия использует не их.",
+  "This face is kept": "Это лицо закреплено",
+  "Release it": "Открепить",
+  "Keep this face": "Закрепить это лицо",
+  "another portrait is kept": "закреплён другой портрет"
 }

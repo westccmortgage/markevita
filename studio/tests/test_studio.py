@@ -518,3 +518,45 @@ def test_full_mock_production_run(isolated_store, tmp_path, monkeypatch):
     again = run_to_rest(runner.DEFAULT_STAGES)
     assert again["state"] == "done"
     assert runner.episode_runtime(sid, eid)["spent_usd"] == before
+
+
+def test_keeping_a_face_records_it_on_the_character(monkeypatch):
+    from types import SimpleNamespace
+    from test_clip_preview import StrictStore
+    """One portrait becomes the character's face, so the next bible version
+    draws the same person instead of a new one."""
+    from app import web
+    store = StrictStore()
+    monkeypatch.setattr(web, "store", store)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "admin@example.test"})
+    monkeypatch.setattr(web, "_check_form", lambda *a: None)
+    store.insert("series", {"id": "island", "title": "Island"})
+    store.insert("characters", {"series_id": "island", "character_id": "adrian",
+                                "name": "Adrian", "visual": True})
+    asset = store.insert("reference_assets", {
+        "series_id": "island", "bible_version": "v2", "kind": "character",
+        "owner_id": "adrian", "name": "front_headshot",
+        "r2_key": "series/island/bible/characters/adrian/v2/front_headshot.png"})
+    web.lock_face(SimpleNamespace(url=SimpleNamespace(path="/")), "island", asset["id"], "t")
+    character = store.get("characters", {"series_id": "island", "character_id": "adrian"})
+    assert character["seed_assets"] == [asset["r2_key"]]
+    web.unlock_face(SimpleNamespace(url=SimpleNamespace(path="/")), "island", asset["id"], "t")
+    assert store.get("characters", {"series_id": "island",
+                                    "character_id": "adrian"})["seed_assets"] == []
+
+
+def test_only_a_character_portrait_can_be_kept_as_a_face(monkeypatch):
+    from types import SimpleNamespace
+    from test_clip_preview import StrictStore
+    from app import web
+    store = StrictStore()
+    monkeypatch.setattr(web, "store", store)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "admin@example.test"})
+    monkeypatch.setattr(web, "_check_form", lambda *a: None)
+    store.insert("series", {"id": "island", "title": "Island"})
+    asset = store.insert("reference_assets", {
+        "series_id": "island", "kind": "location", "owner_id": "terrace",
+        "name": "wide", "r2_key": "series/island/bible/locations/terrace/v2/wide.png"})
+    response = web.lock_face(SimpleNamespace(url=SimpleNamespace(path="/")), "island",
+                             asset["id"], "t")
+    assert "err=" in response.headers["location"]

@@ -261,6 +261,49 @@ def _scene_json(s: dict) -> dict:
 
 # ── materialisation ────────────────────────────────────────────────────────
 
+def fetch_seeds(root: Path, characters: list[dict]) -> list[str]:
+    """Bring each character's locked face into the package as a file.
+
+    A character with no seed is drawn from their description, so every version
+    of the bible produces a different person — four Adrians across four edits.
+    A locked face is stored as a storage key; the engine needs a file inside
+    the package, and generates "the same person as this reference" from it.
+
+    A face that cannot be fetched is dropped rather than faked: an empty file
+    would make the provider reject the request, and a run that draws the
+    character afresh is better than one that cannot draw them at all.
+    """
+    fetched: list[str] = []
+    pending = [(c, list(c.get("seed_assets") or [])) for c in characters]
+    if not any(keys for _, keys in pending):
+        return fetched
+    from .config import PIPELINE_DIR
+    from serial.config import Config
+    from serial.storage import R2
+    try:
+        storage = R2(Config.load(PIPELINE_DIR, live=True), lambda _message: None)
+    except Exception:
+        for character, _ in pending:
+            character.pop("seed_assets", None)
+        return fetched
+    for character, keys in pending:
+        local: list[str] = []
+        for key in keys:
+            name = f"assets/{character['id']}_{key.rsplit('/', 1)[-1]}"
+            try:
+                storage.get(key, root / name)
+                if (root / name).stat().st_size:
+                    local.append(name)
+            except Exception:
+                continue
+        if local:
+            character["seed_assets"] = local
+            fetched += local
+        else:
+            character.pop("seed_assets", None)
+    return fetched
+
+
 def materialize(series_id: str, clean: bool = False) -> Path:
     """Write the complete series package to disk and return its folder.
 
@@ -276,7 +319,9 @@ def materialize(series_id: str, clean: bool = False) -> Path:
     root.mkdir(parents=True, exist_ok=True)
 
     _write(root / "series.json", build_series_json(series))
-    _write(root / "bible" / "characters.json", build_characters(series_id))
+    characters = build_characters(series_id)
+    fetch_seeds(root, characters)
+    _write(root / "bible" / "characters.json", characters)
     _write(root / "bible" / "locations.json", build_locations(series_id))
     _write(root / "bible" / "style.json", {**DEFAULT_STYLE, **(series.get("style") or {})})
 
@@ -300,7 +345,5 @@ def materialize(series_id: str, clean: bool = False) -> Path:
             continue  # brief not written yet; the engine reports it as missing
         _write(root / "episodes" / ep["episode_id"] / "brief.json", build_brief(series_id, ep))
 
-    # Seed assets referenced by the bible are copied in if the studio holds them.
-    assets = root / "assets"
-    assets.mkdir(exist_ok=True)
+    (root / "assets").mkdir(exist_ok=True)
     return root

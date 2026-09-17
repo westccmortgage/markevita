@@ -32,6 +32,17 @@ class R2:
         self._put_cache.add(key)
         return key
 
+    def get(self, key: str, dest: Path) -> Path:
+        """Fetch an object back to disk. Used for a character's locked face,
+        which has to be a file inside the package the engine reads."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not self.enabled:
+            self.log(f"  [dry] R2 get {key}")
+            dest.write_bytes(b"")
+            return dest
+        self.client.download_file(self.cfg.r2_bucket, key, str(dest))
+        return dest
+
     def presign(self, key: str, expires: int = 3600) -> str:
         """Bearer-URL: не логировать целиком."""
         if not self.enabled:

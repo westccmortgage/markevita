@@ -492,3 +492,14 @@ def test_a_job_with_no_lease_at_all_is_not_left_running(monkeypatch):
     runner.jobs.reconcile_abandoned('island')
     job = store.list('production_jobs', {'series_id': 'island', 'episode_id': 's01e04'})[0]
     assert job['state'] == 'interrupted'
+
+
+def test_the_live_transport_logs_where_the_producer_reads():
+    """The provider transport was built with the engine's own log, captured
+    before the job log was wired in, so fal.ai's explanation of a refusal never
+    reached the job page."""
+    import inspect
+    from app import live_jobs
+    source = inspect.getsource(live_jobs.run)
+    assert source.index("pipeline.log = live_log") < source.index("pipeline.fal = DurableFal")
+    assert "DurableFal(cfg, live_log," in source

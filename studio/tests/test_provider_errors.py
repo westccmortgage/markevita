@@ -216,3 +216,21 @@ def test_a_label_never_carries_provider_text(tmp_path):
     exc = _refusal()
     info = fal_diagnostic(exc, RID, what="x" * 400)
     assert "x" * 121 not in info["message"]
+
+
+def test_the_providers_own_words_reach_the_log_it_is_given(tmp_path):
+    """A 422 with no error code said only "check the saved request". fal's own
+    sentence existed — it went to a log the producer cannot read."""
+    from app.live_providers import _provider_explanation
+    lines = []
+    response = requests.Response()
+    response.status_code = 422
+    response._content = json.dumps({"detail": [
+        {"msg": "Input image at https://r2.example/secret.png could not be read",
+         "type": "value_error"}]}).encode()
+    response.headers["content-type"] = "application/json"
+    exc = requests.exceptions.HTTPError(response=response)
+    _provider_explanation(exc, RID, "SECRET-KEY", lines.append)
+    assert len(lines) == 1
+    assert "could not be read" in lines[0] and RID in lines[0]
+    assert "r2.example" not in lines[0] and "SECRET-KEY" not in lines[0]

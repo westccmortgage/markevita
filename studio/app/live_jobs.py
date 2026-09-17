@@ -311,13 +311,17 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         released = {a['subject_id'] for a in runner.store.list('approvals', {
             'series_id': job['series_id'], 'episode_id': job['episode_id'],
             'subject_type': 'fal_request_unreachable'}) if a.get('decision') == 'released'}
-        pipeline.fal = DurableFal(cfg, pipeline.log, pipeline.state, pipeline.budget,
-                                  pipeline.fal.inputs, released)
         original_log = pipeline.log
         def live_log(message):
             original_log(message)
             log(message)
         pipeline.log = live_log
+        # Built with the live log, not the engine's own. fal.ai's explanation of
+        # a refusal went only to the server's log stream and a file inside the
+        # run directory, so the job page showed a bare code and the one sentence
+        # saying what the provider actually objected to was unreadable.
+        pipeline.fal = DurableFal(cfg, live_log, pipeline.state, pipeline.budget,
+                                  pipeline.fal.inputs, released)
         for stage in job['stages']:
             lease.check()
             command = runner.store.get('production_jobs', {'id': job['id']}) or {}

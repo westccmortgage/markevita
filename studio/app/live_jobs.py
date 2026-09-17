@@ -487,6 +487,39 @@ def approve_references(series_id, actor, note):
         lease.close()
 
 
+def continue_after_reference_approval(series_id, actor):
+    """Carry on the run that was waiting for exactly this approval.
+
+    Approving the pack is the answer to the only question the run stopped to
+    ask. Leaving it paused afterwards meant the producer had to find a second
+    button on another page to say yes twice, and an episode sat still for
+    hours because nobody knew a further click was owed. Nothing new is
+    authorised here: same episode, same approved script and budget, same
+    checkpoint, and an episode whose script moved on since is left alone.
+    """
+    from . import runner
+    if not settings.allow_paid:
+        return None
+    for job in runner.store.list('production_jobs', {'series_id': series_id, 'mode': 'live',
+                                                     'state': 'paused'},
+                                 order='created_at', desc=True):
+        progress = job.get('progress') or {}
+        if progress.get('waiting_for') != 'reference_approval':
+            continue
+        digest = progress.get('input_digest')
+        if not digest or digest != review(series_id, job['episode_id']):
+            continue
+        started = runner.jobs.resume(series_id, job['episode_id'],
+                                     actor or job.get('requested_by') or '',
+                                     approved_digest=digest, approve_live=True,
+                                     audio_mode=(progress.get('audio_mode') or 'native'))
+        runner.history(series_id, job['episode_id'], 'job.resumed_after_approval',
+                       entity_type='job', entity_id=started['id'], actor=actor or 'system',
+                       detail={'paused_job': job['id']})
+        return started
+    return None
+
+
 def saved_state(series_id, episode_id):
     """Read only: do not restore/overwrite a running worker's local files."""
     cp = Checkpoint(Config.load(PIPELINE_DIR, live=True), runtime_root(), series_id)

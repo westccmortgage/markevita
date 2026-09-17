@@ -1116,7 +1116,15 @@ def approve_refs(request: Request, series_id: str, note: str = Form(""), csrf_to
         result = runner.approve_references(series_id, a["email"], note)
     except (ValueError, KeyError) as e:
         return _redirect(back, err=str(e))
-    return _redirect(back, ok=f"Reference pack for bible {result['bible_version']} approved.")
+    message = f"Reference pack for bible {result['bible_version']} approved."
+    try:
+        carried = live_jobs.continue_after_reference_approval(series_id, a["email"])
+    except Exception as exc:
+        return _redirect(back, ok=message + " Production did not restart by itself ("
+                         + type(exc).__name__ + "); open the episode and press Resume.")
+    if carried:
+        return _redirect(f"/jobs/{carried['id']}", ok=message + " Production continued from here.")
+    return _redirect(back, ok=message)
 
 
 # ── costs, jobs, integrations ──────────────────────────────────────────────

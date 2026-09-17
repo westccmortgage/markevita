@@ -119,6 +119,7 @@ def voice_problems(cfg, stages, pkg, episode_id):
 def recovery_problems(stages, state):
     """Check checkpoint prerequisites before spending on any earlier stage."""
     from .live_providers import _known_refusal, _UNCERTAIN
+    from serial.paid_calls import RESUBMITTABLE
     errors = []
     done = {name for name, value in state.data.get('stages', {}).items() if value == 'done'}
     for stage in stages:
@@ -131,6 +132,15 @@ def recovery_problems(stages, state):
                if take.get('status') in _UNCERTAIN and not take.get('request_id') and not _known_refusal(take)]
     if unknown:
         errors.append('A provider submission needs reconciliation; do not force or repeat generation.')
-    if any(rec.get('status') != 'succeeded' for rec in state.data.get('paid_operations', {}).values()):
-        errors.append('A paid request was interrupted before its response was saved. Reconcile it with the provider before another attempt.')
+    # A text completion that was cut off leaves nothing on the provider's side
+    # to reconcile, and the run itself charges it and asks again. Blocking on
+    # one of those left the episode permanently unable to continue, by hand or
+    # otherwise, over a few cents of tokens.
+    stranded = sorted({rec.get('provider') or 'a provider'
+                       for rec in state.data.get('paid_operations', {}).values()
+                       if rec.get('status') != 'succeeded'
+                       and (rec.get('provider') or '') not in RESUBMITTABLE})
+    if stranded:
+        errors.append('A paid request to ' + ', '.join(stranded) + ' was interrupted before its '
+                      'response was saved. Reconcile it with the provider before another attempt.')
     return errors

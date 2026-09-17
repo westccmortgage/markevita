@@ -118,6 +118,63 @@ def test_unknown_synchronous_paid_call_is_never_repeated(tmp_path):
     assert restored.data['reserved_usd'] == 1
 
 
+def test_approving_references_carries_the_paused_run_on(monkeypatch):
+    """Saying yes to the pack is the answer the run stopped for."""
+    from app import runner
+    paused = {'id': 'j1', 'series_id': 's', 'episode_id': 'e', 'mode': 'live', 'state': 'paused',
+              'requested_by': 'producer@example.test',
+              'progress': {'waiting_for': 'reference_approval', 'input_digest': 'd1',
+                           'audio_mode': 'native'}}
+    resumed = {}
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(live_jobs, 'review', lambda sid, eid: 'd1')
+    monkeypatch.setattr(runner.store, 'list', lambda table, where=None, **k: [paused] if table == 'production_jobs' else [])
+    monkeypatch.setattr(runner.jobs, 'resume', lambda *a, **k: resumed.update(args=a, kw=k) or {'id': 'j2'})
+    monkeypatch.setattr(runner, 'history', lambda *a, **k: None)
+    started = live_jobs.continue_after_reference_approval('s', 'producer@example.test')
+    assert started == {'id': 'j2'}
+    assert resumed['kw']['approved_digest'] == 'd1' and resumed['kw']['approve_live'] is True
+
+    # An episode whose script moved on since that approval is left alone: what
+    # was approved is no longer what would be made.
+    monkeypatch.setattr(live_jobs, 'review', lambda sid, eid: 'd2')
+    assert live_jobs.continue_after_reference_approval('s', 'producer@example.test') is None
+
+
+def test_interrupted_text_call_is_charged_and_asked_again(tmp_path):
+    """A cut-off completion must not brick the episode for ever.
+
+    Nothing waits on the provider's side and no artifact can arrive later, so
+    the tokens are charged at the reserved estimate and the next run asks
+    again. Before this, one lost connection left an episode that could not be
+    resumed by hand or by anything else.
+    """
+    state = State(tmp_path)
+    attempts = []
+    def flaky():
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise TimeoutError('lost response')
+        return {'content': [{'type': 'text', 'text': 'ok'}]}
+    with pytest.raises(TimeoutError):
+        PaidCalls(state, Budget(10, state)).once('anthropic', {'a': 1}, 1, flaky)
+    restored = State(tmp_path)
+    assert restored.data['paid_operations'] == {}
+    assert restored.data['spent_usd'] == 1        # charged, not silently forgiven
+    assert restored.data['reserved_usd'] == 0
+    assert PaidCalls(restored, Budget(10, restored)).once('anthropic', {'a': 1}, 1, flaky)
+    assert len(attempts) == 2
+
+
+def test_an_interrupted_text_call_does_not_block_resuming(tmp_path):
+    from app import preflight
+    state = State(tmp_path)
+    state.data['paid_operations'] = {'anthropic:x': {'provider': 'anthropic', 'status': 'reserved'}}
+    assert preflight.recovery_problems(['references'], state) == []
+    state.data['paid_operations']['elevenlabs:y'] = {'provider': 'elevenlabs', 'status': 'reserved'}
+    assert any('elevenlabs' in e for e in preflight.recovery_problems(['references'], state))
+
+
 def test_synchronous_result_and_cost_reused(tmp_path):
     state = State(tmp_path)
     guard = PaidCalls(state, Budget(10, state))

@@ -227,10 +227,21 @@ def dispatch_email_once(repo, store, deliver=None):
             record, etag = repo.read(key)
         except Exception:
             continue
-        record = record or {'actor': actor, 'seen': []}
+        jobs = store.list('production_jobs', order='created_at', desc=True, limit=100)
+        if record is None:
+            # Baseline on first sight, exactly as enabling push does. Without
+            # this, the moment a transport is configured every past failure
+            # still on file is posted at once — dozens of letters about
+            # episodes that stopped days ago. Notifications are about what
+            # happens from now on.
+            record = {'actor': actor, 'seen': [e[0] for job in jobs if (e := event(job))]}
+            try:
+                repo.write(key, record, etag)
+            except Exception:
+                pass
+            continue
         seen = set(record.get('seen', []))
-        for job in reversed(store.list('production_jobs', order='created_at',
-                                       desc=True, limit=100)):
+        for job in reversed(jobs):
             entry = event(job)
             if not entry or entry[0] in seen:
                 continue

@@ -584,3 +584,38 @@ def test_a_resume_that_cannot_work_is_recorded_once_and_stops(monkeypatch):
     # The next pass leaves it alone.
     assert live_jobs.resume_interrupted(runner.jobs) == []
     assert attempts['n'] == 1
+
+
+def test_carrying_on_gives_up_before_it_becomes_a_money_loop(monkeypatch):
+    """A worker that dies the same way each time was resumed every thirty
+    seconds, for ever, and each pass can spend."""
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'review', lambda *a: 'd1')
+    monkeypatch.setattr(runner.jobs, 'resume', lambda *a, **k: {'id': 'again'})
+    job = _interrupted(store)
+    for _ in range(live_jobs.CARRY_ON_LIMIT):
+        store.insert('generation_history', {
+            'series_id': 'island', 'episode_id': 's01e04', 'entity_type': 'job',
+            'entity_id': 'x', 'event': 'job.resumed_after_restart', 'detail': {},
+            'actor': 'system'})
+    assert live_jobs.resume_interrupted(runner.jobs) == []
+    row = store.get('production_jobs', {'id': job['id']})
+    assert row['state'] == 'failed'
+    assert 'without finishing' in row['error']
+
+
+def test_carrying_on_is_allowed_while_it_is_still_making_progress(monkeypatch):
+    from app import live_jobs
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'review', lambda *a: 'd1')
+    monkeypatch.setattr(runner.jobs, 'resume', lambda *a, **k: {'id': 'again'})
+    _interrupted(store)
+    store.insert('generation_history', {
+        'series_id': 'island', 'episode_id': 's01e04', 'entity_type': 'job',
+        'entity_id': 'x', 'event': 'job.resumed_after_restart', 'detail': {}, 'actor': 'system'})
+    assert live_jobs.resume_interrupted(runner.jobs) == ['again']

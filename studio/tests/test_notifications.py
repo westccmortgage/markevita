@@ -178,6 +178,13 @@ class _Repo:
         self.store.pop(key, None)
 
 
+def _primed(notifications, store):
+    """A recipient the studio has already seen, so the next event is news."""
+    repo = _Repo()
+    notifications.dispatch_email_once(repo, store, deliver=lambda *a: None)
+    return repo
+
+
 def _failed_job(store):
     store.insert('series', {'id': 'island', 'title': 'Island'})
     return store.insert('production_jobs', {
@@ -195,10 +202,10 @@ def test_a_failure_is_emailed_with_the_reason_in_it(monkeypatch):
     store = StrictStore()
     monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
     monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    repo = _primed(notifications, store)
     _failed_job(store)
     sent = []
-    assert notifications.dispatch_email_once(_Repo(), store,
-                                             deliver=lambda *a: sent.append(a)) == 1
+    assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: sent.append(a)) == 1
     to, subject, body = sent[0]
     assert to == 'admin@example.test'
     assert 'island / s01e04' in body
@@ -212,8 +219,8 @@ def test_the_same_event_is_not_emailed_twice(monkeypatch):
     store = StrictStore()
     monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
     monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    repo = _primed(notifications, store)
     _failed_job(store)
-    repo = _Repo()
     assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: None) == 1
     assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: None) == 0
 
@@ -226,8 +233,8 @@ def test_a_message_that_could_not_be_sent_is_tried_again(monkeypatch):
     store = StrictStore()
     monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
     monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    repo = _primed(notifications, store)
     _failed_job(store)
-    repo = _Repo()
 
     def refuse(*a):
         raise RuntimeError('mail server down')
@@ -257,3 +264,32 @@ def test_who_is_told_is_not_who_may_sign_in(monkeypatch):
     assert notifications.recipients(store) == ['crd@example.test', 'second@example.test']
     monkeypatch.delenv('NOTIFICATION_TO')
     assert notifications.recipients(store) == ['someone@example.test', 'admin@example.test']
+
+
+def test_switching_email_on_does_not_post_every_old_failure(monkeypatch):
+    """Configuring a transport would have sent a letter for every job still on
+    file — dozens, about episodes that stopped days ago."""
+    from test_clip_preview import StrictStore
+    from app import notifications
+    store = StrictStore()
+    monkeypatch.setattr(settings, 'admin_email', 'admin@example.test')
+    monkeypatch.setattr('app.mail.transport', lambda: 'resend')
+    store.insert('series', {'id': 'island', 'title': 'Island'})
+    for n in range(5):
+        store.insert('production_jobs', {
+            'series_id': 'island', 'episode_id': f's01e0{n}', 'stages': ['references'],
+            'mode': 'live', 'state': 'failed', 'requested_by': 'admin@example.test',
+            'idempotency_key': f'old{n}', 'error': 'stopped days ago'})
+    repo = _Repo()
+    assert notifications.dispatch_email_once(
+        repo, store, deliver=lambda *a: pytest.fail('replayed history')) == 0
+
+    # What happens next is delivered.
+    store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['references'],
+        'mode': 'live', 'state': 'failed', 'requested_by': 'admin@example.test',
+        'idempotency_key': 'new', 'error': 'fal.ai HTTP 422 · ref adrian/fullbody: refused.',
+        'progress': {'stage': 'references', 'done': ['intake'], 'total': 3}})
+    sent = []
+    assert notifications.dispatch_email_once(repo, store, deliver=lambda *a: sent.append(a)) == 1
+    assert 's01e04' in sent[0][2]

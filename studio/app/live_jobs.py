@@ -188,6 +188,9 @@ def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
     return cfg
 
 
+CARRY_ON_LIMIT = 3
+
+
 def resume_interrupted(manager) -> list[str]:
     """Pick production back up after the worker's process went away.
 
@@ -214,6 +217,21 @@ def resume_interrupted(manager) -> list[str]:
         digest = progress.get('input_digest')
         if not digest or digest != review(job['series_id'], job['episode_id']):
             continue   # the script or settings moved on; the approval was for something else
+        carried = [row for row in runner.store.list(
+            'generation_history', {'series_id': job['series_id'],
+                                   'episode_id': job['episode_id'],
+                                   'event': 'job.resumed_after_restart'})]
+        if len(carried) >= CARRY_ON_LIMIT:
+            # A worker that dies the same way every time would otherwise be
+            # resumed every thirty seconds, for ever, spending money on each
+            # pass. Carrying on is for a process that went away, not for a
+            # fault that reproduces.
+            runner.store.update('production_jobs', {'id': job['id']}, {
+                'state': 'failed', 'finished_at': now(),
+                'error': f'Production stopped and was carried on {len(carried)} times without '
+                         'finishing. It is left for a person now: something is failing the same '
+                         'way each time, and resuming again would only spend more.'})
+            continue
         try:
             started = runner.jobs.resume(job['series_id'], job['episode_id'],
                                          job.get('requested_by') or '',

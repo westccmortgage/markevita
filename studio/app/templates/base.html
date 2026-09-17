@@ -12,7 +12,10 @@
   <div class="brand">MARKE<span>VITA</span> {{ _("· Series Studio") }}</div>
   <nav class="topnav">
     <a href="{{ base }}/" class="{{ 'on' if request.url.path == '/' }}">{{ _("Dashboard") }}</a>
-    <a href="{{ base }}/clip-preview" class="{{ 'on' if request.url.path == '/clip-preview' }}">{{ _("First clip") }}</a>
+    {% if working_on %}
+      <a href="{{ base }}/series/{{ working_on.series_id }}/episodes/{{ working_on.episode_id }}/studio"
+         class="{{ 'on' if working_on.episode_id in request.url.path }}">{{ _("Episode in progress") }}</a>
+    {% endif %}
     {% if s is defined and s %}
       <a href="{{ base }}/series/{{ s.id }}" class="{{ 'on' if request.url.path == '/series/' ~ s.id }}">{{ s.title }}</a>
       <a href="{{ base }}/series/{{ s.id }}/characters" class="{{ 'on' if 'characters' in request.url.path }}">{{ _("Characters") }}</a>

@@ -560,3 +560,43 @@ def test_only_a_character_portrait_can_be_kept_as_a_face(monkeypatch):
     response = web.lock_face(SimpleNamespace(url=SimpleNamespace(path="/")), "island",
                              asset["id"], "t")
     assert "err=" in response.headers["location"]
+
+
+def test_the_jobs_list_leads_with_what_matters(monkeypatch):
+    """Fourteen failed attempts at one episode buried the two rows that count."""
+    from app.web import _worth_showing
+    jobs = [  # newest first, as the page reads them
+        {"id": "j9", "series_id": "s", "episode_id": "e04", "state": "running"},
+        {"id": "j8", "series_id": "s", "episode_id": "e04", "state": "failed"},
+        {"id": "j7", "series_id": "s", "episode_id": "e04", "state": "failed"},
+        {"id": "j6", "series_id": "s", "episode_id": "e03", "state": "failed"},
+        {"id": "j5", "series_id": "s", "episode_id": "e03", "state": "failed"},
+        {"id": "j4", "series_id": "s", "episode_id": "e01", "state": "done"},
+        {"id": "j3", "series_id": "s", "episode_id": "e01", "state": "failed"},
+    ]
+    shown = [j["id"] for j in _worth_showing(jobs)]
+    assert shown == ["j9", "j6", "j4"], "under way, the latest attempt per episode, and what is done"
+    assert "j8" not in shown and "j3" not in shown
+
+
+def test_an_attempt_still_under_way_is_never_removed(monkeypatch):
+    from types import SimpleNamespace
+    from test_clip_preview import StrictStore
+    from app import web
+    store = StrictStore()
+    monkeypatch.setattr(web, "store", store)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "admin@example.test"})
+    monkeypatch.setattr(web, "_check_form", lambda *a: None)
+    store.insert("series", {"id": "island", "title": "Island"})
+    job = store.insert("production_jobs", {"series_id": "island", "episode_id": "s01e04",
+                                           "state": "running", "mode": "live",
+                                           "idempotency_key": "k1", "stages": ["references"]})
+    response = web.forget_job(SimpleNamespace(url=SimpleNamespace(path="/")), job["id"], "t")
+    assert "err=" in response.headers["location"]
+    assert store.get("production_jobs", {"id": job["id"]}), "still there"
+
+    done = store.insert("production_jobs", {"series_id": "island", "episode_id": "s01e01",
+                                            "state": "failed", "mode": "live",
+                                            "idempotency_key": "k2", "stages": ["references"]})
+    web.forget_job(SimpleNamespace(url=SimpleNamespace(path="/")), done["id"], "t")
+    assert not store.get("production_jobs", {"id": done["id"]})

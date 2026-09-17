@@ -71,8 +71,28 @@ def _redirect(path: str, ok: str = "", err: str = "") -> RedirectResponse:
     return RedirectResponse(settings.url(path), status_code=303)
 
 
+def working_on() -> dict | None:
+    """The episode the producer is in the middle of, for the top bar.
+
+    Getting back to it meant going through the series and hunting for the
+    right episode. This is the one most recently touched that is not finished
+    and not a camera test — the one the studio is working on right now.
+    """
+    best = None
+    for episode in store.list("episodes"):
+        if episode.get("status") in ("preview", "delivered", "published"):
+            continue
+        if (episode.get("brief") or {}).get("kind") == "clip_preview":
+            continue
+        stamp = episode.get("updated_at") or episode.get("created_at") or ""
+        if best is None or stamp > (best.get("updated_at") or best.get("created_at") or ""):
+            best = episode
+    return best
+
+
 def render(request: Request, template: str, **ctx) -> HTMLResponse:
     ctx.setdefault("admin", current_admin(request))
+    ctx.setdefault("working_on", working_on() if current_admin(request) else None)
     ctx.setdefault("ok", request.query_params.get("ok"))
     ctx.setdefault("err", request.query_params.get("err"))
     ctx.setdefault("all_series", store.list("series", order="title"))
@@ -1121,6 +1141,24 @@ def costs_page(request: Request, series_id: str | None = None):
                   selected=series_id)
 
 
+ACTIVE_STATES = ("queued", "running", "pausing", "cancelling", "paused", "interrupted")
+
+
+def _worth_showing(jobs):
+    """What is finished and what is under way — not every attempt ever made.
+
+    Fourteen failed attempts at one episode buried the two rows that matter.
+    A superseded attempt is kept, and shown on request; it is simply not the
+    first thing on the screen.
+    """
+    latest: dict[tuple, str] = {}
+    for job in jobs:                      # newest first
+        latest.setdefault((job.get("series_id"), job.get("episode_id")), job.get("id"))
+    return [j for j in jobs
+            if j.get("state") in ("done", *ACTIVE_STATES)
+            or latest.get((j.get("series_id"), j.get("episode_id"))) == j.get("id")]
+
+
 def _listed_jobs():
     """The jobs list, with any whose worker is gone no longer saying "running"."""
     def read():
@@ -1136,10 +1174,27 @@ def _listed_jobs():
 
 
 @router.get("/jobs", response_class=HTMLResponse)
-def jobs_page(request: Request):
+def jobs_page(request: Request, all: str = ""):
     require_admin(request)
-    return render(request, "jobs.html",
-                  jobs=_listed_jobs())
+    jobs = _listed_jobs()
+    shown = jobs if all == "yes" else _worth_showing(jobs)
+    return render(request, "jobs.html", jobs=shown, showing_all=all == "yes",
+                  hidden=len(jobs) - len(shown), csrf_token=_csrf_token(request, require_admin(request)))
+
+
+@router.post("/jobs/{job_id}/forget")
+def forget_job(request: Request, job_id: str, csrf_token: str = Form("")):
+    """Remove a finished attempt from the list. Takes and requests are not touched."""
+    a = require_admin(request)
+    if settings.allow_paid:
+        _check_form(request, a, csrf_token)
+    job = store.get("production_jobs", {"id": job_id})
+    if not job:
+        return _redirect("/jobs", err="That job is already gone.")
+    if job.get("state") in ACTIVE_STATES:
+        return _redirect("/jobs", err="This job is still under way. Pause or cancel it first.")
+    store.delete("production_jobs", {"id": job_id})
+    return _redirect("/jobs", ok="Removed from the list. Saved provider requests are untouched.")
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)

@@ -169,8 +169,18 @@ def next_episode(series_id: str, actor: str = "") -> dict:
 # ── what the series has already established ────────────────────────────────
 
 def previous_episode(series_id: str, episode_id: str) -> dict | None:
+    """The written episode this one continues — the one before it, never after.
+
+    "Before" was only "not this one", so with episode five already open,
+    episode four announced that it continues five and was written against the
+    ending of an episode that has not happened yet.
+    """
     episodes = store.list("episodes", {"series_id": series_id}, order="number")
-    before = [e for e in episodes if e["episode_id"] != episode_id
+    this = next((e for e in episodes if e["episode_id"] == episode_id), None)
+    limit = int((this or {}).get("number") or 0)
+    before = [e for e in episodes
+              if e["episode_id"] != episode_id
+              and (not limit or int(e.get("number") or 0) < limit)
               and store.list("scenes", {"series_id": series_id, "episode_id": e["episode_id"]})]
     return before[-1] if before else None
 

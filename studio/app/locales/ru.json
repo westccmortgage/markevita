@@ -774,5 +774,12 @@
   "Release it": "Открепить",
   "Keep this face": "Закрепить это лицо",
   "another portrait is kept": "закреплён другой портрет",
-  "{name}. Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.": "{name}. Производство остановлено. Запросы сохранены; «Продолжить» не отправит повторно запрос с неизвестным результатом."
+  "{name}. Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.": "{name}. Производство остановлено. Запросы сохранены; «Продолжить» не отправит повторно запрос с неизвестным результатом.",
+  "Episode in progress": "Серия в работе",
+  "{count} superseded attempt(s) hidden.": "Скрыто устаревших попыток: {count}.",
+  "Show every attempt": "Показать все попытки",
+  "Show only what is finished or under way": "Показать только готовое и то, что в работе",
+  "That job is already gone.": "Этой задачи уже нет.",
+  "This job is still under way. Pause or cancel it first.": "Эта задача ещё выполняется. Сначала поставьте на паузу или отмените.",
+  "Removed from the list. Saved provider requests are untouched.": "Убрано из списка. Сохранённые запросы провайдера не тронуты."
 }

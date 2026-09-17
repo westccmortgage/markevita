@@ -1322,3 +1322,27 @@ def test_a_character_with_no_kept_face_needs_no_storage(db, tmp_path, monkeypatc
     monkeypatch.setattr("serial.config.Config.load",
                         lambda *a, **k: pytest.fail("storage opened with nothing to fetch"))
     assert packaging.fetch_seeds(tmp_path, [{"id": "adrian", "seed_assets": []}]) == []
+
+
+def test_an_episode_continues_the_one_before_it_not_the_one_after(db):
+    """Episode four announced "continues s01e05" and was written against the
+    ending of an episode that has not happened yet."""
+    for number in (1, 2, 3, 4, 5):
+        episode_id = f"s01e{number:02d}"
+        db.upsert("episodes", {"series_id": MIAMI, "episode_id": episode_id,
+                               "season_id": "s01", "number": number, "title": f"E{number}"})
+        db.upsert("scenes", {"series_id": MIAMI, "episode_id": episode_id, **_scene(number)})
+    assert authoring.previous_episode(MIAMI, "s01e04")["episode_id"] == "s01e03"
+    assert authoring.previous_episode(MIAMI, "s01e01") is None
+    assert authoring.previous_episode(MIAMI, "s01e05")["episode_id"] == "s01e04"
+
+
+def test_an_unwritten_episode_is_not_what_the_next_one_continues(db):
+    """Only an episode that has a script can hand over an ending."""
+    for number in (1, 2):
+        db.upsert("episodes", {"series_id": MIAMI, "episode_id": f"s01e{number:02d}",
+                               "season_id": "s01", "number": number})
+    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", **_scene(1)})
+    db.upsert("episodes", {"series_id": MIAMI, "episode_id": "s01e03",
+                           "season_id": "s01", "number": 3})
+    assert authoring.previous_episode(MIAMI, "s01e03")["episode_id"] == "s01e01"

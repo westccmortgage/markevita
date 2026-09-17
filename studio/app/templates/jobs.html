@@ -15,9 +15,22 @@
             <td class="small muted">{{ (j.mode)|ui }}</td>
             <td class="small muted">{{ j.requested_by }}</td>
             <td class="small muted">{{ j.created_at|time }}</td>
-            <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">{{ _("Open") }}</a></td></tr>
+            <td><a class="btn btn-sm" href="{{ base }}/jobs/{{ j.id }}">{{ _("Open") }}</a>
+              {% if j.state not in ('queued', 'running', 'pausing', 'cancelling', 'paused', 'interrupted') %}
+                <form method="post" action="{{ base }}/jobs/{{ j.id }}/forget" style="display:inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="btn-sm" type="submit">{{ _("Remove") }}</button></form>
+              {% endif %}</td></tr>
       {% endfor %}</tbody>
     </table></div>
+    {% if hidden %}
+      <p class="small muted" style="margin-top:12px">
+        {{ _("{count} superseded attempt(s) hidden.", count=hidden) }}
+        <a href="{{ base }}/jobs?all=yes">{{ _("Show every attempt") }}</a></p>
+    {% elif showing_all %}
+      <p class="small muted" style="margin-top:12px">
+        <a href="{{ base }}/jobs">{{ _("Show only what is finished or under way") }}</a></p>
+    {% endif %}
   {% else %}<div class="empty">{{ _("No jobs yet.") }}</div>{% endif %}
 </div>
 {% endblock %}

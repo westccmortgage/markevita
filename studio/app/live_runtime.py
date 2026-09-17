@@ -18,6 +18,9 @@ from pathlib import Path
 from serial.storage import R2
 
 LEASE_SECONDS = 180
+# Renewals go every 30 seconds, so this many consecutive failures still falls
+# short of the lease's own life: we stop before it could have expired.
+RENEWAL_ATTEMPTS = 4
 
 
 def utcnow():
@@ -63,17 +66,36 @@ class SeriesLease:
             raise RuntimeError('Production lease expired. Resume from the saved checkpoint.')
 
     def _heartbeat(self):
+        """Renew the lease, surviving a blip that is not a lost lease.
+
+        Any failure at all used to end the lease for good: one timeout, one
+        moment the store was unreachable, anywhere in a twenty-minute run, and
+        the worker was killed with "Worker stopped". Across a pack of forty
+        images that is the difference between finishing and never finishing.
+
+        The renewal is its own authority. One row updated means the lease is
+        still ours. Zero means somebody else holds it, which is a real loss. An
+        error means we did not find out — and the lease outlives several
+        renewals, so we can ask again before giving it up.
+        """
+        failures = 0
         while not self.stop.wait(30):
             try:
-                self.check()
                 count = self.store.update('production_jobs', {'id': self.id, 'error': self.owner, 'state': 'leased'},
                     {'finished_at': (utcnow() + timedelta(seconds=LEASE_SECONDS)).isoformat()})
-                if count != 1:
+            except Exception:
+                failures += 1
+                # Give up while the lease is still ours to give up: renewing
+                # every 30s into a 180s lease leaves room for a few misses,
+                # and none for one that has actually expired.
+                if failures >= RENEWAL_ATTEMPTS:
                     self.lost.set()
                     return
-            except Exception:
+                continue
+            if count != 1:
                 self.lost.set()
                 return
+            failures = 0
 
     def close(self):
         self.stop.set()

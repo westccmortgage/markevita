@@ -619,3 +619,62 @@ def test_carrying_on_is_allowed_while_it_is_still_making_progress(monkeypatch):
         'series_id': 'island', 'episode_id': 's01e04', 'entity_type': 'job',
         'entity_id': 'x', 'event': 'job.resumed_after_restart', 'detail': {}, 'actor': 'system'})
     assert live_jobs.resume_interrupted(runner.jobs) == ['again']
+
+
+# ── a blip while renewing the lease is not a lost lease ────────────────────
+
+class _Flaky:
+    """A store whose update fails a given number of times, then works."""
+
+    def __init__(self, failures, count=1):
+        self.left, self.count, self.calls = failures, count, 0
+
+    def update(self, *a, **k):
+        self.calls += 1
+        if self.left > 0:
+            self.left -= 1
+            raise RuntimeError('connection reset')
+        return self.count
+
+
+def _lease_with(store):
+    lease = live_runtime.SeriesLease.__new__(live_runtime.SeriesLease)
+    lease.store, lease.id, lease.owner = store, 'lease-1', 'owner-1'
+    lease.stop, lease.lost = threading.Event(), threading.Event()
+    return lease
+
+
+def test_a_blip_while_renewing_does_not_kill_a_twenty_minute_run(monkeypatch):
+    """One timeout anywhere in a long run ended the lease for good, and the
+    worker died with "Worker stopped" part-way through a pack of forty."""
+    store = _Flaky(failures=live_runtime.RENEWAL_ATTEMPTS - 1)
+    lease = _lease_with(store)
+    waits = {'n': 0}
+
+    def wait(_seconds):
+        waits['n'] += 1
+        return waits['n'] > live_runtime.RENEWAL_ATTEMPTS   # stop after the recovery
+    monkeypatch.setattr(lease.stop, 'wait', wait)
+    lease._heartbeat()
+    assert not lease.lost.is_set(), 'survived the failures and renewed'
+    assert store.calls == live_runtime.RENEWAL_ATTEMPTS
+
+
+def test_failing_to_renew_for_too_long_does_give_up(monkeypatch):
+    """Not forever, though: the lease outlives a few misses, not many."""
+    store = _Flaky(failures=99)
+    lease = _lease_with(store)
+    monkeypatch.setattr(lease.stop, 'wait', lambda _s: False)
+    lease._heartbeat()
+    assert lease.lost.is_set()
+    assert store.calls == live_runtime.RENEWAL_ATTEMPTS
+
+
+def test_another_worker_holding_the_lease_is_a_real_loss(monkeypatch):
+    """Zero rows updated means somebody else owns it — never retried."""
+    store = _Flaky(failures=0, count=0)
+    lease = _lease_with(store)
+    monkeypatch.setattr(lease.stop, 'wait', lambda _s: False)
+    lease._heartbeat()
+    assert lease.lost.is_set()
+    assert store.calls == 1, 'given up at once, not after retries'

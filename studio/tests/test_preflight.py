@@ -158,3 +158,31 @@ def test_multiple_preflight_errors_are_readable_in_russian():
     context = {'request': SimpleNamespace(cookies={i18n.COOKIE: 'ru'})}
     result = i18n.notice(context, 'Configure before production: FAL_KEY\nAssign ElevenLabs voices for maya, nora, or choose Native scene audio.')
     assert 'До запуска настройте: FAL_KEY\nНазначьте голоса ElevenLabs' in result
+
+
+def test_wording_that_gets_refused_stops_the_run_before_it_pays():
+    """Three live runs died on fal refusing one full-body reference over a
+    single word, each after paying for the forty images ahead of it."""
+    from types import SimpleNamespace
+    from app.preflight import wardrobe_problems
+    pkg = SimpleNamespace(characters={
+        "adrian": {"id": "adrian", "visual": True, "wardrobe": {"variants": {
+            "casual_resort_shirt": {"description": "Unbuttoned cream shirt over tan shorts."},
+            "linen_suit": {"description": "Tailored pale blue linen suit with a white shirt."}}}},
+        "caller": {"id": "caller", "visual": False, "wardrobe": {"variants": {
+            "x": {"description": "Sheer nothing at all."}}}},
+    })
+    found = wardrobe_problems(pkg)
+    assert len(found) == 1
+    assert "adrian/casual_resort_shirt (unbuttoned)" in found[0]
+    assert "linen_suit" not in found[0], "wording that reads cleanly is not flagged"
+    assert "caller" not in found[0], "a voice-only character has no reference images"
+    assert "Fill automatically" in found[0]
+
+
+def test_clean_costume_notes_block_nothing():
+    from types import SimpleNamespace
+    from app.preflight import wardrobe_problems
+    pkg = SimpleNamespace(characters={"nora": {"id": "nora", "visual": True, "wardrobe": {
+        "variants": {"gown": {"description": "Ivory silk gown with narrow shoulder straps."}}}}})
+    assert wardrobe_problems(pkg) == []

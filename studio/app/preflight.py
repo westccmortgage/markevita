@@ -15,6 +15,30 @@ DEPENDENCIES = {
 }
 
 
+def wardrobe_problems(pkg):
+    """Refuse before paying, not forty images in.
+
+    Three live runs died on fal.ai refusing one full-body reference over a
+    single word in a costume note, each after generating and paying for
+    everything ahead of it. The wording is knowable before the first request,
+    and the studio can rewrite it in one press, so the run does not start.
+    """
+    from .authoring import refusal_risk
+    found = []
+    for character in pkg.characters.values():
+        if not character.get('visual'):
+            continue
+        for variant_id, variant in (character.get('wardrobe') or {}).get('variants', {}).items():
+            if words := refusal_risk(variant.get('description')):
+                found.append(f"{character['id']}/{variant_id} ({', '.join(words)})")
+    if not found:
+        return []
+    return ['An image provider refuses wording like this in a full-body reference, and the run '
+            'would stop part-way having paid for the images before it: ' + '; '.join(found) +
+            '. Open Characters and press "Fill automatically" — the studio rewrites its own '
+            'costume notes — or reword them yourself.']
+
+
 def problems(cfg, stages, pkg):
     """Collect deterministic blockers together, rather than fail one at a time."""
     errors = []
@@ -31,6 +55,8 @@ def problems(cfg, stages, pkg):
     if {'references', 'keyframes', 'video', 'lipsync'}.intersection(needed) and cfg.fal_key:
         if error := key_problem(cfg.fal_key):
             errors.append(error)
+    if 'references' in needed and pkg is not None:
+        errors += wardrobe_problems(pkg)
     # The current adapters and prices implement these exact endpoints. A new
     # model needs its own payload/price adapter, not just a changed env value.
     # Both Veo 3.1 endpoints take the same request and both are priced, so both

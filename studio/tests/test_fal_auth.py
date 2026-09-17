@@ -36,7 +36,7 @@ def test_config_preserves_runtime_key_over_dotenv_and_trims_clipboard_whitespace
 def test_preflight_catches_bad_key_without_a_provider_call(monkeypatch):
     cfg = Config(mode='live', fal_key='Key ' + KEY, r2_account_id='a',
                  r2_access_key_id='a', r2_secret_access_key='a', r2_bucket='a')
-    pkg = SimpleNamespace(limits=lambda _: {'budget': 50})
+    pkg = SimpleNamespace(limits=lambda _: {'budget': 50}, characters={})
     monkeypatch.setattr(httpx, 'get', lambda *a, **k: pytest.fail('local check contacted provider'))
     assert any('header or variable prefix' in e for e in preflight.problems(cfg, ['references'], pkg))
 

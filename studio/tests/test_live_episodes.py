@@ -735,3 +735,60 @@ def test_another_worker_holding_the_lease_is_a_real_loss(monkeypatch):
     lease._heartbeat()
     assert lease.lost.is_set()
     assert store.calls == 1, 'given up at once, not after retries'
+
+
+def test_a_request_that_produced_nothing_is_not_polled_for_ever(tmp_path, monkeypatch):
+    """One portrait stopped a whole reference pack, permanently.
+
+    fal.ai accepted the request, ran it and answered 422: it had no result to
+    give. The take kept its request id and status "submitted", so every run
+    afterwards re-read that same request and got the same 422. Nothing could
+    have changed. Meanwhile the very same character's other angles went
+    through in the same run, so the refusal is borderline, not a wall.
+    """
+    from app.live_providers import DurableFal, NO_OUTPUT_ATTEMPTS
+    from app.provider_errors import ProviderFailure
+
+    state = State(tmp_path)
+    budget = Budget(10, state)
+    cfg = type('C', (), {'fal_key': 'k' * 8, 'provider_input_mode': 'fal_storage'})()
+    fal = DurableFal(cfg, lambda _m: None, state, budget, {}, set())
+
+    waits = []
+    submits = []
+
+    class Refused(Exception):
+        status_code = 422
+
+    def accepted(*a, **k):
+        submits.append(1)
+        return _accepted(len(submits) - 1)
+
+    monkeypatch.setattr(fal, '_wait', lambda *a, **k: waits.append(1) or (_ for _ in ()).throw(Refused()))
+    monkeypatch.setattr('app.live_providers.requests.post', accepted)
+
+    with pytest.raises(ProviderFailure, match='either attempt'):
+        fal.run('fal-ai/x', {'prompt': 'a drowned woman, three-quarter right'}, 't1', 0.225,
+                'ref drowned_woman/three_quarter_right', None)
+
+    take = state.take('t1')
+    assert len(waits) == NO_OUTPUT_ATTEMPTS, 'it gave up without a second attempt, or kept going'
+    assert not take.get('request_id'), 'a request with no result must not be polled again'
+    assert take['status'] == 'no_output'
+    # The request ids are kept in the record; they are simply no longer
+    # treated as results waiting to be collected.
+    assert [r['request_id'] for r in take['no_output']] == ['req-0', 'req-1']
+    # The estimate is charged, not quietly released: the request did run.
+    assert state.data['spent_usd'] == pytest.approx(0.45)
+    assert state.data['reserved_usd'] == 0
+
+
+class _accepted:
+    def __init__(self, n):
+        self._n = n
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {'request_id': f'req-{self._n}'}

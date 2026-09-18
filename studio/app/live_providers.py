@@ -22,6 +22,17 @@ _UNCERTAIN = {'reserved', 'failed', 'submission_unknown'}
 # three hours in "running" with the stage never moving.
 _QUEUE_FAILED = {'FAILED', 'ERROR', 'CANCELLED', 'CANCELED', 'TIMED_OUT'}
 
+# The queue accepted the request, ran it, and has no result to give. Nothing
+# is waiting on the provider's side, so nothing is reconciled and nothing is
+# made twice by asking again.
+#
+# Only a 422 that names no known fault. The same code also carries input
+# faults — fal.ai could not download the file we gave it, a parameter it
+# would not take — and those keep their saved request and are never sent
+# again, because the request is intact and only what we handed it was wrong.
+_NO_OUTPUT = {422}
+NO_OUTPUT_ATTEMPTS = 2
+
 
 def _known_refusal(take):
     """Also recognizes the old reserved records that retained a submit HTTP code.
@@ -205,6 +216,33 @@ class DurableFal(Fal):
             'rejected_at': take['rejected_at'], 'reservation_released_usd': amount})
         self.budget.settle(amount, 0, 'fal.ai submission rejected before queue acceptance', take_id)
 
+    def _retire_no_output(self, take, take_id):
+        """The queue ran this request and it produced nothing.
+
+        That is a definite answer, not a lost one: no result is waiting to be
+        collected, and asking again generates nothing twice. Re-reading it is
+        the one thing that cannot work, and it is what happened — the saved
+        request was polled on every resume and answered 422 every time, so a
+        single portrait stopped a whole reference pack for good.
+
+        The request id is kept in the record; it simply stops being treated as
+        a result still to collect. The estimate is charged rather than
+        released, because the request did run and may well have been billed.
+        """
+        amount = take.get('estimated_cost')
+        if (type(amount) in (int, float) and math.isfinite(amount)
+                and 0 <= amount <= self.budget.reserved + 0.0001):
+            self.budget.settle(amount, amount, 'fal.ai produced no output', take_id)
+        take.setdefault('no_output', []).append(
+            {**(take.get('provider_error') or {}), 'request_id': take.get('request_id'),
+             'retired_at': now()})
+        take['no_output_attempts'] = attempts = int(take.get('no_output_attempts') or 0) + 1
+        for key in ('request_id', 'status_url', 'response_url'):
+            take.pop(key, None)
+        take['status'] = 'no_output'
+        self.state.save()
+        return attempts
+
     def run(self, endpoint, args, take_id, est_cost, what, stub):
         take = self.state.take(take_id)
         if take.get('status') == 'succeeded':
@@ -265,6 +303,19 @@ class DurableFal(Fal):
             _provider_explanation(exc, take['request_id'], self.cfg.fal_key, self.log)
             info = fal_diagnostic(exc, take['request_id'], what=take.get('what') or what)
             take['provider_error'] = info
+            if (info.get('http_status') in _NO_OUTPUT and info.get('phase') == 'collect'
+                    and not info.get('error_type')):
+                # The picture model declines a borderline subject unevenly:
+                # two other angles of the same character went through in this
+                # very run. One fresh attempt is worth making before a whole
+                # reference pack stops for one portrait.
+                if self._retire_no_output(take, take_id) < NO_OUTPUT_ATTEMPTS:
+                    self.log(f'{take.get("what") or what}: провайдер не выдал результат; новая попытка')
+                    return self.run(endpoint, args, take_id, est_cost, what, stub)
+                raise ProviderFailure(
+                    info['message'] + ' The picture model would not draw this reference on '
+                    'either attempt. Soften how this character or location is described, or '
+                    'keep a face for them, then run again.') from exc
             self.state.save()
             raise ProviderFailure(info['message']) from exc
         take.pop('provider_error', None)

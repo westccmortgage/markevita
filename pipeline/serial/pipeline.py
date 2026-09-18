@@ -312,8 +312,11 @@ class Pipeline:
             # pack finished. The stage then says "already done" while approval
             # says "generate the pack for the current settings first", and
             # both are telling the truth. Carry on and finish it instead.
-            self.log(f"references: пакет для {bv} собран не полностью "
-                     f"({sum(len(g) for g in R.values())} изобр.); достраиваю")
+            # Counted image by image: a character holds a pack of them, so
+            # counting the owners said "1 изобр." for eight pictures.
+            made = sum(1 for group in R.values() for pack in group.values()
+                       for _ in ([pack] if "path" in pack else pack.values()))
+            self.log(f"references: пакет для {bv} собран не полностью ({made} изобр.); достраиваю")
         self.state.set_status("references_pending")
         style = self.pkg.style["style_sentence"]
         rdir = self.series_dir / "references" / bv

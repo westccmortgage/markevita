@@ -234,3 +234,52 @@ def test_the_providers_own_words_reach_the_log_it_is_given(tmp_path):
     assert len(lines) == 1
     assert "could not be read" in lines[0] and RID in lines[0]
     assert "r2.example" not in lines[0] and "SECRET-KEY" not in lines[0]
+
+
+def test_a_422_that_names_an_input_fault_is_never_sent_again(tmp_path, monkeypatch):
+    """Two different failures answer with the same code.
+
+    "The model did not generate the expected output" means the request ran
+    and produced nothing: there is no result to collect and asking again
+    makes nothing twice. "fal.ai could not download your file" means the
+    request is intact and only what we handed it was wrong — that one keeps
+    its saved request and is never resubmitted. Treating both alike would
+    have paid twice for the second.
+    """
+    from app.live_providers import DurableFal
+
+    class Accepted:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"request_id": RID}
+
+    def attempt(detail, key):
+        (tmp_path / key).mkdir(parents=True, exist_ok=True)
+        state = State(tmp_path / key)
+        state.data.update(reserved_usd=1)
+        state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID, "estimated_cost": 1}
+        state.save()
+        fal = DurableFal(SimpleNamespace(fal_key="PRIVATE_KEY"), lambda m: None,
+                         state, Budget(10, state), None)
+        posts = []
+        monkeypatch.setattr("app.live_providers.requests.post",
+                            lambda *a, **kw: posts.append(1) or Accepted())
+        response = httpx.Response(422, json=detail)
+        monkeypatch.setattr(fal, "_wait", lambda *a: (_ for _ in ()).throw(
+            FalClientHTTPError("text", 422, {}, response)))
+        with pytest.raises(ProviderFailure):
+            fal.run("fal-ai/test", {}, "t1", 1, "image", None)
+        return State(tmp_path / key).data["takes"]["t1"], len(posts)
+
+    intact, sent = attempt({"detail": [{"type": "file_download_error", "msg": "m", "input": "x"}]}, "input")
+    assert sent == 0, "an intact request was sent again"
+    assert intact["request_id"] == RID and intact["status"] == "submitted"
+
+    # The other one does let go of a request that produced nothing, and tries
+    # once more. The id stays in the record; it stops being a result to collect.
+    nothing, again = attempt({"detail": "The model did not generate the expected output"}, "none")
+    assert again == 1
+    assert not nothing.get("request_id") and nothing["status"] == "no_output"
+    assert nothing["no_output"][0]["request_id"] == RID

@@ -235,3 +235,42 @@ def test_the_pack_s_version_stands_still_while_the_story_moves(previous):
     style["style_sentence"] = style["style_sentence"] + " Shot at dusk."
     write(source / "bible" / "style.json", style)
     assert reopened() != stable, "a change of style left the pack unchanged"
+
+
+def test_a_half_built_pack_is_not_called_finished(previous, monkeypatch):
+    """The stage said "already done" while approval said "not yet". Both true.
+
+    The stage's own mark survives a change of bible, and nothing clears it.
+    So when the bible moved, the pack was emptied, regeneration began, and the
+    run died part-way — and the next run read that old mark, saw the handful
+    of images it had managed, and declared the pack finished. It was never
+    completed, so approval kept answering "generate the reference pack for the
+    current series settings first", and no amount of running or approving
+    could get past it.
+    """
+    source, root, old, refs, _ = previous
+    pkg = SeriesPackage(source)
+    pipeline = Pipeline(Config.load(HERE.parent, live=False), pkg, "s01e01_v2", root.parent)
+    pipeline.state.mark_stage("references")
+    pipeline.sstate.data.update(bible_version=pkg.reference_version, references=refs)
+    pipeline.sstate.data.pop("reference_pack_complete", None)
+
+    # Nothing to recover from elsewhere: this is about the half-built pack in
+    # front of it, not about reuse.
+    monkeypatch.setattr(reference_reuse, "find_reusable", lambda *a, **kw: None)
+    pipeline.stage_references()
+    # It carries on to the end of the stage and records the pack as complete,
+    # which is the one thing approval asks for and the one thing the early
+    # return never did.
+    assert pipeline.sstate.data.get("reference_pack_complete") == pkg.reference_version
+
+    # And a pack that really is complete is still left alone.
+    again = Pipeline(Config.load(HERE.parent, live=False), pkg, "s01e01_v2", root.parent)
+    again.state.mark_stage("references")
+    again.sstate.data.update(bible_version=pkg.reference_version, references=refs,
+                             reference_pack_complete=pkg.reference_version)
+    monkeypatch.setattr(again, "_gen_ref", lambda *a, **kw: pytest.fail("regenerated a finished pack"))
+    monkeypatch.setattr(reference_reuse, "find_reusable", lambda *a, **kw: None)
+    again.stage_references()
+    again.logf.close()
+    pipeline.logf.close()

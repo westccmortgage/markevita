@@ -1,9 +1,46 @@
 """Supabase (PostgREST) driver. Uses the service role key server-side only."""
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from .base import NATURAL_KEYS
+
+# A connection the database dropped mid-answer is not a reply, and a run that
+# has already generated and paid for a full reference pack must not die of
+# one. A whole episode's production ended at "RemoteProtocolError" after the
+# references were finished, on a bookkeeping write, with no attempt to ask
+# again. These are the failures where asking again is the right answer:
+# nothing was decided, so nothing is repeated by repeating the question.
+TRANSPORT_FAULTS = ("RemoteProtocolError", "ReadError", "WriteError", "ConnectError",
+                    "ConnectTimeout", "ReadTimeout", "WriteTimeout", "PoolTimeout",
+                    "RemoteDisconnected", "ConnectionResetError", "IncompleteRead")
+ATTEMPTS = 4
+BACKOFF = 0.5
+
+
+def _is_transport(exc) -> bool:
+    names = {type(e).__name__ for e in _causes(exc)}
+    return bool(names.intersection(TRANSPORT_FAULTS))
+
+
+def _causes(exc):
+    seen = []
+    while exc is not None and exc not in seen:
+        seen.append(exc)
+        exc = exc.__cause__ or exc.__context__
+    return seen
+
+
+def _retrying(call):
+    """Ask again when the connection failed, not when the database answered."""
+    for attempt in range(ATTEMPTS):
+        try:
+            return call()
+        except Exception as exc:
+            if attempt == ATTEMPTS - 1 or not _is_transport(exc):
+                raise
+            time.sleep(BACKOFF * (2 ** attempt))
 
 
 class SupabaseDriver:
@@ -26,7 +63,7 @@ class SupabaseDriver:
         if limit:
             q = q.limit(limit)
         try:
-            return q.execute().data or []
+            return _retrying(q.execute).data or []
         except Exception as exc:
             # An id the database cannot even parse matches nothing. Saying so
             # is the honest answer; raising turned a mistyped or truncated link
@@ -42,23 +79,23 @@ class SupabaseDriver:
         return rows[0] if rows else None
 
     def insert(self, table, row):
-        res = self.client.table(table).insert(row).execute()
+        res = _retrying(self.client.table(table).insert(row).execute)
         return (res.data or [row])[0]
 
     def upsert(self, table, row):
         keys = NATURAL_KEYS.get(table)
         opts = {"on_conflict": ",".join(keys)} if keys else {}
-        res = self.client.table(table).upsert(row, **opts).execute()
+        res = _retrying(self.client.table(table).upsert(row, **opts).execute)
         return (res.data or [row])[0]
 
     def update(self, table, where, patch):
         q = self.client.table(table).update(patch)
         for k, v in where.items():
             q = q.eq(k, v)
-        return len(q.execute().data or [])
+        return len(_retrying(q.execute).data or [])
 
     def delete(self, table, where):
         q = self.client.table(table).delete()
         for k, v in where.items():
             q = q.eq(k, v)
-        return len(q.execute().data or [])
+        return len(_retrying(q.execute).data or [])

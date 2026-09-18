@@ -666,3 +666,50 @@ def test_keeping_a_face_says_it_retires_the_pack_it_came_from(isolated_store, mo
     # pack has gone out of date.
     again = unquote_plus(web.lock_face(None, series, "a1", csrf_token="").headers["location"])
     assert "still good" in again and "rebuilds it" not in again
+
+
+def test_a_dropped_connection_is_asked_again_and_a_refusal_is_not(monkeypatch):
+    """A whole episode's production died on a bookkeeping write.
+
+    The references were finished and paid for; the connection to the database
+    dropped mid-answer on the write that recorded it, and nothing asked again.
+    A dropped connection is not a reply, so repeating the question repeats
+    nothing. An answer the database actually gave is never repeated.
+    """
+    import httpx
+    from app.store import supa
+
+    monkeypatch.setattr(supa.time, "sleep", lambda _s: None)
+
+    tries = []
+
+    def flaky():
+        tries.append(1)
+        if len(tries) < 3:
+            raise httpx.RemoteProtocolError("server disconnected without sending a response")
+        return "answered"
+
+    assert supa._retrying(flaky) == "answered"
+    assert len(tries) == 3
+
+    decided = []
+
+    def refused():
+        decided.append(1)
+        raise ValueError('duplicate key value violates unique constraint')
+
+    with pytest.raises(ValueError):
+        supa._retrying(refused)
+    assert len(decided) == 1, "an answer the database gave must not be repeated"
+
+    # A transport fault wrapped by the client library still counts.
+    def wrapped():
+        try:
+            raise httpx.ReadError("connection lost")
+        except Exception as inner:
+            raise RuntimeError("request failed") from inner
+
+    with pytest.raises(RuntimeError):
+        supa._retrying(wrapped)
+    assert supa._is_transport(httpx.ConnectTimeout("slow"))
+    assert not supa._is_transport(ValueError("no"))

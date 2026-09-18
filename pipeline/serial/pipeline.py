@@ -301,8 +301,19 @@ class Pipeline:
             self.sstate.data["bible_version"] = bv
             self.sstate.data["reference_inputs_fingerprint"] = reference_reuse.fingerprint(self.pkg)
             self.sstate.save()
-        elif self._done("references") and R["characters"]:
+        elif (self.sstate.data.get("reference_pack_complete") == bv
+              and self._done("references") and R["characters"]):
             self.log("references: уже сделано для этой версии bible"); return
+        elif self._done("references") and R["characters"]:
+            # The stage was marked done under an earlier bible and that mark is
+            # never cleared. When the bible moved, the pack was emptied and
+            # regeneration began; if that run died part-way, the next one read
+            # the old mark, saw the few images it had managed, and declared the
+            # pack finished. The stage then says "already done" while approval
+            # says "generate the pack for the current settings first", and
+            # both are telling the truth. Carry on and finish it instead.
+            self.log(f"references: пакет для {bv} собран не полностью "
+                     f"({sum(len(g) for g in R.values())} изобр.); достраиваю")
         self.state.set_status("references_pending")
         style = self.pkg.style["style_sentence"]
         rdir = self.series_dir / "references" / bv

@@ -292,6 +292,18 @@ def resume_interrupted(manager) -> list[str]:
     resumed = []
     if not settings.allow_paid:
         return resumed
+    # A worker records its job's state from inside its own process, so a
+    # process that goes away leaves the row saying "running" for ever. Nothing
+    # in the background looked: the row was only ever corrected when a person
+    # opened the Jobs page. So the studio could recover from a restart, but
+    # only after someone came to look — which is the thing it was supposed to
+    # spare them. Reconcile first, then carry on what that turns up.
+    for series_id in {j['series_id'] for state in ('queued', 'running', 'pausing', 'cancelling')
+                      for j in runner.store.list('production_jobs', {'mode': 'live', 'state': state})}:
+        try:
+            runner.jobs.reconcile_abandoned(series_id)
+        except Exception:                                          # noqa: BLE001
+            continue   # one unreadable series must not stop the rest recovering
     candidates = [j for state in ('interrupted', 'failed')
                   for j in runner.store.list('production_jobs', {'mode': 'live', 'state': state},
                                              order='created_at', desc=True)]
@@ -407,7 +419,10 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
                 drop_planning(old)
         if old.data.get('audio_mode', audio_mode) != audio_mode:
             raise ValueError('Keep the original audio mode when resuming this episode.')
-        errors = preflight.recovery_problems(stages, old)
+        settled = {a['subject_id'] for a in runner.store.list('approvals', {
+            'series_id': series_id, 'episode_id': episode_id,
+            'subject_type': 'paid_operation_reconciled'}) if a.get('decision') == 'released'}
+        errors = preflight.recovery_problems(stages, old, settled)
         if errors:
             raise ValueError('\n'.join(errors))
         # Prove checkpoint write access before creating any paid operation.
@@ -470,10 +485,16 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         pipeline.state.data.update(live_input_digest=progress['input_digest'],
                                    audio_mode=progress['audio_mode'], mode='live')
         pipeline.state.save()
-        cfg.paid_calls = PaidCalls(pipeline.state, pipeline.budget)
+        cfg.paid_calls = PaidCalls(pipeline.state, pipeline.budget, {
+            a['subject_id'] for a in runner.store.list('approvals', {
+                'series_id': job['series_id'], 'episode_id': job['episode_id'],
+                'subject_type': 'paid_operation_reconciled'}) if a.get('decision') == 'released'})
         released = {a['subject_id'] for a in runner.store.list('approvals', {
             'series_id': job['series_id'], 'episode_id': job['episode_id'],
             'subject_type': 'fal_request_unreachable'}) if a.get('decision') == 'released'}
+        reconciled = {a['subject_id'] for a in runner.store.list('approvals', {
+            'series_id': job['series_id'], 'episode_id': job['episode_id'],
+            'subject_type': 'take_reconciled'}) if a.get('decision') == 'released'}
         original_log = pipeline.log
         def live_log(message):
             original_log(message)
@@ -484,7 +505,7 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         # run directory, so the job page showed a bare code and the one sentence
         # saying what the provider actually objected to was unreadable.
         pipeline.fal = DurableFal(cfg, live_log, pipeline.state, pipeline.budget,
-                                  pipeline.fal.inputs, released)
+                                  pipeline.fal.inputs, released, reconciled)
         for stage in job['stages']:
             lease.check()
             command = runner.store.get('production_jobs', {'id': job['id']}) or {}

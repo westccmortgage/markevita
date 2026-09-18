@@ -19,16 +19,26 @@ from serial.state import State
 RID = "3418ab11-f6e9-43f2-a46b-b595f0fb2012"
 
 
-def test_saved_result_error_is_safe_and_resume_never_resubmits(tmp_path, monkeypatch):
+def test_saved_result_error_is_safe_and_an_unknown_outcome_is_never_resubmitted(tmp_path, monkeypatch):
+    """What must never be repeated is a request whose outcome nobody knows.
+
+    The rule used to be "a saved paid request is never sent again", full stop,
+    and it locked an episode for ever whenever the provider answered that the
+    request had produced nothing: re-read on every resume, same answer every
+    time, no way out but a person who was never offered a button. A provider
+    that says there is no result has told us there is nothing to pay twice
+    for. What it has not told us — a lost response, a submission whose fate is
+    unknown — is still never repeated. That is the part that protects money.
+    """
     state = State(tmp_path)
     state.data.update(reserved_usd=1)
     state.data["takes"]["t1"] = {"status": "submitted", "request_id": RID}
     state.save()
     monkeypatch.setattr("app.live_providers.requests.post", lambda *a, **kw: pytest.fail("duplicate paid submit"))
     fal = DurableFal(SimpleNamespace(fal_key="PRIVATE_KEY"), lambda m: None, state, Budget(10, state), None)
-    response = httpx.Response(422, json={"detail": [{"type": "file_download_error", "msg": "PRIVATE_PROVIDER_TEXT",
+    response = httpx.Response(500, json={"detail": [{"type": "file_download_error", "msg": "PRIVATE_PROVIDER_TEXT",
         "input": "https://private.test/image?token=PRIVATE_TOKEN"}]})
-    exc = FalClientHTTPError("PRIVATE_PROVIDER_TEXT", 422, {}, response)
+    exc = FalClientHTTPError("PRIVATE_PROVIDER_TEXT", 500, {}, response)
     def failed_wait(endpoint, rid):
         assert rid == RID
         raise exc
@@ -36,14 +46,14 @@ def test_saved_result_error_is_safe_and_resume_never_resubmits(tmp_path, monkeyp
     with pytest.raises(ProviderFailure) as caught:
         fal.run("fal-ai/test", {}, "t1", 1, "image", None)
     public = str(caught.value)
-    assert "HTTP 422" in public and "file_download_error" in public and RID in public
+    assert "HTTP 500" in public and "file_download_error" in public and RID in public
     saved = State(tmp_path).data["takes"]["t1"]
     assert saved["request_id"] == RID and saved["status"] == "submitted"
     assert saved["provider_error"]["message"] == public
     assert "PRIVATE" not in json.dumps(saved["provider_error"])
     assert "https://" not in public
     ru = i18n.notice({"request": SimpleNamespace(cookies={i18n.COOKIE: "ru"})}, public)
-    assert "не смог скачать" in ru and RID in ru and "HTTP 422" in ru
+    assert "не смог скачать" in ru and RID in ru and "HTTP 500" in ru
     monkeypatch.setattr(fal, "_wait", lambda *a: {"images": [{"url": "https://example.test/saved.png"}]})
     fal.run("fal-ai/test", {}, "t1", 1, "image", None)
     fal.run("fal-ai/test", {}, "t1", 1, "image", None)
@@ -236,17 +246,20 @@ def test_the_providers_own_words_reach_the_log_it_is_given(tmp_path):
     assert "r2.example" not in lines[0] and "SECRET-KEY" not in lines[0]
 
 
-def test_a_422_that_names_an_input_fault_is_never_sent_again(tmp_path, monkeypatch):
-    """Two different failures answer with the same code.
+def test_a_request_the_provider_cannot_fill_is_let_go_of(tmp_path, monkeypatch):
+    """Every state a take can be in must have a way out.
 
-    "The model did not generate the expected output" means the request ran
-    and produced nothing: there is no result to collect and asking again
-    makes nothing twice. "fal.ai could not download your file" means the
-    request is intact and only what we handed it was wrong — that one keeps
-    its saved request and is never resubmitted. Treating both alike would
-    have paid twice for the second.
+    It was not written down, so it was not checked, and the takes grew exits
+    with no return. A 422 said the run produced nothing; a 404 said the queue
+    had no record of the request at all. Both were re-read on every resume,
+    answered the same way every time, and the only escape was a button the
+    screen never offered for them. One request id locked an episode for two
+    days that way.
+
+    Neither answer can be duplicated by asking again: the provider has said
+    there is no result. What it has not told us is still never repeated.
     """
-    from app.live_providers import DurableFal
+    from app.live_providers import DurableFal, NO_OUTPUT_ATTEMPTS
 
     class Accepted:
         def raise_for_status(self):
@@ -255,7 +268,7 @@ def test_a_422_that_names_an_input_fault_is_never_sent_again(tmp_path, monkeypat
         def json(self):
             return {"request_id": RID}
 
-    def attempt(detail, key):
+    def attempt(status, detail, key, waits=99):
         (tmp_path / key).mkdir(parents=True, exist_ok=True)
         state = State(tmp_path / key)
         state.data.update(reserved_usd=1)
@@ -266,20 +279,43 @@ def test_a_422_that_names_an_input_fault_is_never_sent_again(tmp_path, monkeypat
         posts = []
         monkeypatch.setattr("app.live_providers.requests.post",
                             lambda *a, **kw: posts.append(1) or Accepted())
-        response = httpx.Response(422, json=detail)
+        response = httpx.Response(status, json=detail)
         monkeypatch.setattr(fal, "_wait", lambda *a: (_ for _ in ()).throw(
-            FalClientHTTPError("text", 422, {}, response)))
-        with pytest.raises(ProviderFailure):
-            fal.run("fal-ai/test", {}, "t1", 1, "image", None)
+            FalClientHTTPError("text", status, {}, response)))
+        for _ in range(waits):
+            try:
+                fal.run("fal-ai/test", {}, "t1", 1, "image", None)
+                break
+            except ProviderFailure:
+                pass
         return State(tmp_path / key).data["takes"]["t1"], len(posts)
 
-    intact, sent = attempt({"detail": [{"type": "file_download_error", "msg": "m", "input": "x"}]}, "input")
-    assert sent == 0, "an intact request was sent again"
-    assert intact["request_id"] == RID and intact["status"] == "submitted"
+    # A run that produced nothing — whether the model declined the subject or
+    # the file it was handed could not be read — is retired and tried again.
+    for name, detail in (("declined", {"detail": "no output"}),
+                         ("input", {"detail": [{"type": "file_download_error",
+                                                "msg": "m", "input": "x"}]})):
+        take, sent = attempt(422, detail, name, waits=1)
+        assert sent == 1, f"{name}: the episode was left with no way out"
+        assert not take.get("request_id") and take["status"] == "no_output"
+        assert take["no_output"][0]["request_id"] == RID, "the id was dropped from the record"
 
-    # The other one does let go of a request that produced nothing, and tries
-    # once more. The id stays in the record; it stops being a result to collect.
-    nothing, again = attempt({"detail": "The model did not generate the expected output"}, "none")
-    assert again == 1
-    assert not nothing.get("request_id") and nothing["status"] == "no_output"
-    assert nothing["no_output"][0]["request_id"] == RID
+    # A request the queue has no record of is gone. It says so twice first:
+    # a freshly accepted request can answer 404 for a moment.
+    take, sent = attempt(404, {"detail": "not found"}, "gone", waits=1)
+    assert sent == 0 and take["request_id"] == RID, "one 404 threw away live work"
+    take, sent = attempt(404, {"detail": "not found"}, "gone2", waits=2)
+    assert sent == 1, "a request the queue had lost was re-read for ever"
+    # Retired and sent again: the take carries a new request id, and the one
+    # that was let go of stays in the record rather than being erased.
+    assert take["no_output_attempts"] == 1
+    assert take["no_output"][0]["request_id"] == RID
+
+    # One call gives up rather than paying for attempt after attempt: it makes
+    # one fresh submission and then stops. A later resume may try again, and
+    # what bounds THAT is the carry-on limit, which counts attempts since the
+    # run last produced something — the two limits are deliberately different,
+    # because a run getting work done should not be stopped by this one.
+    take, sent = attempt(422, {"detail": "no output"}, "bounded", waits=1)
+    assert sent == NO_OUTPUT_ATTEMPTS - 1
+    assert take["no_output_attempts"] == NO_OUTPUT_ATTEMPTS

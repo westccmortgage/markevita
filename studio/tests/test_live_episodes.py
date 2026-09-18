@@ -112,9 +112,13 @@ def test_unknown_synchronous_paid_call_is_never_repeated(tmp_path):
     with pytest.raises(TimeoutError):
         guard.once('tts', {'text': 'hello'}, 1, interrupted)
     restored = State(tmp_path)
-    with pytest.raises(RuntimeError, match='reconciliation'):
+    with pytest.raises(RuntimeError, match='interrupted before its response was saved') as caught:
         PaidCalls(restored, Budget(10, restored)).once('tts', {'text': 'hello'}, 1, interrupted)
     assert len(called) == 1
+    # And it names the call, so the screen can offer the decision that clears
+    # it. Named only by provider, there was nothing on it anyone could act on,
+    # and the episode stayed where it was for good.
+    assert 'tts:' in str(caught.value)
     assert restored.data['reserved_usd'] == 1
 
 
@@ -925,3 +929,129 @@ def test_a_run_that_is_getting_work_done_is_never_given_up_on(monkeypatch):
     # not count against the run any more.
     history[1]['detail'] = {'made_by_then': 12}
     assert live_jobs._attempts_since_progress(runner, job) == 1
+
+
+def test_every_state_a_take_can_be_in_has_a_way_out(tmp_path, monkeypatch):
+    """The invariant that was never written down, so was never checked.
+
+    A take could reach a state the studio would not leave and the screen would
+    not offer to leave either: a submission with no request id. It is the one
+    case the studio must not resolve by itself — without a request id it
+    cannot ask what happened, and guessing wrong pays twice for one picture —
+    but the producer was never given the button, so the episode simply stayed
+    there. Recording the decision is the exit, and it permits exactly one
+    fresh submission of that one take.
+    """
+    from app.live_providers import DurableFal
+    from app.provider_errors import ProviderFailure
+
+    def stuck(reconciled):
+        state = State(tmp_path / ('yes' if reconciled else 'no'))
+        (tmp_path / ('yes' if reconciled else 'no')).mkdir(parents=True, exist_ok=True)
+        state.data.update(reserved_usd=1)
+        state.data['takes']['t1'] = {'status': 'reserved', 'estimated_cost': 1}
+        state.save()
+        return DurableFal(type('C', (), {'fal_key': 'k' * 8})(), lambda m: None, state,
+                          Budget(10, state), None,
+                          reconciled=({'t1'} if reconciled else ()))
+
+    # Without the producer's decision it stops, and names the take so the
+    # screen can offer that decision at all.
+    fal = stuck(False)
+    with pytest.raises(ProviderFailure, match='t1: submission outcome is unknown'):
+        fal.run('fal-ai/x', {}, 't1', 1, 'ref', None)
+
+    # With it, that one take is retired and sent again; the reserve is charged
+    # rather than quietly released, because it may well have been billed.
+    fal = stuck(True)
+    posts = []
+    monkeypatch.setattr('app.live_providers.requests.post',
+                        lambda *a, **kw: posts.append(1) or _accepted(0))
+    monkeypatch.setattr(fal, '_wait', lambda *a: {'images': [{'url': 'u'}]})
+    result, take = fal.run('fal-ai/x', {}, 't1', 1, 'ref', None)
+    assert result == {'images': [{'url': 'u'}]} and len(posts) == 1
+    assert take['status'] == 'succeeded'
+    assert fal.state.data['spent_usd'] >= 1, 'a possibly billed reserve was quietly released'
+
+
+def test_an_interrupted_voice_call_is_not_a_life_sentence(tmp_path, monkeypatch):
+    """The same dead end, one stage past where anyone had got to.
+
+    An interrupted call to a media provider left a record nothing could
+    clear: every resume afterwards was refused over it, and no screen in the
+    studio offered the decision that would have cleared it. It was found by
+    reading the states rather than by an episode dying on it — which is what
+    should have happened with all of them.
+    """
+    from app import preflight
+    from serial.paid_calls import PaidCalls
+
+    import hashlib
+    state = State(tmp_path)
+    params = {'line': 'aaa'}
+    key = 'elevenlabs:' + hashlib.sha256(json.dumps(params, sort_keys=True).encode()).hexdigest()
+    state.data['paid_operations'] = {key: {'provider': 'elevenlabs', 'status': 'reserved',
+                                           'estimated_cost': 0.5}}
+    state.data['reserved_usd'] = 0.5
+
+    # Named, so a screen can offer the one decision that clears it.
+    blocked = preflight.recovery_problems(['voice'], state)
+    assert any(key in message for message in blocked)
+
+    # And once the producer has recorded it, the block lifts for that one call.
+    # (What is left is the ordinary complaint that earlier stages are unfinished.)
+    assert not [m for m in preflight.recovery_problems(['voice'], state, {key}) if key in m]
+
+    made = []
+    guard = PaidCalls(state, Budget(10, state), reconciled={key})
+    result = guard.once('elevenlabs', params, 0.5,
+                        lambda: made.append(1) or {'local_path': 'x'})
+    assert result == {'local_path': 'x'} and len(made) == 1
+    assert state.data['spent_usd'] >= 0.5, 'a possibly billed reserve was quietly released'
+
+    # Without that decision it still refuses, because only a repeat here can
+    # pay twice for one thing.
+    again = State(tmp_path / 'other')
+    (tmp_path / 'other').mkdir(parents=True, exist_ok=True)
+    again.data['paid_operations'] = {key: {'provider': 'elevenlabs', 'status': 'reserved'}}
+    with pytest.raises(RuntimeError, match='interrupted'):
+        PaidCalls(again, Budget(10, again)).once(
+            'elevenlabs', params, 0.5, lambda: pytest.fail('repeated blindly'))
+
+
+def test_a_restart_is_noticed_without_anyone_opening_a_page(monkeypatch):
+    """The recovery could only run after someone came to look.
+
+    A worker writes its job's state from inside its own process, so a process
+    that goes away leaves the row saying "running" for ever — and the only
+    thing that ever corrected it was a person opening the Jobs page. The
+    background pass looked at "interrupted" and "failed", which that row would
+    never reach on its own. So the studio recovered from a restart only after
+    the producer arrived, which is exactly what it was meant to spare them.
+    """
+    from app import live_jobs, runner
+
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(live_jobs, 'review', lambda sid, eid: 'd1')
+    rows = {'running': [{'id': 'j', 'series_id': 'island', 'episode_id': 's01e04',
+                         'mode': 'live', 'state': 'running',
+                         'progress': {'input_digest': 'd1'}}]}
+    monkeypatch.setattr(runner.store, 'list',
+                        lambda table, where=None, **k: rows.get((where or {}).get('state'), [])
+                        if table == 'production_jobs' else [])
+    looked = []
+    monkeypatch.setattr(runner.jobs, 'reconcile_abandoned', lambda sid: looked.append(sid))
+    monkeypatch.setattr(runner.jobs, 'resume', lambda *a, **k: {'id': 'j2'})
+
+    live_jobs.resume_interrupted(object())
+    assert looked == ['island'], 'a job left running by a dead worker is never looked at'
+
+    # One unreadable series must not stop the others recovering.
+    def explode(sid):
+        looked.append(sid)
+        raise RuntimeError('supabase is having a moment')
+
+    monkeypatch.setattr(runner.jobs, 'reconcile_abandoned', explode)
+    looked.clear()
+    live_jobs.resume_interrupted(object())
+    assert looked == ['island']

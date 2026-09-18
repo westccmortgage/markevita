@@ -45,6 +45,42 @@
   <p class="hint">{{ _("After approving the references, open the episode and click Resume to continue production.") }}</p>
 </section>
 {% endif %}
+{% if stranded_call %}
+<section class="card" aria-labelledby="stranded-call-title">
+  <h2 id="stranded-call-title">{{ _("A paid call was interrupted before its answer was saved") }}</h2>
+  <p>{{ _("The studio does not know whether this one was delivered, and repeating it blindly is the one mistake that pays twice. So it stops and asks you, instead of deciding for you.") }}</p>
+  <dl class="kv"><dt>{{ _("Call") }}</dt><dd class="mono small">{{ stranded_call }}</dd></dl>
+  <p>{{ _("Check the provider's usage for this run. If nothing was delivered for it, record that below: exactly this one call is made again and nothing else changes.") }}</p>
+  {% if call_reconciled %}
+    <p class="hint">{{ _("Already recorded. Open the episode and click Resume.") }}</p>
+  {% else %}
+    <form method="post" action="{{ base }}/jobs/{{ job.id }}/reconcile-call">
+      <input type="hidden" name="operation" value="{{ stranded_call }}">
+      <label class="field"><span>{{ _("Note") }}</span>
+        <input type="text" name="note" placeholder="{{ _('optional') }}"></label>
+      <button class="btn btn-primary" type="submit">{{ _("Record as delivering nothing") }}</button>
+    </form>
+  {% endif %}
+</section>
+{% endif %}
+{% if stranded_take %}
+<section class="card" aria-labelledby="stranded-take-title">
+  <h2 id="stranded-take-title">{{ _("A submission never came back with a request id") }}</h2>
+  <p>{{ _("The studio cannot ask the provider what happened to this one, because it has no request id to ask about. Guessing wrong here is the one mistake that pays twice for a single picture, so the decision is yours and the studio will not make it.") }}</p>
+  <dl class="kv"><dt>{{ _("Take") }}</dt><dd class="mono small">{{ stranded_take }}</dd></dl>
+  <p>{{ _("Check the provider's own request log for this run. If nothing was delivered for it, record that below: nothing is deleted, nothing is relaxed anywhere else, and exactly this one take is sent again.") }}</p>
+  {% if already_reconciled %}
+    <p class="hint">{{ _("Already recorded. Open the episode and click Resume; only this take is generated again.") }}</p>
+  {% else %}
+    <form method="post" action="{{ base }}/jobs/{{ job.id }}/reconcile-take">
+      <input type="hidden" name="take_id" value="{{ stranded_take }}">
+      <label class="field"><span>{{ _("Note") }}</span>
+        <input type="text" name="note" placeholder="{{ _('optional') }}"></label>
+      <button class="btn btn-primary" type="submit">{{ _("Record as delivering nothing") }}</button>
+    </form>
+  {% endif %}
+</section>
+{% endif %}
 {% if refused_request %}
 <section class="card" aria-labelledby="refused-request-title">
   <h2 id="refused-request-title">{{ _("fal.ai refused a request it had already accepted") }}</h2>

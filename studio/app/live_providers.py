@@ -22,15 +22,25 @@ _UNCERTAIN = {'reserved', 'failed', 'submission_unknown'}
 # three hours in "running" with the stage never moving.
 _QUEUE_FAILED = {'FAILED', 'ERROR', 'CANCELLED', 'CANCELED', 'TIMED_OUT'}
 
-# The queue accepted the request, ran it, and has no result to give. Nothing
-# is waiting on the provider's side, so nothing is reconciled and nothing is
-# made twice by asking again.
+# Every state a take can be in must have a way out — one the studio takes by
+# itself, or one the producer is actually offered on a screen. It was not
+# written down, so it was not checked, and the takes accumulated exits with
+# no return: a saved request whose answer could never change was re-read on
+# every resume, for ever. Each one was found by an episode dying on it.
 #
-# Only a 422 that names no known fault. The same code also carries input
-# faults — fal.ai could not download the file we gave it, a parameter it
-# would not take — and those keep their saved request and are never sent
-# again, because the request is intact and only what we handed it was wrong.
-_NO_OUTPUT = {422}
+# These are the answers that mean the request produced nothing and never will.
+# 404: the queue has no record of it — it cannot deliver later, so there is
+# nothing to reconcile and nothing that repeating can duplicate. 422: the run
+# finished with no output, whether the model declined the subject or the file
+# we handed it could not be read. In every one of these the provider has said
+# there is no result, so a fresh submission cannot pay twice for one picture:
+# there is no picture.
+_NO_OUTPUT = {404, 422}
+
+# A request that has only just been accepted can answer 404 for a moment while
+# the queue catches up with itself. Retiring it on the first one would throw
+# away work that was about to appear, so it has to say so twice.
+_CONFIRM_TWICE = {404}
 NO_OUTPUT_ATTEMPTS = 2
 
 
@@ -127,11 +137,15 @@ def _provider_explanation(exc, request_id, secret, log=None):
 
 
 class DurableFal(Fal):
-    def __init__(self, cfg, log, state, budget, inputs, released=()):
+    def __init__(self, cfg, log, state, budget, inputs, released=(), reconciled=()):
         super().__init__(cfg, log, state, budget, inputs)
         # Request ids an administrator has recorded as unreachable. Each one
         # permits exactly one fresh submission for that take and nothing else.
         self.released = frozenset(released)
+        # Takes whose submission never got a request id, and which a producer
+        # has since checked with the provider and found delivered nothing.
+        # Same rule: one fresh submission for that take and nothing else.
+        self.reconciled = frozenset(reconciled)
 
     def _orphaned(self, take):
         """True when the saved request belongs to a key this server no longer
@@ -250,10 +264,24 @@ class DurableFal(Fal):
         if (take.get('status') in _UNCERTAIN and take.get('endpoint') == endpoint
                 and _known_refusal(take)):
             self._record_refusal(take, take_id)
-        if take.get('status') in _UNCERTAIN and not take.get('request_id'):
-            raise RuntimeError(f'{take_id}: submission outcome is unknown. Reconcile this request before another paid attempt.')
-        if take.get('status') == 'submission_rejected' and not _known_refusal(take):
-            raise RuntimeError(f'{take_id}: submission outcome is unknown. Reconcile this request before another paid attempt.')
+        stranded = ((take.get('status') in _UNCERTAIN and not take.get('request_id'))
+                    or (take.get('status') == 'submission_rejected' and not _known_refusal(take)))
+        if stranded and take_id in self.reconciled:
+            # The producer has looked at this one with the provider and said
+            # it delivered nothing. That decision is theirs to make and only
+            # theirs: this is the one case where repeating could pay twice for
+            # one picture. It is recorded, the reserve is charged as possibly
+            # billed, and exactly this take may be sent once more.
+            self._retire_no_output(take, take_id)
+            stranded = False
+        if stranded:
+            # Raised so the producer can see it: as a RuntimeError the take's
+            # name never reached the page, so the screen could not offer the
+            # one action that resolves this, and the episode had no way out.
+            raise ProviderFailure(
+                f'{take_id}: submission outcome is unknown. Check this request with the '
+                'provider; if it delivered nothing, mark it reconciled on the job page and '
+                'only this take is sent again.')
         if take.get('request_id') and take.get('status') == 'submitted':
             if take['request_id'] in self.released:
                 self._release_unreachable(take, take_id, 'administrator recorded the saved request as unreachable')
@@ -303,19 +331,27 @@ class DurableFal(Fal):
             _provider_explanation(exc, take['request_id'], self.cfg.fal_key, self.log)
             info = fal_diagnostic(exc, take['request_id'], what=take.get('what') or what)
             take['provider_error'] = info
-            if (info.get('http_status') in _NO_OUTPUT and info.get('phase') == 'collect'
-                    and not info.get('error_type')):
-                # The picture model declines a borderline subject unevenly:
+            status = info.get('http_status')
+            if status in _CONFIRM_TWICE and info.get('phase') == 'collect':
+                seen = int(take.get('gone_seen') or 0) + 1
+                take['gone_seen'] = seen
+                self.state.save()
+                if seen < 2:
+                    raise ProviderFailure(info['message']) from exc
+            if status in _NO_OUTPUT and info.get('phase') == 'collect':
+                # The picture model declines a borderline subject unevenly —
                 # two other angles of the same character went through in this
-                # very run. One fresh attempt is worth making before a whole
+                # very run — and a file it could not read is one we have since
+                # re-signed. One fresh attempt is worth making before a whole
                 # reference pack stops for one portrait.
+                take.pop('gone_seen', None)
                 if self._retire_no_output(take, take_id) < NO_OUTPUT_ATTEMPTS:
                     self.log(f'{take.get("what") or what}: провайдер не выдал результат; новая попытка')
                     return self.run(endpoint, args, take_id, est_cost, what, stub)
                 raise ProviderFailure(
-                    info['message'] + ' The picture model would not draw this reference on '
-                    'either attempt. Soften how this character or location is described, or '
-                    'keep a face for them, then run again.') from exc
+                    info['message'] + ' The provider gave no result on either attempt. If this '
+                    'is a character or a location, soften how it is described or keep a face '
+                    'for it; otherwise the input it was given is what to look at.') from exc
             self.state.save()
             raise ProviderFailure(info['message']) from exc
         take.pop('provider_error', None)

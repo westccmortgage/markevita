@@ -34,6 +34,13 @@ ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,63}$")
 # A saved fal request that was refused while being READ back. Only a request id
 # this job itself reported may be retired, so the form cannot name another one.
 REFUSED_REQUEST_RE = re.compile(r"HTTP 40[123] . request ([a-fA-F0-9]{8}-[a-fA-F0-9-]{27,40})")
+# A take whose submission never got a request id. There is nothing to release
+# by id, so the screen offered nothing at all and the episode had no way out
+# of that state — the one remaining exit with no return.
+STRANDED_TAKE_RE = re.compile(r"^([\w./:-]{3,120}): submission outcome is unknown", re.M)
+# The same shape one stage later: a media call whose response was never saved.
+# It named only the provider, so there was nothing on screen to act on.
+STRANDED_CALL_RE = re.compile(r"([a-z_]+:[0-9a-f]{64}): a paid request", re.M)
 
 
 def _now() -> str:
@@ -1274,10 +1281,22 @@ def job_page(request: Request, job_id: str):
     already_released = bool(refused_request and store.list("approvals", {
         "series_id": job["series_id"], "episode_id": job["episode_id"],
         "subject_type": "fal_request_unreachable", "subject_id": refused_request}))
+    stuck = STRANDED_TAKE_RE.search(job.get("error") or "") if job.get("state") == "failed" else None
+    stranded_take = stuck.group(1) if stuck else None
+    already_reconciled = bool(stranded_take and store.list("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "take_reconciled", "subject_id": stranded_take}))
+    call = STRANDED_CALL_RE.search(job.get("error") or "") if job.get("state") == "failed" else None
+    stranded_call = call.group(1) if call else None
+    call_reconciled = bool(stranded_call and store.list("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "paid_operation_reconciled", "subject_id": stranded_call}))
     from . import progress as _progress
     return render(request, "job.html", job=job, reference_review=reference_review,
                   completed_stages=completed_stages, refused_request=refused_request,
-                  already_released=already_released,
+                  already_released=already_released, stranded_take=stranded_take,
+                  already_reconciled=already_reconciled, stranded_call=stranded_call,
+                  call_reconciled=call_reconciled,
                   progress=_progress.report(job["series_id"], job["episode_id"], job),
                   s=store.get("series", {"id": job["series_id"]}))
 
@@ -1335,6 +1354,70 @@ def now_page(request: Request):
                                     order="created_at", desc=True)
               if j.get("state") in ("failed", "done", "cancelled")][:5]
     return render(request, "now.html", rows=rows, recent=recent)
+
+
+@router.post("/jobs/{job_id}/reconcile-take")
+def reconcile_take(request: Request, job_id: str, take_id: str = Form(...), note: str = Form("")):
+    """Record that a submission with no request id delivered nothing.
+
+    This is the one state the studio must not leave by itself: without a
+    request id it cannot ask the provider what happened, and guessing wrong
+    pays twice for one picture. So the decision is the producer's — but it has
+    to be offered, and it was not. An episode could reach this state and stay
+    there, because the only button the screen knew how to draw needed a
+    request id that does not exist here.
+
+    It deletes nothing, relaxes nothing elsewhere, and permits exactly one
+    fresh submission for this one take.
+    """
+    a = require_admin(request)
+    job = store.get("production_jobs", {"id": job_id})
+    if not job:
+        raise HTTPException(404, "job not found")
+    back = f"/jobs/{job_id}"
+    found = STRANDED_TAKE_RE.search(job.get("error") or "")
+    if not found or found.group(1) != take_id.strip():
+        return _redirect(back, err="This job did not report that take as unresolved.")
+    if store.list("approvals", {"series_id": job["series_id"], "episode_id": job["episode_id"],
+                                "subject_type": "take_reconciled", "subject_id": take_id}):
+        return _redirect(back, ok="That take is already recorded as reconciled.")
+    store.insert("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "take_reconciled", "subject_id": take_id,
+        "decision": "released", "actor": a["email"], "note": note, "created_at": _now()})
+    history(job["series_id"], job["episode_id"], "take.reconciled",
+            entity_type="take", entity_id=take_id, actor=a["email"], detail={"note": note})
+    return _redirect(back, ok="Recorded. Production continues from here and sends that one take again.")
+
+
+@router.post("/jobs/{job_id}/reconcile-call")
+def reconcile_call(request: Request, job_id: str, operation: str = Form(...), note: str = Form("")):
+    """Record that an interrupted paid call to a media provider delivered nothing.
+
+    The same decision as for a stranded take, one stage later. It was the last
+    state with no exit at all: the voice stage refused every resume over an
+    interrupted call, and no screen anywhere offered a way to settle it.
+    """
+    a = require_admin(request)
+    job = store.get("production_jobs", {"id": job_id})
+    if not job:
+        raise HTTPException(404, "job not found")
+    back = f"/jobs/{job_id}"
+    found = STRANDED_CALL_RE.search(job.get("error") or "")
+    if not found or found.group(1) != operation.strip():
+        return _redirect(back, err="This job did not report that call as unresolved.")
+    if store.list("approvals", {"series_id": job["series_id"], "episode_id": job["episode_id"],
+                                "subject_type": "paid_operation_reconciled",
+                                "subject_id": operation}):
+        return _redirect(back, ok="That call is already recorded as reconciled.")
+    store.insert("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "paid_operation_reconciled", "subject_id": operation,
+        "decision": "released", "actor": a["email"], "note": note, "created_at": _now()})
+    history(job["series_id"], job["episode_id"], "paid_call.reconciled",
+            entity_type="paid_operation", entity_id=operation, actor=a["email"],
+            detail={"note": note})
+    return _redirect(back, ok="Recorded. Production continues from here and makes that one call again.")
 
 
 @router.get("/integrations", response_class=HTMLResponse)

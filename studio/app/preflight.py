@@ -120,7 +120,7 @@ def voice_problems(cfg, stages, pkg, episode_id):
     return errors
 
 
-def recovery_problems(stages, state):
+def recovery_problems(stages, state, reconciled=()):
     """Check checkpoint prerequisites before spending on any earlier stage."""
     from .live_providers import _known_refusal, _UNCERTAIN
     from serial.paid_calls import RESUBMITTABLE
@@ -140,11 +140,15 @@ def recovery_problems(stages, state):
     # to reconcile, and the run itself charges it and asks again. Blocking on
     # one of those left the episode permanently unable to continue, by hand or
     # otherwise, over a few cents of tokens.
-    stranded = sorted({rec.get('provider') or 'a provider'
-                       for rec in state.data.get('paid_operations', {}).values()
+    stranded = sorted({key for key, rec in state.data.get('paid_operations', {}).items()
                        if rec.get('status') != 'succeeded'
-                       and (rec.get('provider') or '') not in RESUBMITTABLE})
-    if stranded:
-        errors.append('A paid request to ' + ', '.join(stranded) + ' was interrupted before its '
-                      'response was saved. Reconcile it with the provider before another attempt.')
+                       and (rec.get('provider') or '') not in RESUBMITTABLE
+                       and key not in set(reconciled or ())})
+    for key in stranded:
+        # Named, so the screen can offer the one decision that clears it. As
+        # "a paid request to elevenlabs" it named nothing that could be acted
+        # on, and the episode stayed where it was for good.
+        errors.append(f'{key}: a paid request was interrupted before its response was saved. '
+                      'Check it with the provider; if it delivered nothing, mark it reconciled '
+                      'on the job page and only this one call is made again.')
     return errors

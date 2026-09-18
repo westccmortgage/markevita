@@ -19,8 +19,14 @@ RESUBMITTABLE = frozenset({'anthropic'})
 
 
 class PaidCalls:
-    def __init__(self, state, budget):
+    def __init__(self, state, budget, reconciled=()):
         self.state, self.budget = state, budget
+        # Operations a producer has checked with the provider and found to
+        # have delivered nothing. Each one permits exactly one fresh call.
+        # Without this there was no exit at all: an interrupted voice line
+        # left a record nothing could clear, every resume was refused, and no
+        # screen offered the decision that would have cleared it.
+        self.reconciled = frozenset(reconciled)
 
     def _abandon(self, key, rec, provider):
         """Charge an interrupted text call and let the work be attempted again."""
@@ -40,12 +46,17 @@ class PaidCalls:
         if rec:
             if rec['status'] == 'succeeded':
                 return rec['result']
-            if provider in RESUBMITTABLE:
+            if provider in RESUBMITTABLE or key in self.reconciled:
                 # Left over from a worker that died mid-call. Charge it and ask
                 # again rather than leaving the episode unable to ever continue.
+                # For a media provider that takes the producer's decision,
+                # because only a repeat there can pay twice for one thing.
                 self._abandon(key, rec, provider)
             else:
-                raise RuntimeError(f'{provider}: interrupted request needs reconciliation; no automatic paid retry.')
+                raise RuntimeError(
+                    f'{key}: a paid request to {provider} was interrupted before its response '
+                    'was saved. Check it with the provider; if it delivered nothing, mark it '
+                    'reconciled on the job page and only this one call is made again.')
         records[key] = {'provider': provider, 'status': 'reserved', 'estimated_cost': reserve}
         try:
             self.budget.reserve(reserve, provider)

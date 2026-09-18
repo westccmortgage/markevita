@@ -29,7 +29,11 @@ def wardrobe_problems(pkg):
         if not character.get('visual'):
             continue
         for variant_id, variant in (character.get('wardrobe') or {}).get('variants', {}).items():
-            if words := refusal_risk(variant.get('description')):
+            # The variant's own name goes into the request beside its
+            # description — the refused reference was "fullbody_front__
+            # beach_bikini" — so a costume can be renamed past a check that
+            # only reads the sentence under it.
+            if words := refusal_risk(f"{variant_id} {variant.get('description') or ''}"):
                 found.append(f"{character['id']}/{variant_id} ({', '.join(words)})")
     if not found:
         return []

@@ -295,7 +295,10 @@ class Pipeline:
                     "как это стало записываться")
                 self.log(f"references: bible изменился ({self.sstate.data['bible_version']} -> {bv}); "
                          f"пакет референсов генерируется заново, approval сброшен{why}")
-            R.clear(); R.update({"characters": {}, "locations": {}, "props": {}})
+            kept = reference_reuse.keep_unchanged(
+                self.pkg, R, self.sstate.data.get("reference_inputs_parts"), bv)
+            if kept:
+                self.log(f"references: {kept} изобр. не затронуты правкой и переиспользуются")
             self.sstate.data["approvals"].pop("references", None)
             self.sstate.data.pop("reference_pack_complete", None)
             self.sstate.data["bible_version"] = bv

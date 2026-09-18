@@ -1,4 +1,5 @@
 """Reference identity survives episode edits, including recovery after partial runs."""
+import copy
 import json
 import sys
 from pathlib import Path
@@ -274,3 +275,56 @@ def test_a_half_built_pack_is_not_called_finished(previous, monkeypatch):
     again.stage_references()
     again.logf.close()
     pipeline.logf.close()
+
+
+def test_one_costume_does_not_cost_the_whole_pack(previous):
+    """Rewriting one word redrew everybody.
+
+    A costume the image provider refused has to be reworded, and rewording it
+    changed the bible, and a changed bible emptied the entire pack — about
+    forty pictures and an hour, to redraw thirty-nine that nobody had
+    touched. The inputs are recorded piece by piece, so what moved is known.
+    """
+    source, root, old, refs, _ = previous
+    before = reference_reuse.fingerprint_parts(old)
+    pack = copy.deepcopy(refs)
+    owners = sorted(pack["characters"])
+
+    path = source / "bible" / "characters.json"
+    chars = json.loads(path.read_text())
+    changed = chars[0]["id"]
+    wardrobe = chars[0]["wardrobe"]["variants"]
+    wardrobe[chars[0]["wardrobe"]["default"]]["description"] = "a long linen beach robe, belted"
+    write(path, chars)
+    pkg = SeriesPackage(source)
+
+    kept = reference_reuse.keep_unchanged(pkg, pack, before, pkg.reference_version)
+    assert changed not in pack["characters"], "the rewritten character was kept"
+    assert [o for o in owners if o != changed] == sorted(pack["characters"]), \
+        "characters nobody touched were thrown away"
+    assert kept and pack["locations"], "locations were thrown away over a costume"
+    for group in pack.values():
+        for owner in group.values():
+            for rec in ([owner] if "path" in owner else owner.values()):
+                assert rec["bible_version"] == pkg.reference_version
+                assert rec["source_bible_version"] == old.reference_version
+                assert rec["approval"] == "pending", "an approval was carried over"
+
+
+def test_a_change_of_style_does_redraw_everybody(previous):
+    """Style and format frame every picture, so those still clear the pack."""
+    source, root, old, refs, _ = previous
+    before = reference_reuse.fingerprint_parts(old)
+    pack = copy.deepcopy(refs)
+    path = source / "bible" / "style.json"
+    style = json.loads(path.read_text())
+    style["style_sentence"] = style["style_sentence"] + " Shot at dusk."
+    write(path, style)
+    pkg = SeriesPackage(source)
+    assert reference_reuse.keep_unchanged(pkg, pack, before, pkg.reference_version) == 0
+    assert pack == {"characters": {}, "locations": {}, "props": {}}
+
+    # And a pack made before the inputs were recorded cannot be picked apart,
+    # so it is redrawn rather than guessed at.
+    whole = copy.deepcopy(refs)
+    assert reference_reuse.keep_unchanged(pkg, whole, None, pkg.reference_version) == 0

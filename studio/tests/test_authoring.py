@@ -1373,3 +1373,38 @@ def test_an_unwritten_episode_is_not_what_the_next_one_continues(db):
     db.upsert("episodes", {"series_id": MIAMI, "episode_id": "s01e03",
                            "season_id": "s01", "number": 3})
     assert authoring.previous_episode(MIAMI, "s01e03")["episode_id"] == "s01e01"
+
+
+def test_a_refused_outfit_name_is_renamed_not_only_reworded(db, monkeypatch):
+    """The outfit's short name is sent to the image model too.
+
+    An episode stopped on "maya/fullbody_front__beach_bikini". The note under
+    it said "coral swimwear" — wording the studio wrote itself, because its
+    own instructions told it to call swimwear swimwear. Rewording the
+    sentence and leaving the name would have been refused all over again.
+    """
+    _wardrobe(db, variant_id="beach_bikini",
+              description="Coral swimwear with a matching woven sarong knotted at the hip.")
+    rewritten = ("A coral one-piece under an open white linen beach shirt with rolled sleeves, "
+                 "and a matching woven sarong knotted at the hip, for daytime scenes by the pool.")
+    _stub(monkeypatch, [json.dumps({"0": {"outfit": "Beach Daywear", "description": rewritten}})])
+
+    done, spend = authoring.repair_wardrobe(MIAMI, {"adrian"})
+    assert done == ["adrian/beach_daywear"]
+    assert spend > 0
+    kept = db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
+                               "variant_id": "beach_daywear"})
+    assert kept["description"] == rewritten
+    assert kept["is_default"], "the character was left with no default outfit"
+    assert db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
+                               "variant_id": "beach_bikini"}) is None
+
+
+def test_a_rename_that_is_still_refused_changes_nothing(db, monkeypatch):
+    """Swapping one refused name for another is not a fix either."""
+    _wardrobe(db, variant_id="beach_bikini", description="Coral swimwear and a sarong.")
+    _stub(monkeypatch, [json.dumps({"0": {"outfit": "bikini_poolside",
+                                          "description": "A coral one-piece and a woven sarong."}})])
+    assert authoring.repair_wardrobe(MIAMI, {"adrian"})[0] == []
+    assert db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
+                               "variant_id": "beach_bikini"}) is not None

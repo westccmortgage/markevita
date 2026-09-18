@@ -47,7 +47,12 @@ REFUSAL_WORDS = ("sheer", "unbuttoned", "plunging", "backless", "strapless",
                  "topless", "bikini", "lingerie", "underwear", "bra", "panties",
                  "nude", "naked", "see-through", "see through", "bare chest",
                  "bare shoulders", "bare skin", "cleavage", "slip dress",
-                 "slip gown", "low back", "open shirt", "open-chest")
+                 "slip gown", "low back", "open shirt", "open-chest",
+                 # Swimwear on a full-body reference is the most consistently
+                 # refused combination there is, and a run reached it having
+                 # paid for everything before it.
+                 "swimsuit", "swimwear", "swim trunks", "bathing suit",
+                 "thong", "g-string", "speedo")
 
 
 def refusal_risk(text: str) -> list[str]:
@@ -1010,10 +1015,21 @@ fabrics, same occasion, same level of glamour. Only the wording changes.
 Describe the garment, not the body it exposes. Name the piece, its cut, fabric
 and colour. Never write that something is sheer, unbuttoned, open, plunging,
 backless, strapless or see-through, and never mention bare skin, cleavage,
-underwear or nudity. Swimwear is "swimwear" with its colour.
+underwear or nudity.
 
-Return ONLY a JSON object: {"<index>": "<rewritten description>"} using the
-index given with each outfit. 15-40 ENGLISH words each."""
+Never call anything swimwear, a swimsuit or a bikini — those words are refused
+on a full body reference, and the note that said "coral swimwear" is what got
+an episode stopped. Write what is actually worn and what covers it: a coral
+one-piece under an open linen beach shirt, a woven sarong knotted at the hip.
+The scene stays the same; the picture stops being a picture of a body.
+
+The outfit's short name is sent to the image model too, so rename it when the
+name itself carries one of those words. Lower case, words joined by
+underscores, no spaces.
+
+Return ONLY a JSON object: {"<index>": {"outfit": "<short name>",
+"description": "<rewritten description>"}} using the index given with each
+outfit. 15-40 ENGLISH words per description."""
 
 
 def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float]:
@@ -1028,7 +1044,10 @@ def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float
     for character_id in sorted(drafted):
         for variant in store.list("clothing", {"series_id": series_id,
                                                "character_id": character_id}, order="variant_id"):
-            if refusal_risk(variant.get("description")):
+            # The outfit's own name goes to the image model beside its
+            # description, so a costume can be refused over a name that a
+            # check of the sentence alone never sees.
+            if refusal_risk(f"{variant['variant_id']} {variant.get('description') or ''}"):
                 risky.append(variant)
     if not risky:
         return [], 0.0
@@ -1048,13 +1067,25 @@ def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float
 
     done = []
     for index, variant in enumerate(risky):
-        text = rewrites.get(str(index))
+        written = rewrites.get(str(index))
+        if isinstance(written, str):          # the older shape, description only
+            written = {"description": written}
+        if not isinstance(written, dict):
+            continue
+        text = written.get("description")
+        name = _slug_id(str(written.get("outfit") or "")) or variant["variant_id"]
         # A rewrite that still trips the filter is no rewrite: keep what is
         # there rather than replace one refusal with another.
-        if not isinstance(text, str) or not text.strip() or refusal_risk(text):
+        if not isinstance(text, str) or not text.strip() or refusal_risk(f"{name} {text}"):
             continue
-        store.upsert("clothing", {**variant, "description": text.strip()})
-        done.append(f"{variant['character_id']}/{variant['variant_id']}")
+        store.upsert("clothing", {**variant, "variant_id": name, "description": text.strip()})
+        if name != variant["variant_id"]:
+            # The new row carries is_default, so the character is never left
+            # without one; only then does the refused name go.
+            store.delete("clothing", {"series_id": series_id,
+                                      "character_id": variant["character_id"],
+                                      "variant_id": variant["variant_id"]})
+        done.append(f"{variant['character_id']}/{name}")
     return done, spend
 
 

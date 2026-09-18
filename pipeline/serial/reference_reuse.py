@@ -59,6 +59,50 @@ def changed_parts(pkg, previous):
     return [name for name in names if current.get(name) != previous.get(name)]
 
 
+def keep_unchanged(pkg, references, previous, version):
+    """Throw away only what the change actually touched.
+
+    Rewriting one costume of one character emptied the entire pack, so a
+    single word cost every image of every character over again — about forty
+    pictures and an hour, to redraw thirty-nine that nobody had touched. The
+    inputs are recorded piece by piece, so what moved is knowable.
+
+    Style and format frame every picture, so a change to either does clear
+    everything. Anything else reaches the owners it names. What survives is
+    re-stamped with this version and keeps a note of the version it was
+    actually drawn in, and none of it carries an approval forward: the pack
+    as a whole is different and has to be looked at again.
+    """
+    blank = {"characters": {}, "locations": {}, "props": {}}
+    moved = set(changed_parts(pkg, previous))
+    if not previous or moved.intersection({"style", "format"}):
+        references.clear()
+        references.update(copy.deepcopy(blank))
+        return 0
+    for cid in list(references.get("characters") or {}):
+        if (cid not in pkg.characters or f"character {cid}" in moved
+                or f"locked face {cid}" in moved):
+            references["characters"].pop(cid, None)
+    for lid in list(references.get("locations") or {}):
+        if lid not in pkg.locations or f"location {lid}" in moved:
+            references["locations"].pop(lid, None)
+    if "props" in moved:
+        references["props"] = {}
+    for key in blank:
+        references.setdefault(key, {})
+    kept = 0
+    for kind, group in references.items():
+        for pack in group.values():
+            for rec in ([pack] if "path" in pack else pack.values()):
+                if not isinstance(rec, dict):
+                    continue
+                rec["source_bible_version"] = rec.get("source_bible_version") or rec.get("bible_version")
+                rec["bible_version"] = version
+                rec["approval"] = "pending"
+                kept += 1
+    return kept
+
+
 def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 

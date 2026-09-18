@@ -1008,9 +1008,12 @@ def fill_bible(series_id: str, actor: str = "") -> dict:
 
 WARDROBE_SYSTEM = """You rewrite costume notes for a drama series so an image model will draw them.
 
-You are given outfits that an image provider refused. Each is a real costume
-and must stay recognisably the same costume: same garments, same colours, same
-fabrics, same occasion, same level of glamour. Only the wording changes.
+You are given outfits that an image provider refused, each with the scenes it
+is worn in. The costume must go on fitting those scenes: the same place, the
+same time of day, the same occasion, the same level of glamour, the same
+garments, colours and fabrics. Only the wording changes. A poolside afternoon
+does not become an evening in a gown — that is not a rewrite, it is a
+different scene, and the script does not say it.
 
 Describe the garment, not the body it exposes. Name the piece, its cut, fabric
 and colour. Never write that something is sheer, unbuttoned, open, plunging,
@@ -1030,6 +1033,18 @@ underscores, no spaces.
 Return ONLY a JSON object: {"<index>": {"outfit": "<short name>",
 "description": "<rewritten description>"}} using the index given with each
 outfit. 15-40 ENGLISH words per description."""
+
+
+def _worn_in(series_id: str, character_id: str, variant_id: str, limit: int = 5) -> list[dict]:
+    """Where the script actually puts this costume: place, time and action."""
+    scenes = store.list("scenes", {"series_id": series_id}, order="sequence")
+    named = [s for s in scenes if (s.get("wardrobe") or {}).get(character_id) == variant_id]
+    if not named:
+        named = [s for s in scenes if character_id in (s.get("characters_in_frame") or [])]
+    return [{"location": s.get("location") or "",
+             "lighting": s.get("lighting_state") or "",
+             "action": (s.get("action") or "")[:300]}
+            for s in named[:limit]]
 
 
 def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float]:
@@ -1052,8 +1067,12 @@ def repair_wardrobe(series_id: str, drafted: set[str]) -> tuple[list[str], float
     if not risky:
         return [], 0.0
 
+    # Without the scenes it is worn in, a rewrite has nothing to hold on to:
+    # told firmly enough what not to write, it walked a poolside afternoon
+    # into an evening gown that the script never mentions.
     request = {str(i): {"character": v["character_id"], "outfit": v["variant_id"],
-                        "description": v.get("description") or ""}
+                        "description": v.get("description") or "",
+                        "scenes": _worn_in(series_id, v["character_id"], v["variant_id"])}
                for i, v in enumerate(risky)}
     response = _answer(_client(), WARDROBE_SYSTEM,
                        [{"role": "user", "content": json.dumps(request, ensure_ascii=False)}],

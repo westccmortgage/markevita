@@ -1408,3 +1408,34 @@ def test_a_rename_that_is_still_refused_changes_nothing(db, monkeypatch):
     assert authoring.repair_wardrobe(MIAMI, {"adrian"})[0] == []
     assert db.get("clothing", {"series_id": MIAMI, "character_id": "adrian",
                                "variant_id": "beach_bikini"}) is not None
+
+
+def test_the_rewrite_is_told_where_the_script_puts_the_costume(db, monkeypatch):
+    """A rewrite with no script drifted into a scene nobody wrote.
+
+    Told firmly enough what not to write, it walked a poolside afternoon into
+    an emerald evening gown — a costume the episode never mentions, on a
+    character the episode never puts at a rehearsal dinner. The scenes it is
+    worn in are what the wording has to stay true to.
+    """
+    _wardrobe(db, variant_id="beach_bikini", description="Coral swimwear and a sarong.")
+    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", "scene_id": "sc01",
+                         "sequence": 1, "location": "hotel pool deck",
+                         "lighting_state": "midday sun", "characters_in_frame": ["adrian"],
+                         "wardrobe": {"adrian": "beach_bikini"},
+                         "action": "Adrian waits at the water's edge, watching the gate."})
+    db.upsert("scenes", {"series_id": MIAMI, "episode_id": "s01e01", "scene_id": "sc02",
+                         "sequence": 2, "location": "ballroom", "characters_in_frame": ["nora"],
+                         "wardrobe": {"nora": "rehearsal_gown"}, "action": "Nora rehearses."})
+
+    calls = _stub(monkeypatch, [json.dumps({"0": {
+        "outfit": "poolside_day",
+        "description": "A coral one-piece under an open linen shirt, sarong knotted at the hip."}})])
+
+    assert authoring.repair_wardrobe(MIAMI, {"adrian"})[0] == ["adrian/poolside_day"]
+    sent = json.loads(calls[0]["messages"][0]["content"])
+    scenes = sent["0"]["scenes"]
+    assert [s["location"] for s in scenes] == ["hotel pool deck"], \
+        "it was sent the wrong scenes, or none"
+    assert scenes[0]["lighting"] == "midday sun"
+    assert "gown" in calls[0]["system"] and "different scene" in calls[0]["system"]

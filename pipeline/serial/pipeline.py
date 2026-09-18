@@ -144,7 +144,7 @@ class Pipeline:
 
     def _require_references_approval(self):
         ap = self.sstate.data["approvals"].get("references")
-        bv = self.pkg.bible_version
+        bv = self.pkg.reference_version
         if not ap or ap.get("bible_version") != bv:
             self.state.set_status("blocked_open_question")
             raise RuntimeError(f"нужен approval референсов для bible {bv}: run_episode.py --series ... --approve references --by \"...\"")
@@ -163,7 +163,7 @@ class Pipeline:
         pp = self.pkg.load_production_prompts(self.episode_id)
         missing = pkgmod.attach_prompts(norm, pp)
         norm["prompts_missing"] = missing
-        refs_needed = self.sstate.data.get("bible_version") != self.pkg.bible_version or not self.sstate.data["references"]["characters"]
+        refs_needed = self.sstate.data.get("bible_version") != self.pkg.reference_version or not self.sstate.data["references"]["characters"]
         est = pkgmod.estimate_first_pass(norm, self.pkg, self.cfg, refs_needed)
         if est["total_first_pass"] > est["budget_cap"] - self.budget.spent:
             self.state.set_status("needs_budget_override")
@@ -249,14 +249,14 @@ class Pipeline:
         raise SceneFailed(f"{what}: не прошёл QC за {self.regen + 1} попытки")
 
     def _ref_record(self, path: Path, key: str) -> dict:
-        rec = {"path": str(path), "checksum": sha256(path), "r2_key": key, "bible_version": self.pkg.bible_version, "approval": "pending", "created_at": now()}
+        rec = {"path": str(path), "checksum": sha256(path), "r2_key": key, "bible_version": self.pkg.reference_version, "approval": "pending", "created_at": now()}
         if self.r2.enabled:
             self.r2.put(path, key)
         return rec
 
     def stage_references(self):
         self._guard_live("references")
-        bv = self.pkg.bible_version
+        bv = self.pkg.reference_version
         R = self.sstate.data["references"]
         if (self.sstate.data.get("bible_version") != bv
                 or self.sstate.data.get("reference_pack_complete") != bv):
@@ -370,7 +370,7 @@ class Pipeline:
                               rdir / "props" / f"{pid}.png", [], "1:1", False, f"ref prop/{pid}", [], "")
             R["props"][pid] = self._ref_record(p, self.keys.bible_prop(pid, bv, f"{pid}.png")); self.sstate.save()
 
-        self.sstate.data["reference_pack_complete"] = self.pkg.bible_version
+        self.sstate.data["reference_pack_complete"] = self.pkg.reference_version
         self.sstate.data["reference_inputs_fingerprint"] = reference_reuse.fingerprint(self.pkg)
         self.sstate.save()
         self.state.mark_stage("references"); self.state.set_status("references_review")
@@ -774,7 +774,8 @@ class Pipeline:
             if fp.exists():
                 self.r2.put(fp, k.audio(a["speaker"], lid, fp.name))
         prov = {"takes": self.state.data["takes"], "audio": self.state.data.get("audio", {}), "cost_log": self.state.data["cost_log"],
-                "references": self.sstate.data["references"], "overrides": self.state.data["overrides"], "bible_version": self.pkg.bible_version}
+                "references": self.sstate.data["references"], "overrides": self.state.data["overrides"], "bible_version": self.pkg.bible_version,
+                "reference_version": self.pkg.reference_version}
         pp = mdir / "provenance.json"; pp.write_text(json.dumps(prov, ensure_ascii=False, indent=2), encoding="utf-8")
         self.r2.put(pp, k.qa(ver, "provenance.json"))
         self.state.data["delivered"] = {"master_version": ver, "at": now()}

@@ -1050,7 +1050,7 @@ def references_page(request: Request, series_id: str):
     try:
         from serial.package import SeriesPackage
         from .packaging import materialize
-        wanted = SeriesPackage(materialize(series_id)).bible_version
+        wanted = SeriesPackage(materialize(series_id)).reference_version
     except Exception:
         wanted = current
     return render(request, "references.html", s=s, grouped=grouped, total=len(refs),

@@ -468,9 +468,13 @@ def approve_references(series_id, actor, note):
         cp.restore()
         pkg = SeriesPackage(materialize(series_id))
         ss = SeriesState(cp.root / 'series_state.json')
-        if ss.data.get('bible_version') != pkg.bible_version or ss.data.get('reference_pack_complete') != pkg.bible_version:
+        # The pack's identity is what it was drawn from, not the checksum of
+        # every package file: opening an episode used to invalidate an
+        # approval that had nothing to do with it.
+        want = pkg.reference_version
+        if ss.data.get('bible_version') != want or ss.data.get('reference_pack_complete') != want:
             raise ValueError('Generate the reference pack for the current series settings first.')
-        ss.data['approvals']['references'] = {'approved': True, 'bible_version': pkg.bible_version,
+        ss.data['approvals']['references'] = {'approved': True, 'bible_version': want,
                                             'by': actor, 'at': now(), 'note': note}
         for group in ss.data['references'].values():
             for pack in group.values():
@@ -481,8 +485,8 @@ def approve_references(series_id, actor, note):
         ss.save()
         runner.ingest_series_state(series_id, cp.root.parent)
         runner.store.insert('approvals', {'series_id': series_id, 'episode_id': '', 'subject_type': 'references',
-            'subject_id': pkg.bible_version, 'decision': 'approved', 'actor': actor, 'note': note, 'created_at': now()})
-        return {'bible_version': pkg.bible_version, 'by': actor}
+            'subject_id': want, 'decision': 'approved', 'actor': actor, 'note': note, 'created_at': now()})
+        return {'bible_version': want, 'by': actor}
     finally:
         lease.close()
 

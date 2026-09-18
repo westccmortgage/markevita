@@ -33,13 +33,22 @@ def _read(path):
         return {}
 
 
-def _legacy_matches(pkg, state, version):
+def _legacy_matches(pkg, state, version, package_version=True):
+    """Evidence that a delivered episode was made from today's visuals.
+
+    `version` is the package version only for deliveries that predate
+    reference_version; newer provenance names the pack's own version, which
+    this checksum cannot reproduce, so that comparison is skipped. What
+    follows it — the bible's files and the format, compared file by file —
+    is the substantive check either way.
+    """
     checksums = state.get("package_checksums") or {}
     if not checksums or "series.json" not in checksums:
         return False
-    old_version = hashlib.sha256("".join(checksums[k] for k in sorted(checksums)).encode()).hexdigest()[:12]
-    if old_version != version:
-        return False
+    if package_version:
+        old_version = hashlib.sha256("".join(checksums[k] for k in sorted(checksums)).encode()).hexdigest()[:12]
+        if old_version != version:
+            return False
     # Old packages did not fingerprint seed bytes, so do not infer equivalence.
     if any(c.get("seed_assets") for c in list(pkg.characters.values()) + list(pkg.locations.values())):
         return False
@@ -105,8 +114,11 @@ def find_reusable(pkg, root, series_state):
         if not master.resolve().is_relative_to(episode_dir.resolve()):
             continue
         provenance = _read(master / "provenance.json")
-        version = provenance.get("bible_version")
-        if not version or not _legacy_matches(pkg, state, version):
+        # Deliveries made since the pack got its own version name it directly.
+        version = provenance.get("reference_version")
+        package_version = not version
+        version = version or provenance.get("bible_version")
+        if not version or not _legacy_matches(pkg, state, version, package_version):
             continue
         refs = _verified_pack(pkg, provenance.get("references", {}), root, version, approved=True)
         if refs is not None:

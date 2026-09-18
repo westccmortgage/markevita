@@ -33,11 +33,11 @@ def previous(tmp_path):
     root = tmp_path / "runs" / pkg.series["series_id"]
     refs = {"characters": {}, "locations": {}, "props": {}}
     def record(kind, owner, name):
-        path = root / "references" / pkg.bible_version / kind / owner / f"{name}.png"
+        path = root / "references" / pkg.reference_version / kind / owner / f"{name}.png"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"original image {kind}/{owner}/{name}".encode())
         return {"path": str(path), "checksum": sha256(path), "approval": "approved",
-                "bible_version": pkg.bible_version, "r2_key": f"original/{kind}/{owner}/{name}.png"}
+                "bible_version": pkg.reference_version, "r2_key": f"original/{kind}/{owner}/{name}.png"}
     for cid, char in pkg.characters.items():
         if not char["visual"]:
             continue
@@ -50,7 +50,8 @@ def previous(tmp_path):
     for pid in pkg.props:
         refs["props"][pid] = record("props", pid, pid)
     master = root / "s01e01" / "out" / "masters" / "v2"
-    write(master / "provenance.json", {"bible_version": pkg.bible_version, "references": refs})
+    write(master / "provenance.json", {"bible_version": pkg.bible_version,
+                                   "reference_version": pkg.reference_version, "references": refs})
     (master / "episode.mp4").write_bytes(b"original delivered movie")
     state = State(root / "s01e01")
     state.data.update(package_checksums=pkg.checksums, episode=dict(pkg.series["format"]),
@@ -71,10 +72,14 @@ def test_partial_new_pack_recovers_originals_without_generation_or_fabricated_ap
     source, root, old, refs, master = previous
     original_provenance = (master / "provenance.json").read_bytes()
     pkg = new_episode(source)
+    # The package moved — a new episode, a new spoken language — while nobody's
+    # face did. The pack keeps its version; what has to be rescued here is a
+    # partial pack left in series_state by a run that died part-way.
     assert pkg.bible_version != old.bible_version
+    assert pkg.reference_version == old.reference_version
     cfg = Config.load(HERE.parent, live=False)
     pipeline = Pipeline(cfg, pkg, "s01e01_v2", root.parent)
-    pipeline.sstate.data.update(bible_version=pkg.bible_version,
+    pipeline.sstate.data.update(bible_version=pkg.reference_version,
                                 references={"characters": {"char_a": {}}, "locations": {}, "props": {}})
     monkeypatch.setattr(pipeline, "_gen_ref", lambda *a, **kw: pytest.fail("regenerated original actors"))
     pipeline.stage_references()
@@ -85,8 +90,8 @@ def test_partial_new_pack_recovers_originals_without_generation_or_fabricated_ap
                 got = recovered[kind][owner] if kind == "props" else recovered[kind][owner][name]
                 assert got["path"] == rec["path"] and got["checksum"] == rec["checksum"]
                 assert got["r2_key"] == rec["r2_key"]
-                assert got["source_bible_version"] == old.bible_version
-                assert got["bible_version"] == pkg.bible_version and got["approval"] == "pending"
+                assert got["source_bible_version"] == old.reference_version
+                assert got["bible_version"] == pkg.reference_version and got["approval"] == "pending"
     with pytest.raises(RuntimeError, match="approval"):
         pipeline._require_references_approval()
     assert pipeline.state.stage_done("references")
@@ -97,8 +102,8 @@ def test_partial_new_pack_recovers_originals_without_generation_or_fabricated_ap
 
 def test_nonvisual_edits_preserve_existing_approval(previous, monkeypatch):
     source, root, old, refs, _ = previous
-    approval = {"approved": True, "by": "reviewer", "at": "original-time", "bible_version": old.bible_version}
-    ss = {"bible_version": old.bible_version, "reference_pack_complete": old.bible_version,
+    approval = {"approved": True, "by": "reviewer", "at": "original-time", "bible_version": old.reference_version}
+    ss = {"bible_version": old.reference_version, "reference_pack_complete": old.reference_version,
           "reference_inputs_fingerprint": reference_reuse.fingerprint(old), "references": refs,
           "approvals": {"references": approval}}
     pkg = new_episode(source)
@@ -108,7 +113,7 @@ def test_nonvisual_edits_preserve_existing_approval(previous, monkeypatch):
     write(path, chars)
     pkg = SeriesPackage(source)
     result = reference_reuse.find_reusable(pkg, root, ss)
-    assert result == (refs, old.bible_version, approval)
+    assert result == (refs, old.reference_version, approval)
     assert result[2] is not approval
     pipeline = Pipeline(Config.load(HERE.parent, live=False), pkg, "s01e01_v2", root.parent)
     pipeline.sstate.data.update(ss)
@@ -117,7 +122,7 @@ def test_nonvisual_edits_preserve_existing_approval(previous, monkeypatch):
     pipeline._require_references_approval()
     copied = pipeline.sstate.data["approvals"]["references"]
     assert copied["by"] == "reviewer" and copied["at"] == "original-time"
-    assert copied["bible_version"] == pkg.bible_version
+    assert copied["bible_version"] == pkg.reference_version
     pipeline.logf.close()
 
 
@@ -151,7 +156,8 @@ def test_legacy_recovery_requires_unchanged_visuals_and_verified_evidence(previo
         path.write_bytes(b"corrupt") if change == "corrupt" else path.unlink()
     elif change == "unapproved":
         next(iter(refs["characters"]["char_a"].values()))["approval"] = "pending"
-        write(master / "provenance.json", {"bible_version": old.bible_version, "references": refs})
+        write(master / "provenance.json", {"bible_version": old.bible_version,
+                                   "reference_version": old.reference_version, "references": refs})
     else:
         state = State(root / "s01e01"); state.data.pop("package_checksums"); state.save()
     assert reference_reuse.find_reusable(new_episode(source), root, {}) is None

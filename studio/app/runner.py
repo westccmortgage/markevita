@@ -398,13 +398,16 @@ def approve_references(series_id: str, actor: str, note: str = "") -> dict:
         from .live_jobs import approve_references as approve_live_references
         return approve_live_references(series_id, actor, note)
     ss = SeriesState(RUNS_ROOT / series_id / "series_state.json")
-    if ss.data.get("bible_version") != pkg.bible_version or not ss.data["references"]["characters"]:
+    # The pack answers to what it was drawn from, not to the checksum of every
+    # package file: opening an episode is not a change of anybody's face.
+    want = pkg.reference_version
+    if ss.data.get("bible_version") != want or not ss.data["references"]["characters"]:
         raise ValueError(
-            f"No reference pack exists for bible version {pkg.bible_version}. "
+            f"No reference pack exists for bible version {want}. "
             "Run the 'references' stage first."
         )
     ss.data["approvals"]["references"] = {
-        "approved": True, "bible_version": pkg.bible_version, "by": actor, "at": _now(), "note": note,
+        "approved": True, "bible_version": want, "by": actor, "at": _now(), "note": note,
     }
     for group in ss.data["references"].values():
         for pack in group.values():
@@ -415,13 +418,13 @@ def approve_references(series_id: str, actor: str, note: str = "") -> dict:
     ss.save()
     store.insert("approvals", {
         "series_id": series_id, "episode_id": "", "subject_type": "references",
-        "subject_id": pkg.bible_version, "decision": "approved", "actor": actor,
+        "subject_id": want, "decision": "approved", "actor": actor,
         "note": note, "created_at": _now(),
     })
     ingest_series_state(series_id, RUNS_ROOT)
     history(series_id, "", "approval.references", entity_type="references",
-            entity_id=pkg.bible_version, actor=actor, detail={"note": note})
-    return {"bible_version": pkg.bible_version, "by": actor}
+            entity_id=want, actor=actor, detail={"note": note})
+    return {"bible_version": want, "by": actor}
 
 
 def approve_publish(series_id: str, episode_id: str, actor: str, note: str = "") -> dict:

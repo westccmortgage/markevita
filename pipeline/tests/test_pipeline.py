@@ -49,6 +49,7 @@ def test_package_loads_and_versions(fx):
     pkg = _pkg(fx)
     assert pkg.series["series_id"] == "fixture_series"
     assert len(pkg.bible_version) == 12
+    assert len(pkg.reference_version) == 12
     assert pkg.previous_episode("s01e02") == "s01e01" and pkg.previous_episode("s01e01") is None
 
 
@@ -163,7 +164,7 @@ def _run(cfg, pkg, runs, ep="s01e01", stages=None, **kw):
 
 def _approve_refs(runs, pkg):
     ss = SeriesState(runs / pkg.series["series_id"] / "series_state.json")
-    ss.data["approvals"]["references"] = {"approved": True, "bible_version": pkg.bible_version, "by": "test", "at": now()}
+    ss.data["approvals"]["references"] = {"approved": True, "bible_version": pkg.reference_version, "by": "test", "at": now()}
     ss.save()
 
 

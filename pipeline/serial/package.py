@@ -97,6 +97,28 @@ class SeriesPackage:
         h = hashlib.sha256("".join(self.checksums[k] for k in sorted(self.checksums)).encode()).hexdigest()
         return h[:12]
 
+    @property
+    def reference_version(self) -> str:
+        """What a reference pack was drawn from: the look, and nothing else.
+
+        bible_version is the checksum of every package file, series.json
+        included, and series.json carries the season's episode list. Opening
+        an episode therefore changed the version of a bible nobody had
+        touched, and so did writing a script or assigning a voice. Every
+        image on record became "from an older bible", the pack was rebuilt
+        against a version that moved again on the next edit, and approval
+        could never catch up with it.
+
+        This is the identity the images actually have: visual characters and
+        their wardrobe, locations, props, the style, the bytes of any locked
+        face, and the format the pictures are framed at. Adding an episode
+        does not change what a character looks like, and now does not claim
+        to. bible_version stays what it was for the record of which package
+        an episode was filmed from.
+        """
+        from .reference_reuse import fingerprint
+        return fingerprint(self)[:12]
+
     def _cross_check_bible(self):
         errs = []
         ids = set(self.characters)

@@ -25,6 +25,44 @@ def fingerprint(pkg):
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 
+def fingerprint_parts(pkg):
+    """The same inputs as fingerprint(), itemised.
+
+    fingerprint() answers "is this the same pack"; when it says no, that is
+    the whole of what anyone is told, and a producer is left regenerating a
+    pack against a version they cannot see moving. These are the pieces it is
+    made of, so the run can name the one that changed.
+    """
+    parts = {}
+    for cid, c in sorted(pkg.characters.items()):
+        if not c["visual"]:
+            continue
+        parts[f"character {cid}"] = _digest({k: v for k, v in c.items() if k != "voice"})
+        for name in c.get("seed_assets", []):
+            parts[f"locked face {cid}"] = sha256(pkg.root / name)
+    for lid, l in sorted(pkg.locations.items()):
+        parts[f"location {lid}"] = _digest(l)
+        for name in l.get("seed_assets", []):
+            parts[f"locked view {lid}"] = sha256(pkg.root / name)
+    parts["props"] = _digest(sorted(pkg.props))
+    parts["style"] = _digest(pkg.style)
+    parts["format"] = _digest({k: pkg.series["format"][k] for k in ("aspect_ratio", "width", "height")})
+    return parts
+
+
+def changed_parts(pkg, previous):
+    """What moved since the pack on record was made, in words."""
+    if not previous:
+        return []
+    current = fingerprint_parts(pkg)
+    names = sorted(set(current) | set(previous))
+    return [name for name in names if current.get(name) != previous.get(name)]
+
+
+def _digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
 def _read(path):
     try:
         value = json.loads(path.read_text(encoding="utf-8"))

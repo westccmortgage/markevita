@@ -48,6 +48,7 @@
                 <form method="post" action="{{ base }}/series/{{ s.id }}/references/{{ r.id }}/lock-face">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button class="btn-sm" type="submit">{{ _("Keep this face") }}</button></form>
+                <div class="small muted">{{ _("Changes how they are drawn, so this pack is rebuilt") }}</div>
                 {% if fixed %}<div class="small muted">{{ _("another portrait is kept") }}</div>{% endif %}
               {% endif %}
             {% endif %}</td><td class="small">{{ r.name }}</td>

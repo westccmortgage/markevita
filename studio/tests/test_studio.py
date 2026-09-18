@@ -634,3 +634,35 @@ def test_an_id_the_database_cannot_read_matches_nothing():
     driver.client = SimpleNamespace(table=lambda _t: _Refuses("connection refused"))
     with pytest.raises(RuntimeError, match='connection refused'):
         driver.list('production_jobs', {'id': 'x'}), "a real fault is never hidden as not found"
+
+
+def test_keeping_a_face_says_it_retires_the_pack_it_came_from(isolated_store, monkeypatch):
+    """The studio invited the loop it then complained about.
+
+    Keeping a face changes how the character is drawn, so it retires the very
+    pack the portrait was taken from. A producer who then keeps the best face
+    out of the rebuilt pack retires that one too, and the pack they are
+    waiting to approve is never the pack on screen. Nothing said so.
+    """
+    from urllib.parse import unquote_plus
+    from app import web
+
+    series, character = "s", "adrian"
+    key = "series/s/bible/characters/adrian/v1/front.png"
+    monkeypatch.setattr(web, "store", isolated_store, raising=False)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "producer@example.test"})
+    monkeypatch.setattr(web.settings, "allow_paid", False)
+    isolated_store.upsert("series", {"id": series, "title": "S"})
+    isolated_store.upsert("characters", {"series_id": series, "character_id": character, "seed_assets": []})
+    isolated_store.insert("reference_assets", {"series_id": series, "id": "a1", "kind": "character",
+                                   "owner_id": character, "name": "front_headshot", "r2_key": key})
+
+    said = unquote_plus(web.lock_face(None, series, "a1", csrf_token="").headers["location"])
+    assert "rebuilds it" in said and "approve it instead" in said
+    assert isolated_store.get("characters", {"series_id": series,
+                                 "character_id": character})["seed_assets"] == [key]
+
+    # Keeping the same face again changes nothing, so it must not claim the
+    # pack has gone out of date.
+    again = unquote_plus(web.lock_face(None, series, "a1", csrf_token="").headers["location"])
+    assert "still good" in again and "rebuilds it" not in again

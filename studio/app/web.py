@@ -1083,13 +1083,26 @@ def lock_face(request: Request, series_id: str, asset_id: str, csrf_token: str =
                                          "character_id": asset["owner_id"]})
     if not character:
         return _redirect(back, err="That character is no longer in this series.")
+    already = (character.get("seed_assets") or [None])[0]
+    if already == asset["r2_key"]:
+        return _redirect(back, ok=f"{asset['owner_id']}: that face was already the one kept. "
+                                  "Nothing changed, so the reference pack is still good.")
     store.update("characters", {"series_id": series_id, "character_id": asset["owner_id"]},
                  {"seed_assets": [asset["r2_key"]], "updated_at": _now()})
     authoring.history(series_id, "", "face.locked", entity_type="character",
                       entity_id=asset["owner_id"], actor=a["email"],
                       detail={"reference": asset.get("name") or "",
                               "bible_version": asset.get("bible_version") or ""})
-    return _redirect(back, ok=f"{asset['owner_id']}: this face is now the one the studio keeps.")
+    # Say the consequence at the moment of the click. Locking a face changes
+    # what the character looks like, so it retires the very pack the picture
+    # was taken from. A producer who then locks the best face out of the
+    # rebuilt pack retires that one too, and the pack they are waiting to
+    # approve is never the pack on screen. Nothing in the studio said so.
+    return _redirect(back, ok=f"{asset['owner_id']}: this face is now the one the studio keeps. "
+                              "It changes how they are drawn, so this reference pack is now out "
+                              "of date and the next run rebuilds it. Do not lock a face out of "
+                              "that rebuilt pack unless you want it rebuilt again — approve it "
+                              "instead.")
 
 
 @router.post("/series/{series_id}/references/{asset_id}/unlock-face")

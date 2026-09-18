@@ -269,7 +269,8 @@ class Pipeline:
                             rec.update(bible_version=bv, source_bible_version=rec.get("source_bible_version", source_version),
                                        approval="approved" if approval else "pending")
                 self.sstate.data.update(references=refs, bible_version=bv, reference_pack_complete=bv,
-                                        reference_inputs_fingerprint=reference_reuse.fingerprint(self.pkg))
+                                        reference_inputs_fingerprint=reference_reuse.fingerprint(self.pkg),
+                                        reference_inputs_parts=reference_reuse.fingerprint_parts(self.pkg))
                 if approval:
                     approval.update(bible_version=bv, source_bible_version=source_version)
                     self.sstate.data["approvals"]["references"] = approval
@@ -284,7 +285,16 @@ class Pipeline:
                 return
         if self.sstate.data.get("bible_version") != bv:
             if self.sstate.data.get("bible_version"):
-                self.log(f"references: bible изменился ({self.sstate.data['bible_version']} -> {bv}); пакет референсов генерируется заново, approval сброшен")
+                moved = reference_reuse.changed_parts(self.pkg, self.sstate.data.get("reference_inputs_parts"))
+                # Without this the log says a version changed and nothing more,
+                # which is not something a producer can act on: they regenerate
+                # the pack and watch the target move again for a reason nobody
+                # ever names.
+                why = ("; изменилось: " + ", ".join(moved)) if moved else (
+                    "; что именно изменилось — не записано: прежний пакет собран до того, "
+                    "как это стало записываться")
+                self.log(f"references: bible изменился ({self.sstate.data['bible_version']} -> {bv}); "
+                         f"пакет референсов генерируется заново, approval сброшен{why}")
             R.clear(); R.update({"characters": {}, "locations": {}, "props": {}})
             self.sstate.data["approvals"].pop("references", None)
             self.sstate.data.pop("reference_pack_complete", None)
@@ -372,6 +382,7 @@ class Pipeline:
 
         self.sstate.data["reference_pack_complete"] = self.pkg.reference_version
         self.sstate.data["reference_inputs_fingerprint"] = reference_reuse.fingerprint(self.pkg)
+        self.sstate.data["reference_inputs_parts"] = reference_reuse.fingerprint_parts(self.pkg)
         self.sstate.save()
         self.state.mark_stage("references"); self.state.set_status("references_review")
         self.log(f"references: пакет в {rdir}. Утвердить: --approve references --by \"...\"")

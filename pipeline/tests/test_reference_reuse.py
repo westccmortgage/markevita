@@ -168,3 +168,21 @@ def test_visual_fingerprint_includes_seed_bytes(tmp_path):
     before = reference_reuse.fingerprint(SeriesPackage(source))
     (source / "assets" / "char_a_seed.png").write_bytes(b"changed image bytes")
     assert reference_reuse.fingerprint(SeriesPackage(source)) != before
+
+
+def test_a_moved_target_says_what_moved(previous):
+    """"bible изменился (X -> Y)" is not something a producer can act on."""
+    source, root, old, _, _ = previous
+    before = reference_reuse.fingerprint_parts(old)
+    assert reference_reuse.changed_parts(old, before) == []
+    # Opening an episode is not a change of anybody's look.
+    assert reference_reuse.changed_parts(new_episode(source), before) == []
+
+    path = source / "bible" / "style.json"
+    style = json.loads(path.read_text())
+    style["style_sentence"] = style["style_sentence"] + " Shot at dusk."
+    write(path, style)
+    assert reference_reuse.changed_parts(SeriesPackage(source), before) == ["style"]
+
+    # A pack made before this was recorded says so rather than guessing.
+    assert reference_reuse.changed_parts(SeriesPackage(source), None) == []

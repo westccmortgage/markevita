@@ -778,3 +778,37 @@ def test_a_broken_number_never_takes_the_page_down(isolated_store, monkeypatch):
                             lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no")))
     out = progress.report(SERIES, "s01e04", {"state": "running"})
     assert out["needed"] == 0 and out["spent"] == 0.0 and out["minutes_left"] is None
+
+
+def test_the_counter_speaks_the_same_language_as_the_records(isolated_store, monkeypatch):
+    """It read 0 of 66 with fifty-eight of them on the screen underneath.
+
+    The engine groups a pack by "characters"; a stored row calls the same
+    thing a "character". Compared as if they were one word, nothing ever
+    matched, so a finished pack and an empty one looked identical — which is
+    the exact confusion the counter was added to end.
+    """
+    from app import progress
+
+    monkeypatch.setattr(progress, "store", isolated_store, raising=False)
+
+    class Pkg:
+        reference_version = "v1"
+
+    monkeypatch.setattr("serial.package.SeriesPackage", lambda root: Pkg())
+    monkeypatch.setattr("app.packaging.materialize", lambda series_id: "/tmp/x")
+    monkeypatch.setattr("serial.reference_reuse.expected",
+                        lambda pkg: {"characters": {"adrian": ["front_headshot", "profile_left"]},
+                                     "locations": {"villa": ["wide"]},
+                                     "props": {"ring": ["ring"]}})
+    for kind, owner, name in (("character", "adrian", "front_headshot"),
+                              ("location", "villa", "wide")):
+        isolated_store.insert("reference_assets", {
+            "series_id": SERIES, "bible_version": "v1", "kind": kind,
+            "owner_id": owner, "name": name})
+    # An image from an older bible is not part of this pack.
+    isolated_store.insert("reference_assets", {
+        "series_id": SERIES, "bible_version": "v0", "kind": "character",
+        "owner_id": "adrian", "name": "profile_left"})
+
+    assert progress._pack(SERIES) == (2, 4)

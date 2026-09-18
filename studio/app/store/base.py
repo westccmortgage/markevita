@@ -82,7 +82,8 @@ class Driver(Protocol):
     name: str
 
     def list(self, table: str, where: dict[str, Any] | None = None,
-             order: str | None = None, desc: bool = False, limit: int | None = None) -> list[dict]: ...
+             order: str | None = None, desc: bool = False, limit: int | None = None,
+             offset: int = 0) -> list[dict]: ...
 
     def get(self, table: str, where: dict[str, Any]) -> dict | None: ...
 

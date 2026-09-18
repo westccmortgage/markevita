@@ -56,11 +56,18 @@ class SupabaseDriver:
             q = q.eq(k, v)
         return q
 
-    def list(self, table, where=None, order=None, desc=False, limit=None):
+    def list(self, table, where=None, order=None, desc=False, limit=None, offset=0):
         q = self._q(table, where)
         if order:
             q = q.order(order, desc=desc)
-        if limit:
+        # PostgREST caps how many rows it will return, and without an order
+        # the ones it picks are arbitrary. A total summed from such a page was
+        # a different number every time the screen refreshed — worse than no
+        # number, because it is believed. Anything that asks for a page says
+        # which page, and in what order.
+        if offset:
+            q = q.range(offset, offset + (limit or 1000) - 1)
+        elif limit:
             q = q.limit(limit)
         try:
             return _retrying(q.execute).data or []

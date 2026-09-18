@@ -189,7 +189,89 @@ def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
     return cfg
 
 
+# A failure that decided something about this episode: the model would not
+# draw it, the budget is spent, a person has to approve the pack. Asking again
+# changes nothing and costs money, so these are never carried on by themselves.
+DECIDED = ('content_policy', 'would not draw this reference', 'budget',
+           'needs_budget_override', 'Generate the reference pack',
+           'Review the script and budget', 'Publishing is a separate action',
+           'no script yet', 'needs reconciliation', 'Reconcile',
+           'outcome is unknown', 'has no script')
+
+# A failure that decided nothing: the provider had a bad minute, the account
+# was briefly locked, a connection dropped, the server was restarted under the
+# worker. Every stop this week was one of these, and every one of them ended a
+# job as "failed" — a state nothing ever picked back up, so the producer was
+# the retry mechanism, at ten-minute intervals, for three days.
+TRANSIENT = ('User is locked', 'TOP_UP', 'HTTP 403', 'HTTP 429', 'HTTP 500',
+             'HTTP 502', 'HTTP 503', 'InternalServerError', 'ServiceUnavailable',
+             'Overloaded', 'RemoteProtocolError', 'ReadError', 'WriteError',
+             'ConnectError', 'Timeout', 'TimeoutError', 'ConnectionError',
+             'Worker stopped', 'lease', 'produced no output', 'APIStatusError',
+             'APIConnectionError')
+
+# Attempts since the run last made something. A fault that reproduces stops
+# being retried; a run that is getting work done is never given up on, because
+# the limit that counted every attempt for all time left an episode dead to
+# automation after three bad minutes across three days.
 CARRY_ON_LIMIT = 3
+
+# Between attempts, growing: 2, 4, 8, 16 minutes. An account locked for an hour
+# should be waited out, not asked sixty times an hour.
+BACKOFF_MINUTES = 2
+
+
+def _worth_another_go(job) -> bool:
+    """Did this failure decide anything, or was it just a bad minute?"""
+    text = job.get('error') or ''
+    if any(mark.lower() in text.lower() for mark in DECIDED):
+        return False
+    return any(mark.lower() in text.lower() for mark in TRANSIENT)
+
+
+def _waited_long_enough(job) -> bool:
+    """Back off between attempts. An account locked for an hour is waited out."""
+    from datetime import datetime, timedelta, timezone
+    finished = job.get('finished_at') or job.get('created_at')
+    try:
+        when = datetime.fromisoformat(str(finished).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return True
+    from . import runner
+    tries = _attempts_since_progress(runner, job)
+    wait = timedelta(minutes=BACKOFF_MINUTES * (2 ** min(tries, 3)))
+    return datetime.now(timezone.utc) - when >= wait
+
+
+def _made_so_far(runner, job) -> int:
+    """Paid results this episode holds. It only ever grows, so it marks progress."""
+    try:
+        from .progress import every
+        return len(every('takes', {'series_id': job['series_id'],
+                                   'episode_id': job['episode_id']}))
+    except Exception:                                              # noqa: BLE001
+        return 0
+
+
+def _attempts_since_progress(runner, job) -> int:
+    """Carried on since the run last produced something.
+
+    Counting every attempt for all time left an episode dead to automation
+    after three bad minutes spread across three days, while a run that was
+    plainly getting work done was refused a fourth try.
+    """
+    made = _made_so_far(runner, job)
+    tries = 0
+    for row in sorted(runner.store.list(
+            'generation_history', {'series_id': job['series_id'],
+                                   'episode_id': job['episode_id'],
+                                   'event': 'job.resumed_after_restart'}),
+            key=lambda r: r.get('created_at') or '', reverse=True):
+        before = ((row.get('detail') or {}).get('made_by_then'))
+        if isinstance(before, int) and before < made:
+            break          # work happened after that attempt; the slate is clean
+        tries += 1
+    return tries
 
 
 def resume_interrupted(manager) -> list[str]:
@@ -210,28 +292,32 @@ def resume_interrupted(manager) -> list[str]:
     resumed = []
     if not settings.allow_paid:
         return resumed
-    for job in runner.store.list('production_jobs', {'mode': 'live', 'state': 'interrupted'},
-                                 order='created_at', desc=True):
+    candidates = [j for state in ('interrupted', 'failed')
+                  for j in runner.store.list('production_jobs', {'mode': 'live', 'state': state},
+                                             order='created_at', desc=True)]
+    candidates.sort(key=lambda j: j.get('created_at') or '', reverse=True)
+    for job in candidates:
         if job.get('stages') == ['runtime_lease']:
             continue
         progress = job.get('progress') or {}
         digest = progress.get('input_digest')
         if not digest or digest != review(job['series_id'], job['episode_id']):
             continue   # the script or settings moved on; the approval was for something else
-        carried = [row for row in runner.store.list(
-            'generation_history', {'series_id': job['series_id'],
-                                   'episode_id': job['episode_id'],
-                                   'event': 'job.resumed_after_restart'})]
-        if len(carried) >= CARRY_ON_LIMIT:
-            # A worker that dies the same way every time would otherwise be
-            # resumed every thirty seconds, for ever, spending money on each
-            # pass. Carrying on is for a process that went away, not for a
-            # fault that reproduces.
-            runner.store.update('production_jobs', {'id': job['id']}, {
-                'state': 'failed', 'finished_at': now(),
-                'error': f'Production stopped and was carried on {len(carried)} times without '
-                         'finishing. It is left for a person now: something is failing the same '
-                         'way each time, and resuming again would only spend more.'})
+        if job['state'] == 'failed' and not _worth_another_go(job):
+            continue
+        if not _waited_long_enough(job):
+            continue
+        carried = _attempts_since_progress(runner, job)
+        if carried >= CARRY_ON_LIMIT:
+            # A fault that reproduces stops being retried. The count is of
+            # attempts since the run last made something, so a run that is
+            # getting work done is never given up on.
+            if job['state'] != 'failed':
+                runner.store.update('production_jobs', {'id': job['id']}, {
+                    'state': 'failed', 'finished_at': now(),
+                    'error': f'Production stopped and was carried on {carried} times without '
+                             'making anything. It is left for a person now: something is failing '
+                             'the same way each time, and resuming again would only spend more.'})
             continue
         try:
             started = runner.jobs.resume(job['series_id'], job['episode_id'],
@@ -253,7 +339,8 @@ def resume_interrupted(manager) -> list[str]:
             continue
         runner.history(job['series_id'], job['episode_id'], 'job.resumed_after_restart',
                        entity_type='job', entity_id=started['id'], actor='system',
-                       detail={'interrupted_job': job['id']})
+                       detail={'interrupted_job': job['id'], 'was': job['state'],
+                               'made_by_then': _made_so_far(runner, job)})
         resumed.append(started['id'])
         break   # one series holds one production lease; the rest wait their turn
     return resumed
@@ -283,7 +370,12 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         raise ValueError('\n'.join(errors))
     lease = SeriesLease(runner.store, series_id, actor)
     try:
-        cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)
+        # Named for the series, not for this attempt: a fresh directory every
+        # time meant nothing verified on the last run could ever be reused, so
+        # the whole checkpoint came down the wire again. One worker holds a
+        # series at a time — that is what the lease is — so the directory is
+        # this worker's alone while it runs.
+        cp = Checkpoint(cfg, runtime_root() / '_workers' / series_id, series_id, lease.check)
         cp.restore()
         old = State(cp.root / episode_id)
         from serial.pipeline import SeriesState
@@ -465,7 +557,7 @@ def approve_references(series_id, actor, note):
     cfg = configuration('native', video_model(pkg_now), picture(pkg_now))
     lease = SeriesLease(runner.store, series_id, actor)
     try:
-        cp = Checkpoint(cfg, runtime_root() / '_workers' / lease.owner, series_id, lease.check)
+        cp = Checkpoint(cfg, runtime_root() / '_workers' / series_id, series_id, lease.check)
         cp.restore()
         pkg = SeriesPackage(materialize(series_id))
         ss = SeriesState(cp.root / 'series_state.json')

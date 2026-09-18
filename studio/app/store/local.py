@@ -46,11 +46,12 @@ class LocalDriver:
             return True
         return all(row.get(k) == v for k, v in where.items())
 
-    def list(self, table, where=None, order=None, desc=False, limit=None):
+    def list(self, table, where=None, order=None, desc=False, limit=None, offset=0):
         with self._lock:
             rows = [r for r in self._read(table) if self._match(r, where)]
         if order:
             rows.sort(key=lambda r: (r.get(order) is None, r.get(order)), reverse=desc)
+        rows = rows[offset:] if offset else rows
         return rows[:limit] if limit else rows
 
     def get(self, table, where):

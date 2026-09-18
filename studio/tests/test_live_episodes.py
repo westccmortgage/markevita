@@ -661,7 +661,9 @@ def test_carrying_on_gives_up_before_it_becomes_a_money_loop(monkeypatch):
     assert live_jobs.resume_interrupted(runner.jobs) == []
     row = store.get('production_jobs', {'id': job['id']})
     assert row['state'] == 'failed'
-    assert 'without finishing' in row['error']
+    # The count is of attempts since the run last made something, so what it
+    # gives up on is a run that produced nothing across all of them.
+    assert 'without making anything' in row['error']
 
 
 def test_carrying_on_is_allowed_while_it_is_still_making_progress(monkeypatch):
@@ -792,3 +794,134 @@ class _accepted:
 
     def json(self):
         return {'request_id': f'req-{self._n}'}
+
+
+def test_a_restore_keeps_the_objects_it_can_prove_and_fetches_the_rest(tmp_path, monkeypatch):
+    """Every resume pulled the whole checkpoint down the wire again.
+
+    The local directory was emptied and refilled from storage on every start,
+    and its name was a fresh id each time, so nothing could ever be reused by
+    construction. Once the reference pack was large enough the browser was
+    answered by the proxy instead of the studio: a 504, with the run's fate
+    unknown. A local file whose bytes hash to the checksum the manifest names
+    IS the checkpoint's own object; fetching it again proves nothing.
+    """
+    from app.live_runtime import Checkpoint
+
+    r2 = R2Fake()
+    objects = {name: data for name, data in
+               (('state.json', b'{"a": 1}'), ('refs/adrian.png', b'a big picture'),
+                ('refs/maya.png', b'another big picture'))}
+    files = {}
+    for name, data in objects.items():
+        digest = hashlib.sha256(data).hexdigest()
+        files[name] = {'sha256': digest, 'size': len(data)}
+        r2.objects['series/s/_studio_runtime/live/objects/' + digest] = data
+
+    root = tmp_path / 'worker'
+    manifest = {'root': str(root), 'files': files}
+    r2.objects['series/s/_studio_runtime/live/manifest.json'] = json.dumps(manifest).encode()
+
+    cp = Checkpoint.__new__(Checkpoint)
+    cp.client, cp.bucket = r2, 'bucket'
+    cp.prefix = 'series/s/_studio_runtime/live/'
+    cp.key = cp.prefix + 'manifest.json'
+    cp.root, cp.check, cp.etag, cp.files = root, lambda: None, None, {}
+
+    fetched = []
+    original = r2.get_object
+    def counted(Bucket, Key):
+        fetched.append(Key)
+        return original(Bucket=Bucket, Key=Key)
+    r2.get_object = counted
+
+    cp.restore()
+    assert (root / 'refs/adrian.png').read_bytes() == b'a big picture'
+    first = len([k for k in fetched if '/objects/' in k])
+    assert first == 3
+
+    # Second time round: the pictures are already here and provably right.
+    fetched.clear()
+    stray = root / 'refs' / 'left_over.png'
+    stray.write_bytes(b'from some earlier run')
+    cp.restore()
+    assert [k for k in fetched if '/objects/' in k] == [], "it fetched what it already had"
+    assert not stray.exists(), "a file the checkpoint does not name was kept"
+
+    # A local file that does not match is not the checkpoint's, so it is replaced.
+    fetched.clear()
+    (root / 'refs/maya.png').write_bytes(b'corrupted by a killed run')
+    cp.restore()
+    assert len([k for k in fetched if '/objects/' in k]) == 1
+    assert (root / 'refs/maya.png').read_bytes() == b'another big picture'
+
+
+def test_the_studio_carries_itself_on_through_a_bad_minute(monkeypatch):
+    """The producer was the retry mechanism, at ten-minute intervals, for days.
+
+    Every stop this week ended a job as "failed" — a locked account, a five
+    hundred from the model, a dropped connection — and nothing ever picked a
+    failed job back up. Only "interrupted" was carried on, which is the one
+    state those failures never reached. So the system had a recovery mechanism
+    that could not reach any of its actual failures.
+    """
+    from app import live_jobs, runner
+
+    monkeypatch.setattr(settings, 'allow_paid', True)
+    monkeypatch.setattr(live_jobs, 'review', lambda sid, eid: 'd1')
+    monkeypatch.setattr(runner, 'history', lambda *a, **k: None)
+    monkeypatch.setattr(live_jobs, '_waited_long_enough', lambda job: True)
+    monkeypatch.setattr(live_jobs, '_attempts_since_progress', lambda runner, job: 0)
+
+    def job(state, error):
+        return {'id': 'j', 'series_id': 's', 'episode_id': 'e', 'mode': 'live', 'state': state,
+                'error': error, 'requested_by': 'p@example.test', 'finished_at': '2026-01-01T00:00:00+00:00',
+                'progress': {'input_digest': 'd1', 'audio_mode': 'native'}}
+
+    def carry(state, error):
+        rows = {'interrupted': [], 'failed': []}
+        rows[state] = [job(state, error)]
+        monkeypatch.setattr(runner.store, 'list',
+                            lambda table, where=None, **k: rows.get((where or {}).get('state'), [])
+                            if table == 'production_jobs' else [])
+        started = []
+        monkeypatch.setattr(runner.jobs, 'resume',
+                            lambda *a, **k: started.append(1) or {'id': 'j2'})
+        live_jobs.resume_interrupted(object())
+        return bool(started)
+
+    assert carry('failed', 'fal.ai HTTP 403: User is locked. Reason: TOP_UP.')
+    assert carry('failed', 'InternalServerError. Production stopped.')
+    assert carry('failed', 'RemoteProtocolError. Production stopped.')
+    assert carry('interrupted', 'Worker stopped; saved provider requests will be reused.')
+
+    # A failure that decided something is never asked again: it would change
+    # nothing and cost money.
+    assert not carry('failed', 'fal.ai HTTP 422 (content_policy_violation) · ref maya/x')
+    assert not carry('failed', 'Generate the reference pack for the current series settings first.')
+    assert not carry('failed', 'budget: spent $200 + next $1 > cap $200')
+    assert not carry('failed', 'Something nobody has classified yet')
+
+
+def test_a_run_that_is_getting_work_done_is_never_given_up_on(monkeypatch):
+    """Three bad minutes across three days used up an episode's whole allowance.
+
+    The count was of every attempt ever made, so it never reset — while a run
+    plainly producing pictures was refused a fourth try.
+    """
+    from app import live_jobs, runner
+
+    history = []
+    monkeypatch.setattr(runner.store, 'list',
+                        lambda table, where=None, **k: history if table == 'generation_history' else [])
+    monkeypatch.setattr(live_jobs, '_made_so_far', lambda r, j: 40)
+    job = {'series_id': 's', 'episode_id': 'e'}
+
+    history[:] = [{'created_at': f'2026-01-01T0{i}:00:00', 'detail': {'made_by_then': 40}}
+                  for i in range(3)]
+    assert live_jobs._attempts_since_progress(runner, job) == 3, 'a stuck run is retried for ever'
+
+    # The middle attempt was followed by real work, so the ones before it do
+    # not count against the run any more.
+    history[1]['detail'] = {'made_by_then': 12}
+    assert live_jobs._attempts_since_progress(runner, job) == 1

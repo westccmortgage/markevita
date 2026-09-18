@@ -1061,11 +1061,12 @@ def references_page(request: Request, series_id: str):
         pkg = SeriesPackage(materialize(series_id))
         wanted = pkg.reference_version
         made = {(r.get("kind"), r.get("owner_id"), r.get("name")) for r in refs}
+        from .progress import SINGULAR
         for kind, owners in reference_reuse.expected(pkg).items():
             for owner, names in owners.items():
                 for name in names:
                     needed += 1
-                    if (kind, owner, name) not in made:
+                    if (SINGULAR.get(kind, kind), owner, name) not in made:
                         missing.append({"kind": kind, "owner": owner, "name": name})
     except Exception:
         wanted = current

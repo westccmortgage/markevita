@@ -14,6 +14,29 @@ from datetime import datetime, timezone
 from .store import store
 
 
+PAGE = 1000
+
+# The engine groups a pack by "characters"; a stored row calls the same thing a
+# "character". Comparing the two words as if they were one made every image
+# look missing: 0 of 66 with fifty-eight of them on the screen underneath.
+SINGULAR = {"characters": "character", "locations": "location", "props": "prop"}
+
+
+def every(table: str, where: dict, order: str = "created_at") -> list[dict]:
+    """Every matching row, not the page the database felt like returning.
+
+    PostgREST caps a reply, and without an order the rows in it are arbitrary,
+    so a total summed from one call came out different on every refresh. A
+    number nobody can trust is worse than no number: it gets believed.
+    """
+    rows: list[dict] = []
+    while True:
+        page = store.list(table, where, order=order, limit=PAGE, offset=len(rows))
+        rows += page
+        if len(page) < PAGE:
+            return rows
+
+
 def _moment(value) -> datetime | None:
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
@@ -29,9 +52,9 @@ def _pack(series_id: str) -> tuple[int, int]:
     pkg = SeriesPackage(materialize(series_id))
     version = pkg.reference_version
     made = {(r.get("kind"), r.get("owner_id"), r.get("name"))
-            for r in store.list("reference_assets", {"series_id": series_id})
+            for r in every("reference_assets", {"series_id": series_id})
             if (r.get("bible_version") or "") == version}
-    needed = [(kind, owner, name)
+    needed = [(SINGULAR.get(kind, kind), owner, name)
               for kind, owners in reference_reuse.expected(pkg).items()
               for owner, names in owners.items() for name in names]
     return len([k for k in needed if k in made]), len(needed)
@@ -40,7 +63,7 @@ def _pack(series_id: str) -> tuple[int, int]:
 def spend(series_id: str, episode_id: str) -> float:
     """What this episode has actually been charged for, live only."""
     total = 0.0
-    for row in store.list("costs", {"series_id": series_id, "episode_id": episode_id}):
+    for row in every("costs", {"series_id": series_id, "episode_id": episode_id}):
         if str(row.get("stage") or "").startswith("live/"):
             total += float(row.get("actual_usd") or row.get("estimated_usd") or 0.0)
     return round(total, 2)
@@ -57,7 +80,7 @@ def budget(series_id: str) -> float:
 
 def redone(series_id: str, episode_id: str) -> int:
     """Frames the quality check sent back. Each one is a picture paid for twice."""
-    return len([t for t in store.list("takes", {"series_id": series_id, "episode_id": episode_id})
+    return len([t for t in every("takes", {"series_id": series_id, "episode_id": episode_id})
                 if int(t.get("attempt") or 0) > 0])
 
 
@@ -88,7 +111,7 @@ def report(series_id: str, episode_id: str, job: dict | None = None) -> dict:
     started = _moment((job or {}).get("started_at"))
     if started and out["left"] and out["made"] >= 3 and (job or {}).get("state") == "running":
         elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-        done_here = max(1, len([t for t in store.list(
+        done_here = max(1, len([t for t in every(
             "takes", {"series_id": series_id, "episode_id": episode_id})
             if _moment(t.get("created_at")) and _moment(t["created_at"]) >= started]))
         each = elapsed / done_here

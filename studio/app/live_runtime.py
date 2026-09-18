@@ -34,6 +34,18 @@ def unexpired(row):
         return False
 
 
+def _file_digest(path: Path) -> str:
+    """The bytes on disk, named the way the manifest names them."""
+    digest = hashlib.sha256()
+    try:
+        with path.open('rb') as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b''):
+                digest.update(block)
+    except OSError:
+        return ''
+    return digest.hexdigest()
+
+
 class SeriesLease:
     def __init__(self, store, series_id, actor):
         self.store, self.series_id = store, series_id
@@ -128,20 +140,43 @@ class Checkpoint:
         return json.loads(obj['Body'].read())
 
     def restore(self):
+        """Bring the local directory to exactly what the checkpoint says.
+
+        This directory is a cache, never the authority after a process loss —
+        but a local file whose bytes hash to the checksum the manifest names
+        IS the checkpoint's own object, and fetching it again proves nothing.
+        Emptying the directory and pulling every object down on every start
+        meant a whole reference pack crossed the wire before the browser was
+        answered, and once the pack was large enough the request timed out at
+        the proxy with the run's fate unknown. It would have been hopeless at
+        video, where the objects are tens of times heavier.
+        """
         self.check()
         manifest = self.read()
-        # This directory is a cache, never the authority after a process loss.
-        if self.root.exists():
-            shutil.rmtree(self.root)
-        self.root.mkdir(parents=True)
+        root = self.root.resolve()
         if not manifest:
+            if self.root.exists():
+                shutil.rmtree(self.root)
+            self.root.mkdir(parents=True)
             return
+        self.root.mkdir(parents=True, exist_ok=True)
         old_root = manifest.get('root', str(self.root))
-        def restore_file(item):
-            name, info = item
+        wanted: dict[Path, dict] = {}
+        for name, info in manifest['files'].items():
             path = (self.root / name).resolve()
-            if not path.is_relative_to(self.root.resolve()):
+            if not path.is_relative_to(root):
                 raise ValueError('Invalid checkpoint path')
+            wanted[path] = info
+        # Whatever the manifest does not name is not part of this checkpoint.
+        # The directory must end up holding what the checkpoint says and
+        # nothing it happens to remember from before.
+        for path in list(self.root.rglob('*')):
+            if path.is_file() and path.resolve() not in wanted:
+                path.unlink()
+        def restore_file(item):
+            path, info = item
+            if path.is_file() and _file_digest(path) == info['sha256']:
+                return
             key = self.prefix + 'objects/' + info['sha256']
             data = self.client.get_object(Bucket=self.bucket, Key=key)['Body'].read()
             if hashlib.sha256(data).hexdigest() != info['sha256']:
@@ -153,7 +188,7 @@ class Checkpoint:
         # Only immutable, checksummed objects run concurrently. Paid requests,
         # state mutation and the conditional checkpoint commit remain serial.
         with ThreadPoolExecutor(max_workers=4) as pool:
-            list(pool.map(restore_file, manifest['files'].items()))
+            list(pool.map(restore_file, wanted.items()))
         self.check()
         self.files = manifest['files']
 

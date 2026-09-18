@@ -154,8 +154,22 @@ def test_parallel_restore_preserves_files_paths_and_detects_corruption(checkpoin
     other.restore()
     for i in range(8): assert (other.root/f'{i}.mp4').read_bytes() == bytes([i])*1000
     assert json.loads((other.root/'state.json').read_text())['path'] == str(other.root/'0.mp4')
+    # A restore either leaves bytes that match the manifest or it raises.
+    # An object it does not need to fetch cannot break that: the local file
+    # already hashes to what the manifest names, so it IS the checkpoint's
+    # object, and fetching it again would prove nothing.
     key = cp.prefix+'objects/'+cp.files['0.mp4']['sha256']; client.objects[key] = b'corrupt'
+    other.restore()
+    assert (other.root/'0.mp4').read_bytes() == bytes([0])*1000
+    # The moment it does have to fetch it, the corruption is caught.
+    (other.root/'0.mp4').unlink()
     with pytest.raises(ValueError, match='checksum'): other.restore()
+    # And a local file that no longer matches is replaced, never trusted.
+    client.objects[key] = bytes([0])*1000
+    other.restore()
+    (other.root/'0.mp4').write_bytes(b'damaged by a killed run')
+    other.restore()
+    assert (other.root/'0.mp4').read_bytes() == bytes([0])*1000
 
 
 # ── email, because a browser subscription is not where the producer lives ──

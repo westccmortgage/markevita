@@ -526,3 +526,53 @@ def test_a_gateway_failure_still_says_something():
         message = "Internal server error"
 
     assert _stated_reason(Gateway()) == "Internal server error"
+
+
+def test_an_input_link_is_re_signed_before_it_can_lapse(tmp_path, monkeypatch):
+    """A signed link outlived its own signature inside one run.
+
+    Input images are handed to the provider as signed links and the link was
+    signed for an hour, then cached for the life of the run. A reference pack
+    takes well over an hour, so everything asked for after the first hour was
+    sent a link the storage would refuse — and the refusal arrives as an
+    access error from a provider whose own logs show nothing wrong.
+    """
+    from serial.providers import InputPublisher
+
+    class R2:
+        enabled = True
+
+        def __init__(self):
+            self.puts, self.signs = 0, 0
+
+        def put(self, path, key):
+            self.puts += 1
+
+        def presign(self, key, seconds):
+            self.signs += 1
+            return f"https://storage.test/{key}?exp={seconds}&n={self.signs}"
+
+    r2 = R2()
+    cfg = type("C", (), {"dry_run": False, "provider_input_mode": "r2_presigned", "fal_key": "k"})()
+    publisher = InputPublisher(cfg, lambda _m: None, r2, "series/x")
+    image = tmp_path / "ref.png"
+    image.write_bytes(b"reference bytes")
+
+    clock = [1000.0]
+    monkeypatch.setattr("serial.providers.time.time", lambda: clock[0])
+
+    first = publisher.url(image, "references")
+    assert str(InputPublisher.LINK_SECONDS) in first
+    assert InputPublisher.LINK_SECONDS > 3600
+
+    clock[0] += 600                       # ten minutes later: the same link
+    assert publisher.url(image, "references") == first
+    assert r2.signs == 1 and r2.puts == 1
+
+    clock[0] += InputPublisher.REUSE_SECONDS   # long enough to be worth re-signing
+    fresh = publisher.url(image, "references")
+    assert fresh != first, "a link was reused past the point it could be trusted"
+    assert r2.signs == 2
+    assert r2.puts == 1, "the same bytes were uploaded again to re-sign them"
+    # And it is re-signed while the old one is still valid, never after.
+    assert InputPublisher.REUSE_SECONDS < InputPublisher.LINK_SECONDS

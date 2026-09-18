@@ -58,7 +58,13 @@ def fal_diagnostic(exc, request_id=None, phase="collect", what=""):
                       "This is not proof that a new submission would be refused. The saved "
                       "request is kept, and Resume re-reads it instead of paying again.")
         elif status == 403:
-            advice = "fal.ai denied access. Check the key permissions and model access in fal.ai."
+            # A run that had billed a hundred and fifty images that same day
+            # stopped here, and this sentence sent its producer to check key
+            # permissions that were provably fine. An exhausted balance is
+            # refused with this code, and that is where to look first.
+            advice = ("fal.ai denied access at submission. A key that has already been billed "
+                      "for work in this same run has the permissions it needs, so check the "
+                      "fal.ai balance first: an account out of credit is refused this way.")
         elif status == 429:
             advice = "fal.ai reported a request limit. Check the fal.ai request status before continuing."
         elif status == 422:

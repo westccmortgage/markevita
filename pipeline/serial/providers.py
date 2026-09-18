@@ -65,26 +65,37 @@ def fal_client_for(key: str):
 class InputPublisher:
     """Локальный файл -> URL, который примет провайдер. r2_presigned (spec §4) или fal_storage."""
 
+    # A signed link is handed to the provider to fetch, and it stops working
+    # when it expires. Cached for the life of a run, it outlived its own
+    # signature: a reference pack takes well over an hour, so everything asked
+    # for after the first hour was sent a link the storage would refuse. The
+    # link is signed for longer than any one request can take, and re-signed
+    # well before it could lapse.
+    LINK_SECONDS = 6 * 3600
+    REUSE_SECONDS = 4 * 3600
+
     def __init__(self, cfg, log, r2, key_prefix: str):
         self.cfg, self.log, self.r2, self.prefix = cfg, log, r2, key_prefix
-        self._cache: dict[str, str] = {}
+        self._cache: dict[str, tuple[float, str]] = {}
         self._client = None
 
     def url(self, path: Path, key_hint: str = "inputs") -> str:
         h = sha256(path)
-        if h in self._cache:
-            return self._cache[h]
+        signed_at, cached = self._cache.get(h, (0.0, ""))
+        if cached and time.time() - signed_at < self.REUSE_SECONDS:
+            return cached
         if self.cfg.dry_run:
             u = f"dry://{path.name}"
         elif self.cfg.provider_input_mode == "r2_presigned" and self.r2 and self.r2.enabled:
             key = f"{self.prefix}/{key_hint}/{h[:16]}{path.suffix.lower()}"
-            self.r2.put(path, key)
-            u = self.r2.presign(key, 3600)
+            if not cached:          # the bytes are already there on a re-sign
+                self.r2.put(path, key)
+            u = self.r2.presign(key, self.LINK_SECONDS)
         else:
             if self._client is None:
                 self._client = fal_client_for(self.cfg.fal_key)
             u = self._client.upload_file(str(path))
-        self._cache[h] = u
+        self._cache[h] = (time.time(), u)
         return u
 
 

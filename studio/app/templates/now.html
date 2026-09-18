@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Right now — Series Studio") }}{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>{{ _("Right now") }}</h1>
+  <p class="sub">{{ _("Everything in flight, on one screen. This page refreshes itself.") }}</p>
+</div></div>
+
+{% if rows %}
+  {% for row in rows %}
+    <div class="card">
+      <h2><a href="{{ base }}/jobs/{{ row.job.id }}">{{ row.job.series_id }} / {{ row.job.episode_id }}</a>
+        <span class="pill {{ 'gold' if row.job.state == 'running' else 'mute' }}">{{ (row.job.state)|ui }}</span></h2>
+      <dl class="kv">
+        <dt>{{ _("Stage") }}</dt>
+        <dd>{{ ((row.job.progress or {}).get('stage') or '—')|ui }}
+          {% if row.waiting_for %}<br><span class="small" style="color:#d9a441">{{ _("Waiting for you to approve the reference pack.") }}
+            <a href="{{ base }}/series/{{ row.job.series_id }}/references">{{ _("Open references") }}</a></span>{% endif %}</dd>
+        {% if row.progress.needed %}
+          <dt>{{ _("Reference images") }}</dt>
+          <dd><b>{{ row.progress.made }}</b> {{ _("of") }} {{ row.progress.needed }}{% if row.progress.left %} · {{ _("{count} still to go.", count=row.progress.left) }}{% endif %}</dd>
+        {% endif %}
+        {% if row.progress.minutes_left %}
+          <dt>{{ _("Time left, at this run's own pace") }}</dt><dd>≈ {{ row.progress.minutes_left }} {{ _("min") }}</dd>
+        {% endif %}
+        {% if row.progress.budget %}
+          <dt>{{ _("Spent on this episode") }}</dt><dd>${{ row.progress.spent }} {{ _("of") }} ${{ row.progress.budget }}</dd>
+        {% endif %}
+        {% if row.progress.redone %}
+          <dt>{{ _("Frames the quality check sent back") }}</dt><dd>{{ row.progress.redone }}</dd>
+        {% endif %}
+        {% if row.last_line %}
+          <dt>{{ _("Last sign of life") }}</dt><dd class="small mono">{{ row.last_line }}</dd>
+        {% endif %}
+      </dl>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="card"><div class="empty">{{ _("Nothing is running. Open an episode and press Resume to start.") }}</div></div>
+{% endif %}
+
+{% if recent %}
+  <div class="card">
+    <h2>{{ _("Just finished") }}</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>{{ _("Job") }}</th><th>{{ _("Episode") }}</th><th>{{ _("State") }}</th><th>{{ _("Finished") }}</th></tr></thead>
+      <tbody>{% for j in recent %}
+        <tr><td><a href="{{ base }}/jobs/{{ j.id }}" class="mono small">{{ j.id[:8] }}</a></td>
+          <td class="small">{{ j.episode_id }}</td>
+          <td><span class="pill {{ 'ok' if j.state == 'done' else ('bad' if j.state == 'failed' else 'mute') }}">{{ (j.state)|ui }}</span></td>
+          <td class="small muted">{{ j.finished_at|time }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </div>
+{% endif %}
+
+{# Only while something is actually working: a still page must not keep
+   asking the database what it already knows. #}
+{% if rows %}<meta http-equiv="refresh" content="30">{% endif %}
+{% endblock %}

@@ -23,6 +23,7 @@
       <a href="{{ base }}/series/{{ s.id }}/world" class="{{ 'on' if 'world' in request.url.path }}">{{ _("World") }}</a>
       <a href="{{ base }}/series/{{ s.id }}/references" class="{{ 'on' if 'references' in request.url.path }}">{{ _("References") }}</a>
     {% endif %}
+    <a href="{{ base }}/now" class="{{ 'on' if request.url.path == '/now' }}">{{ _("Right now") }}</a>
     <a href="{{ base }}/jobs" class="{{ 'on' if request.url.path.startswith('/jobs') }}">{{ _("Jobs") }}</a>
     <a href="{{ base }}/notifications" class="{{ 'on' if '/notifications' in request.url.path }}">{{ _("Notifications") }}</a>
     <a href="{{ base }}/costs" class="{{ 'on' if request.url.path == '/costs' }}">{{ _("Costs") }}</a>

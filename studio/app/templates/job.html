@@ -8,6 +8,32 @@
   <span class="pill {{ 'ok' if job.state == 'done' else ('bad' if job.state == 'failed' else ('gold' if job.state == 'running' else 'mute')) }}">{{ (job.state)|ui }}</span>
 </div></div>
 
+{% if progress and (progress.needed or progress.spent) %}
+<div class="card" id="live-progress">
+  <h2>{{ _("Where this run has got to") }}</h2>
+  <dl class="kv">
+    {% if progress.needed %}
+      <dt>{{ _("Reference images") }}</dt>
+      <dd><b>{{ progress.made }}</b> {{ _("of") }} {{ progress.needed }}{% if progress.left %} · {{ _("{count} still to go.", count=progress.left) }}{% endif %}</dd>
+    {% endif %}
+    {% if progress.minutes_left %}
+      <dt>{{ _("Time left, at this run's own pace") }}</dt>
+      <dd>≈ {{ progress.minutes_left }} {{ _("min") }}{% if progress.cost_left %} · ≈ ${{ progress.cost_left }}{% endif %}</dd>
+    {% elif progress.cost_left %}
+      <dt>{{ _("Still to pay for") }}</dt><dd>≈ ${{ progress.cost_left }}</dd>
+    {% endif %}
+    {% if progress.budget %}
+      <dt>{{ _("Spent on this episode") }}</dt>
+      <dd>${{ progress.spent }} {{ _("of") }} ${{ progress.budget }}</dd>
+    {% endif %}
+    {% if progress.redone %}
+      <dt>{{ _("Frames the quality check sent back") }}</dt>
+      <dd>{{ progress.redone }} <span class="small muted">{{ _("— each one is a picture paid for twice") }}</span></dd>
+    {% endif %}
+  </dl>
+</div>
+{% endif %}
+
 {% if reference_review %}
 <section class="card" aria-labelledby="reference-review-title">
   <h2 id="reference-review-title">{{ _("References are ready for your review") }}</h2>
@@ -64,6 +90,39 @@
 <div class="card">
   <h2>{{ _("Job log") }}</h2>
   <p class="hint">{{ _("Provider diagnostics below are shown in their original language.") }}</p>
-  {% if job.log %}<pre>{{ job.log }}</pre>{% else %}<div class="empty">{{ _("No log output.") }}</div>{% endif %}
+  {% if job.log %}<pre id="job-log">{{ job.log }}</pre>{% else %}<div class="empty" id="job-log">{{ _("No log output.") }}</div>{% endif %}
+  <p class="small muted" id="job-live" hidden>{{ _("This page is following the run; new lines appear on their own.") }}</p>
 </div>
+
+{# A run showed nothing until the page was reloaded by hand, so waiting and
+   dying looked identical. This follows the log while the job is working and
+   stops the moment it settles; the page never reloads under the reader. #}
+<script>
+(function () {
+  var state = {{ job.state|tojson }};
+  if (state !== "running" && state !== "queued" && state !== "pausing") return;
+  var log = document.getElementById("job-log");
+  var note = document.getElementById("job-live");
+  var url = {{ (base ~ "/api/jobs/" ~ job.id)|tojson }};
+  if (note) note.hidden = false;
+  var stop = function () { if (note) note.hidden = true; };
+  var tick = function () {
+    fetch(url, {credentials: "same-origin", headers: {"Accept": "application/json"}})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var job = data && data.job;
+        if (!job) { stop(); return; }
+        if (log && typeof job.log === "string" && job.log !== log.textContent) {
+          var atEnd = Math.abs(log.scrollHeight - log.scrollTop - log.clientHeight) < 40;
+          log.textContent = job.log;
+          if (atEnd) log.scrollTop = log.scrollHeight;
+        }
+        if (job.state !== state) { stop(); window.location.reload(); return; }
+        window.setTimeout(tick, 5000);
+      })
+      .catch(function () { window.setTimeout(tick, 15000); });
+  };
+  window.setTimeout(tick, 5000);
+})();
+</script>
 {% endblock %}

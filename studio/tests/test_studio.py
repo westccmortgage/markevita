@@ -713,3 +713,68 @@ def test_a_dropped_connection_is_asked_again_and_a_refusal_is_not(monkeypatch):
         supa._retrying(wrapped)
     assert supa._is_transport(httpx.ConnectTimeout("slow"))
     assert not supa._is_transport(ValueError("no"))
+
+
+def test_a_run_in_flight_reports_what_it_has_made_and_what_it_cost(isolated_store, monkeypatch):
+    """An evening's honest summary was "I do not know whether it is working".
+
+    All of it was recorded and none of it was on a screen: how many pictures
+    were made, how many were still owed, what had been charged against what
+    was approved, how much of it was the quality check asking again.
+    """
+    from app import progress
+
+    monkeypatch.setattr(progress, "store", isolated_store, raising=False)
+    monkeypatch.setattr(progress, "_pack", lambda series_id: (9, 14))
+    monkeypatch.setattr(progress, "budget", lambda series_id: 200.0)
+    for stage, actual in (("live/ref", 4.0), ("live/ref", 2.5), ("clip_preview", 99.0)):
+        isolated_store.insert("costs", {"series_id": SERIES, "episode_id": "s01e04",
+                                        "stage": stage, "actual_usd": actual})
+    for take_id, attempt in (("t0", 0), ("t1", 1), ("t2", 2), ("t3", 0)):
+        isolated_store.upsert("takes", {"series_id": SERIES, "episode_id": "s01e04",
+                                        "take_id": take_id, "attempt": attempt})
+
+    out = progress.report(SERIES, "s01e04", {"state": "paused"})
+    assert (out["made"], out["needed"], out["left"]) == (9, 14, 5)
+    assert out["spent"] == 6.5, "a simulated preview was counted as real money"
+    assert out["budget"] == 200.0
+    assert out["redone"] == 2
+    assert out["cost_left"] and out["cost_left"] > 0
+    # No guess at a finish time for a run that is not running.
+    assert out["minutes_left"] is None
+
+
+def test_the_estimate_comes_from_this_run_s_own_pace(isolated_store, monkeypatch):
+    """A guessed number is worse than none: it is believed."""
+    from datetime import datetime, timedelta, timezone
+    from app import progress
+
+    monkeypatch.setattr(progress, "store", isolated_store, raising=False)
+    monkeypatch.setattr(progress, "_pack", lambda series_id: (10, 20))
+    monkeypatch.setattr(progress, "budget", lambda series_id: 200.0)
+    started = datetime.now(timezone.utc) - timedelta(minutes=20)
+    for i in range(10):
+        isolated_store.upsert("takes", {
+            "series_id": SERIES, "episode_id": "s01e04", "take_id": f"t{i}", "attempt": 0,
+            "created_at": (started + timedelta(minutes=i)).isoformat()})
+
+    job = {"state": "running", "started_at": started.isoformat()}
+    out = progress.report(SERIES, "s01e04", job)
+    # Twenty minutes for ten pictures, ten still owed: about twenty minutes.
+    assert 15 <= out["minutes_left"] <= 25, out["minutes_left"]
+
+    # Too few made for a pace to mean anything yet, so it says nothing.
+    monkeypatch.setattr(progress, "_pack", lambda series_id: (1, 20))
+    assert progress.report(SERIES, "s01e04", job)["minutes_left"] is None
+
+
+def test_a_broken_number_never_takes_the_page_down(isolated_store, monkeypatch):
+    """This is a status screen: it must survive anything it reads."""
+    from app import progress
+
+    monkeypatch.setattr(progress, "store", isolated_store, raising=False)
+    for name in ("_pack", "budget", "spend", "redone"):
+        monkeypatch.setattr(progress, name,
+                            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no")))
+    out = progress.report(SERIES, "s01e04", {"state": "running"})
+    assert out["needed"] == 0 and out["spent"] == 0.0 and out["minutes_left"] is None

@@ -28,6 +28,22 @@
     {{ _("{count} image(s) from earlier versions of the bible are kept but not shown: they are not what the next episode uses.", count=superseded) }}</div>
 {% endif %}
 
+{% if needed %}
+  <div class="notice {{ 'ok' if not missing else '' }}">
+    <b>{{ _("{made} of {needed} reference images are made.", made=needed - missing|length, needed=needed) }}</b>
+    {% if missing %}
+      {{ _("{count} still to go.", count=missing|length) }}
+      <div class="small muted" style="margin-top:6px">
+        {% for owner, rows in missing|groupby("owner") %}
+          <code>{{ owner }}</code>: {{ rows|map(attribute="name")|join(", ") }}{% if not loop.last %} · {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ _("Nothing is missing.") }}
+    {% endif %}
+  </div>
+{% endif %}
+
 <div class="card">
   <h2>{{ _("Reference images: {count}", count=total) }}</h2>
   {% if grouped %}

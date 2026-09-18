@@ -135,10 +135,25 @@ def test_collect_403_says_the_request_was_already_accepted():
     assert "PRIVATE_PROVIDER_TEXT" not in message
 
 
-def test_submit_403_keeps_the_permissions_advice():
+def test_submit_403_points_at_the_balance_not_at_the_key():
+    """A run that had billed a hundred and fifty images that day stopped here.
+
+    The advice sent its producer to check key permissions, which the provider's
+    own billing proved were fine, while the account sat at zero credit — which
+    is what fal.ai refuses with this code. A refusal must send someone to the
+    one place the answer is.
+    """
     message = fal_diagnostic(_Exc(_response(403)), phase="submit")["message"]
-    assert "key permissions and model access" in message
-    assert "already accepted" not in message
+    assert "balance" in message
+    assert "permissions it needs" in message, "it still blames the key"
+    assert "already accepted" not in message, "nothing was accepted; this is the submission"
+
+
+def test_submit_403_has_a_russian_translation():
+    ru = json.loads((STUDIO / "app" / "locales" / "ru.json").read_text())
+    advice = fal_diagnostic(_Exc(_response(403)), phase="submit")["message"].split(": ", 1)[1]
+    assert advice in ru
+    assert "баланс" in ru[advice]
 
 
 def test_collect_403_has_a_russian_translation():

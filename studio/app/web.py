@@ -1047,13 +1047,30 @@ def references_page(request: Request, series_id: str):
     # not the version the last run happened to leave behind. The screen showed
     # a pack as current and offered Approve; approving then answered "generate
     # the pack for the current settings first", because the two disagreed.
+    # What the engine will ask for, and what is still missing from it. The
+    # screen counted the images that exist and never said how many there
+    # should be, so a pack that stopped a third of the way in looked the same
+    # as a finished one, and the only way to find out was to press Approve and
+    # be refused.
+    missing: list[dict] = []
+    needed = 0
     try:
+        from serial import reference_reuse
         from serial.package import SeriesPackage
         from .packaging import materialize
-        wanted = SeriesPackage(materialize(series_id)).reference_version
+        pkg = SeriesPackage(materialize(series_id))
+        wanted = pkg.reference_version
+        made = {(r.get("kind"), r.get("owner_id"), r.get("name")) for r in refs}
+        for kind, owners in reference_reuse.expected(pkg).items():
+            for owner, names in owners.items():
+                for name in names:
+                    needed += 1
+                    if (kind, owner, name) not in made:
+                        missing.append({"kind": kind, "owner": owner, "name": name})
     except Exception:
         wanted = current
     return render(request, "references.html", s=s, grouped=grouped, total=len(refs),
+                  needed=needed, missing=missing,
                   bible_version=current, superseded=len(superseded), locked=locked,
                   wanted_version=wanted, stale=bool(wanted and current and wanted != current),
                   csrf_token=_csrf_token(request, require_admin(request)),
@@ -1256,9 +1273,11 @@ def job_page(request: Request, job_id: str):
     already_released = bool(refused_request and store.list("approvals", {
         "series_id": job["series_id"], "episode_id": job["episode_id"],
         "subject_type": "fal_request_unreachable", "subject_id": refused_request}))
+    from . import progress as _progress
     return render(request, "job.html", job=job, reference_review=reference_review,
                   completed_stages=completed_stages, refused_request=refused_request,
                   already_released=already_released,
+                  progress=_progress.report(job["series_id"], job["episode_id"], job),
                   s=store.get("series", {"id": job["series_id"]}))
 
 
@@ -1289,6 +1308,32 @@ def release_saved_request(request: Request, job_id: str, request_id: str = Form(
     history(job["series_id"], job["episode_id"], "fal.request_released",
             entity_type="fal_request", entity_id=request_id, actor=a["email"], detail={"note": note})
     return _redirect(back, ok="Recorded. Open the episode and click Resume to generate that one take again.")
+
+
+@router.get("/now", response_class=HTMLResponse)
+def now_page(request: Request):
+    """One screen that answers "is anything happening, and how far has it got".
+
+    The answer was spread over three pages and a log that had to be reloaded
+    by hand, so the honest summary of an evening was "I do not know whether it
+    is working". A run that is alive says so here, with what it has made and
+    what it has cost; one that stopped says why.
+    """
+    require_admin(request)
+    from . import progress as _progress
+    live = [j for j in store.list("production_jobs", {"mode": "live"},
+                                  order="created_at", desc=True)
+            if j.get("state") in ("running", "queued", "pausing", "paused", "interrupted")]
+    rows = []
+    for job in live[:6]:
+        rows.append({"job": job,
+                     "progress": _progress.report(job["series_id"], job["episode_id"], job),
+                     "waiting_for": (job.get("progress") or {}).get("waiting_for") or "",
+                     "last_line": ((job.get("log") or "").strip().splitlines() or [""])[-1]})
+    recent = [j for j in store.list("production_jobs", {"mode": "live"},
+                                    order="created_at", desc=True)
+              if j.get("state") in ("failed", "done", "cancelled")][:5]
+    return render(request, "now.html", rows=rows, recent=recent)
 
 
 @router.get("/integrations", response_class=HTMLResponse)

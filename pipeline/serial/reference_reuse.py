@@ -141,8 +141,14 @@ def _legacy_matches(pkg, state, version, package_version=True):
         for k in ("aspect_ratio", "width", "height"))
 
 
-def _verified_pack(pkg, refs, root, version, approved=False):
-    """Require every expected image, its original version and its actual bytes."""
+def expected(pkg):
+    """Every picture a complete reference pack holds, by owner.
+
+    The studio always knew this — it is how a recovered pack is verified —
+    but only ever showed how many images exist, never how many there should
+    be. A producer watching a count climb has no way to tell a pack that is
+    finished from one that stopped a third of the way in.
+    """
     wanted = {"characters": {}, "locations": {}, "props": {}}
     for cid, c in pkg.characters.items():
         if c["visual"]:
@@ -151,6 +157,12 @@ def _verified_pack(pkg, refs, root, version, approved=False):
                                            if key.startswith("fullbody") for variant in c["wardrobe"]["variants"]]
     wanted["locations"] = {lid: [key for key, _ in prompts.LOCATION_PACK] for lid in pkg.locations}
     wanted["props"] = {pid: [pid] for pid in pkg.props}
+    return wanted
+
+
+def _verified_pack(pkg, refs, root, version, approved=False):
+    """Require every expected image, its original version and its actual bytes."""
+    wanted = expected(pkg)
     result = {"characters": {}, "locations": {}, "props": {}}
     try:
         for kind, owners in wanted.items():

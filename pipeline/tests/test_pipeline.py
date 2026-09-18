@@ -446,3 +446,56 @@ def test_the_queue_wait_gives_up_instead_of_running_forever(monkeypatch, cfg):
     assert not isinstance(object(), fal_client.Completed)
     with pytest.raises(RuntimeError, match="still unfinished"):
         fal._wait("fal-ai/nano-banana-2/edit", "req-1")
+
+
+def test_a_reference_sheet_is_shrunk_before_the_model_is_asked_about_it(tmp_path):
+    """A 2K picture from the image model is refused outright at full size.
+
+    The provider takes at most five megabytes for one image, and a QC call
+    carries the whole reference pack plus the candidate. Sending the original
+    bytes ended the references stage with a bare BadRequestError after the
+    images had been generated and paid for. The model resizes anything larger
+    than its own limit before looking at it, so nothing is lost by doing it
+    here.
+    """
+    import base64
+    import io
+    import os
+    from PIL import Image
+    from serial.llm import _img_block, QC_IMAGE_EDGE
+
+    original = tmp_path / "ref.png"
+    Image.frombytes("RGB", (2048, 2048), os.urandom(2048 * 2048 * 3)).save(original)
+    assert original.stat().st_size > 5_000_000
+
+    block = _img_block(original)
+    sent = base64.b64decode(block["source"]["data"])
+    assert block["source"]["media_type"] == "image/jpeg"
+    assert len(sent) < 5_000_000
+    assert max(Image.open(io.BytesIO(sent)).size) == QC_IMAGE_EDGE
+
+
+def test_a_transparent_reference_does_not_turn_black(tmp_path):
+    """JPEG has no alpha; dropping the channel would black out the backdrop."""
+    import base64
+    import io
+    from PIL import Image
+    from serial.llm import _img_block
+
+    cutout = tmp_path / "cutout.png"
+    Image.new("RGBA", (64, 64), (255, 255, 255, 0)).save(cutout)
+    sent = base64.b64decode(_img_block(cutout)["source"]["data"])
+    assert Image.open(io.BytesIO(sent)).convert("RGB").getpixel((0, 0)) > (200, 200, 200)
+
+
+def test_a_refused_request_carries_the_service_s_own_sentence():
+    """"BadRequestError. Production stopped." names nothing that can be fixed."""
+    from serial.llm import ModelRejected, _stated_reason
+
+    class Refused(Exception):
+        body = {"type": "error", "error": {"type": "invalid_request_error",
+                                           "message": "image exceeds 5 MB maximum"}}
+
+    assert _stated_reason(Refused()) == "image exceeds 5 MB maximum"
+    assert _stated_reason(Exception("no body at all")) == ""
+    assert issubclass(ModelRejected, RuntimeError)

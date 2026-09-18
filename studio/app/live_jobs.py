@@ -15,6 +15,7 @@ from .packaging import materialize
 from .live_runtime import Checkpoint, SeriesLease, unexpired
 from .live_providers import DurableFal
 from .provider_errors import ProviderFailure
+from serial.llm import ModelRejected
 from . import preflight
 from serial.config import Config, DEFAULT_VIDEO_MODEL, VIDEO_MODELS
 from serial.package import SeriesPackage, validate_episode
@@ -425,7 +426,7 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         except Exception:
             pass
         # Keep provider payloads/tokens out of the UI. Details are in private checkpoints.
-        if isinstance(exc, (ValueError, PermissionError, ProviderFailure)):
+        if isinstance(exc, (ValueError, PermissionError, ProviderFailure, ModelRejected)):
             message = str(exc)
         else:
             advice = runner.explain(type(exc).__name__ + ': ' + str(exc))

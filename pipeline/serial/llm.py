@@ -13,10 +13,55 @@ def _strip_fences(text: str) -> str:
     return text.strip()
 
 
+# The model resizes anything larger than this before it looks at it, so
+# sending more than this buys no accuracy — only tokens, and a request that
+# can be refused outright. A reference sheet from the picture model arrives
+# far above it: one 2K PNG passes the provider's five-megabyte limit for a
+# single image on its own, and a QC call carries the whole reference pack
+# plus the candidate. That is a 400 in the middle of the references stage,
+# after the images have been generated and paid for.
+QC_IMAGE_EDGE = 1568
+QC_IMAGE_QUALITY = 85
+
+
 def _img_block(path: Path) -> dict:
-    ext = path.suffix.lower().lstrip(".")
-    media = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[ext]
-    return {"type": "image", "source": {"type": "base64", "media_type": media, "data": base64.standard_b64encode(path.read_bytes()).decode()}}
+    from io import BytesIO
+    from PIL import Image
+    with Image.open(path) as im:
+        im.load()
+        if im.mode not in ("RGB", "L"):
+            # JPEG has no alpha; a transparent background becomes white rather
+            # than the black that dropping the channel would leave behind.
+            flat = Image.new("RGB", im.size, (255, 255, 255))
+            rgba = im.convert("RGBA")
+            flat.paste(rgba, mask=rgba.split()[3])
+            im = flat
+        if max(im.size) > QC_IMAGE_EDGE:
+            scale = QC_IMAGE_EDGE / max(im.size)
+            im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))),
+                           Image.LANCZOS)
+        buf = BytesIO()
+        im.convert("RGB").save(buf, format="JPEG", quality=QC_IMAGE_QUALITY)
+    return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                        "data": base64.standard_b64encode(buf.getvalue()).decode()}}
+
+
+class ModelRejected(RuntimeError):
+    """The model service refused the request and said why.
+
+    The refusal reads "BadRequestError. Production stopped." on the job page
+    unless the sentence the service gave is carried out with it, which leaves
+    the one fact that identifies the fault — an image over the size limit, a
+    context that does not fit — in a log nobody sees.
+    """
+
+
+def _stated_reason(exc) -> str:
+    """The service's own sentence, and nothing else from the exchange."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    return str(message)[:400] if message else ""
 
 
 class LLM:
@@ -49,6 +94,15 @@ class LLM:
         return message
 
     def _create(self, system, content, max_tokens):
+        try:
+            return self._attempt(system, content, max_tokens)
+        except Exception as exc:
+            reason = _stated_reason(exc)
+            if reason:
+                raise ModelRejected(f"{type(exc).__name__}: {reason}") from exc
+            raise
+
+    def _attempt(self, system, content, max_tokens):
         params = dict(model=self.cfg.anthropic_model, max_tokens=max_tokens, system=system,
                       messages=[{"role": "user", "content": content}])
         guard = getattr(self.cfg, "paid_calls", None)

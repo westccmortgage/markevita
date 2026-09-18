@@ -56,11 +56,17 @@ class ModelRejected(RuntimeError):
     """
 
 
+TRANSIENT_ATTEMPTS = 4
+
+
 def _stated_reason(exc) -> str:
     """The service's own sentence, and nothing else from the exchange."""
     body = getattr(exc, "body", None)
     error = body.get("error") if isinstance(body, dict) else None
     message = error.get("message") if isinstance(error, dict) else None
+    # A gateway failure answers with something that is not the service's own
+    # JSON, and then the only sentence there is hangs off the exception.
+    message = message or getattr(exc, "message", "")
     return str(message)[:400] if message else ""
 
 
@@ -72,7 +78,14 @@ class LLM:
         self.calls = 0
         if not cfg.dry_run:
             import anthropic
-            self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key, max_retries=0, timeout=180)
+            # A five-hundred from the service, a moment of overload or a
+            # dropped connection is not a decision about this request, and it
+            # is not worth a twenty-minute run that has already paid for nine
+            # reference images. The client retries only what is safe to retry
+            # — 408, 409, 429 and 5xx — and backs off between attempts;
+            # anything the service actually decided still comes straight back.
+            self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key,
+                                              max_retries=TRANSIENT_ATTEMPTS, timeout=180)
 
     def _message(self, params):
         """One completed reply, streamed.

@@ -186,3 +186,52 @@ def test_a_moved_target_says_what_moved(previous):
 
     # A pack made before this was recorded says so rather than guessing.
     assert reference_reuse.changed_parts(SeriesPackage(source), None) == []
+
+
+def test_the_pack_s_version_stands_still_while_the_story_moves(previous):
+    """The one question that would have caught four defects in a row.
+
+    Every one of them was the same shape: the studio chases a target that its
+    own actions move. Production stops to ask for the reference pack to be
+    approved; approving it answers "generate the pack for the current settings
+    first"; generating it arrives at a version that has moved again. Three
+    versions of one series moved that way in an evening, and none of the code
+    read wrongly on its own — each function was correct and the loop was not.
+
+    So this asks the loop's question directly: writing the series must not
+    change what its characters look like. Only the look may do that.
+    """
+    source, _, old, _, _ = previous
+    stable = old.reference_version
+
+    def reopened():
+        return SeriesPackage(source).reference_version
+
+    # Opening an episode.
+    series = json.loads((source / "series.json").read_text())
+    series["seasons"][0]["episodes"].append("s01e01_v2")
+    write(source / "series.json", series)
+    assert reopened() == stable, "opening an episode redrew everybody"
+
+    # Telling it in another language.
+    series["language"] = "ru-RU"
+    write(source / "series.json", series)
+    assert reopened() == stable, "a spoken language redrew everybody"
+
+    # Renaming the series.
+    series["title"] = "Another Title Entirely"
+    write(source / "series.json", series)
+    assert reopened() == stable, "a title redrew everybody"
+
+    # Casting a voice.
+    path = source / "bible" / "characters.json"
+    chars = json.loads(path.read_text())
+    chars[0].setdefault("voice", {})["language"] = "ru-RU"
+    write(path, chars)
+    assert reopened() == stable, "a voice redrew everybody"
+
+    # And the look still does move it, or none of the above means anything.
+    style = json.loads((source / "bible" / "style.json").read_text())
+    style["style_sentence"] = style["style_sentence"] + " Shot at dusk."
+    write(source / "bible" / "style.json", style)
+    assert reopened() != stable, "a change of style left the pack unchanged"

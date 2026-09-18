@@ -89,3 +89,75 @@ def run(client) -> list[dict]:
         results.append({"path": path, "status": response.status_code, "ok": ok,
                         "detail": "" if ok else response.text[:200], "where": ""})
     return results
+
+
+# Writing the series must not change what its characters look like. Every
+# defect that kept an episode from being produced this evening was the same
+# shape: the studio chases a target its own actions move. Production stops to
+# ask for the reference pack to be approved; approving it answers "generate
+# the pack for the current settings first"; generating it arrives at a version
+# that has moved again. None of the code read wrongly on its own — each
+# function was correct and the loop was not. So the loop's question is asked
+# here, on the real series, where an operator can see the answer.
+CONVERGENCE = [
+    ("opening another episode", "episodes"),
+    ("telling it in another language", "language"),
+    ("renaming the series", "title"),
+    ("casting a voice", "voice"),
+]
+
+
+def _bend(root, change):
+    """Make the one edit, on a copy, without touching the real package."""
+    import json
+    if change in ("episodes", "language", "title"):
+        path = root / "series.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if change == "episodes" and data.get("seasons"):
+            data["seasons"][0].setdefault("episodes", []).append("selfcheck_probe")
+        elif change == "language":
+            data["language"] = "xx-XX" if data.get("language") != "xx-XX" else "yy-YY"
+        else:
+            data["title"] = (data.get("title") or "") + " (probe)"
+    else:
+        path = root / "bible" / "characters.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not data:
+            return False
+        data[0].setdefault("voice", {})["language"] = "xx-XX"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    return True
+
+
+def convergence(series_id: str) -> list[dict]:
+    """Confirm the reference pack's version stands still while the story moves."""
+    import shutil
+    import tempfile
+    from pathlib import Path as _Path
+    from serial.package import SeriesPackage
+    from .packaging import materialize
+
+    results = []
+    try:
+        source = materialize(series_id)
+        stable = SeriesPackage(source).reference_version
+    except Exception as exc:                                       # noqa: BLE001
+        return [{"change": "reading the series", "ok": False,
+                 "detail": f"{type(exc).__name__}: {str(exc)[:160]}"}]
+    for label, change in CONVERGENCE:
+        work = _Path(tempfile.mkdtemp(prefix="selfcheck-converge-"))
+        try:
+            root = work / "package"
+            shutil.copytree(source, root)
+            if not _bend(root, change):
+                continue
+            moved = SeriesPackage(root).reference_version
+            results.append({"change": label, "ok": moved == stable,
+                            "detail": "" if moved == stable else
+                                      f"redrew everybody: {stable} -> {moved}"})
+        except Exception as exc:                                   # noqa: BLE001
+            results.append({"change": label, "ok": False,
+                            "detail": f"{type(exc).__name__}: {str(exc)[:160]}"})
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+    return results

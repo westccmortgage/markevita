@@ -499,3 +499,30 @@ def test_a_refused_request_carries_the_service_s_own_sentence():
     assert _stated_reason(Refused()) == "image exceeds 5 MB maximum"
     assert _stated_reason(Exception("no body at all")) == ""
     assert issubclass(ModelRejected, RuntimeError)
+
+
+def test_one_bad_minute_at_the_service_does_not_end_the_run():
+    """A five-hundred is not a decision about the request.
+
+    The client was built with no retries at all, so a moment of overload at
+    the service ended a run that had already generated and paid for nine
+    reference images. The SDK retries only what is safe to retry and backs
+    off; a refusal the service actually made still comes straight back.
+    """
+    import inspect
+    from serial import llm
+
+    source = inspect.getsource(llm.LLM.__init__)
+    assert "max_retries=TRANSIENT_ATTEMPTS" in source
+    assert llm.TRANSIENT_ATTEMPTS >= 3
+
+
+def test_a_gateway_failure_still_says_something():
+    """Its answer is not the service's JSON, so the sentence is on the error."""
+    from serial.llm import _stated_reason
+
+    class Gateway(Exception):
+        body = "<html>502 Bad Gateway</html>"
+        message = "Internal server error"
+
+    assert _stated_reason(Gateway()) == "Internal server error"

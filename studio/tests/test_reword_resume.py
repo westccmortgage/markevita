@@ -297,3 +297,53 @@ def test_the_plan_is_made_again_from_the_corrected_bible():
     assert "intake" not in state.data["stages"] and "direction" not in state.data["stages"]
     assert state.data["stages"]["references"] == "done"
     assert state.saved == 1
+
+
+# ── settings that only decide how the finished episode is packaged ─────────
+
+from app.live_jobs import generated_shape  # noqa: E402
+
+BRIEF = {"language": "en-US", "aspect_ratio": "9:16", "width": 1080, "height": 1920,
+         "captions": "both", "music": "off", "bible_version": "aaaaaaaaaaaa",
+         "total_seconds": 4, "scenes": SCENES}
+
+
+def _shape(checksums=CHECKSUMS, brief=None, scenes=SCENES, with_words=True):
+    return generated_shape(checksums, brief or BRIEF, scenes, EPISODE, with_words)
+
+
+def test_turning_music_on_is_the_same_production():
+    """The producer was told to set this before resuming, and it stranded an
+    episode whose 28 scenes were already shot."""
+    after = {**BRIEF, "music": "generate", "captions": "none"}
+    assert _shape(brief=after) == _shape()
+
+
+def test_rehashing_the_series_file_is_the_same_production():
+    """The stored digest is a hash of whatever the code hashed that day. When
+    the recipe changed, every episode in production read as a different
+    script; this comparison is recomputed from both sides instead."""
+    rehashed = {**CHECKSUMS, "series.json": "a-different-way-of-hashing"}
+    assert _shape(checksums=rehashed) == _shape(checksums={**CHECKSUMS, "series.json": "raw"})
+
+
+def test_a_different_aspect_ratio_is_not_the_same_production():
+    """It is read from the brief precisely because series.json is left out."""
+    assert _shape(brief={**BRIEF, "aspect_ratio": "16:9"}) != _shape()
+
+
+def test_a_changed_bible_is_not_the_same_production():
+    assert _shape(checksums={**CHECKSUMS, "bible/characters.json": "zzz"}) != _shape()
+
+
+def test_a_reworded_line_is_a_changed_production_until_the_words_are_dropped():
+    scenes = copy.deepcopy(SCENES)
+    scenes[0]["dialogue"][0]["text"] = "Your name is on it."
+    assert _shape(scenes=scenes) != _shape()
+    assert _shape(scenes=scenes, with_words=False) == _shape(with_words=False)
+
+
+def test_a_changed_action_is_not_the_same_production_either_way():
+    scenes = _edited(action="She burns the list.")
+    assert _shape(scenes=scenes) != _shape()
+    assert _shape(scenes=scenes, with_words=False) != _shape(with_words=False)

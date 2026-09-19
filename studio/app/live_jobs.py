@@ -79,6 +79,36 @@ def spoken_words_removed(checksums, scenes, episode_id):
                                      sort_keys=True, default=str).encode()).hexdigest()
 
 
+# What the episode itself declares that decides generation. The rest of the
+# brief is bookkeeping (ids, totals) or a digest of its own.
+BRIEF_STRUCTURE = ('language', 'aspect_ratio', 'width', 'height')
+
+
+def generated_shape(checksums, brief, scenes, episode_id, with_words=True):
+    """Digest of everything that decides what gets generated, and nothing else.
+
+    Compared instead of the stored input digest, because that digest is a hash
+    of whatever the code hashed on the day it was written: the moment the
+    recipe changed, every episode already in production read as a different
+    script and could not be resumed. This is computed the same way from both
+    sides, here and now.
+
+    series.json is left out and its generation-relevant contents — the format
+    and the language — are taken from the brief instead, where the saved copy
+    also has them. The bible and style files keep their own checksums.
+    """
+    files = {k: v for k, v in (checksums or {}).items()
+             if episode_id not in k and k != 'series.json'}
+    head = {f: (brief or {}).get(f) for f in BRIEF_STRUCTURE}
+    line_fields = LINE_STRUCTURE + (('text',) if with_words else ())
+    shape = [{**{f: scene.get(f) for f in SCENE_STRUCTURE},
+              'dialogue': [{f: line.get(f) for f in line_fields}
+                           for line in scene.get('dialogue', [])]}
+             for scene in scenes]
+    return hashlib.sha256(json.dumps({'files': files, 'brief': head, 'scenes': shape},
+                                     sort_keys=True, default=str).encode()).hexdigest()
+
+
 def drop_voice_work(state):
     """Forget spoken audio so it is made again from the new wording.
 
@@ -403,11 +433,22 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
                                 ss.data['episodes'].get(prev, {}).get('end_state') if prev else None, cfg)
         prior = old.data.get('live_input_digest')
         if prior and prior != actual_digest:
-            saved = (old.data.get('episode') or {}).get('scenes')
-            reworded = bool(saved) and (
-                spoken_words_removed(old.data.get('package_checksums'), saved, episode_id)
-                == spoken_words_removed(pkg.checksums, norm['scenes'], episode_id))
-            if reworded:
+            saved_brief = old.data.get('episode') or {}
+            saved = saved_brief.get('scenes')
+
+            def _same(with_words):
+                return bool(saved) and (
+                    generated_shape(old.data.get('package_checksums'), saved_brief, saved,
+                                    episode_id, with_words)
+                    == generated_shape(pkg.checksums, norm, norm['scenes'],
+                                       episode_id, with_words))
+
+            if _same(with_words=True):
+                # Only how the finished episode is packaged has moved —
+                # subtitles, music. Nothing generated contradicts it, and
+                # nothing generated needs to be made again.
+                pass
+            elif _same(with_words=False):
                 # Speech is remade from the new wording. References, keyframes
                 # and video stay: they were generated from the visible action.
                 drop_voice_work(old)

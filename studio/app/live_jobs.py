@@ -33,7 +33,13 @@ def runtime_root():
 
 
 def package_digest(pkg, episode_id):
-    content = {'files': pkg.checksums, 'brief': pkg.load_episode(episode_id)}
+    # Subtitles and music decide only how the finished episode is packaged, so
+    # they stay out of the digest that guards already-generated work. Changing
+    # one of them mid-episode used to read as a different script and refuse the
+    # resume, with the video for all 28 scenes already shot and paid for.
+    from serial.package import FINISHING_SETTINGS
+    brief = {k: v for k, v in pkg.load_episode(episode_id).items() if k not in FINISHING_SETTINGS}
+    content = {'files': pkg.checksums, 'brief': brief}
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
 

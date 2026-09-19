@@ -60,6 +60,21 @@ def file_sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# Settings that decide only how a finished episode is packaged, never what is
+# generated. They are kept out of every checksum: hashing the raw series file
+# put subtitles and music into the bible version and into the episode's input
+# digest, so turning music on stranded an episode whose video was already shot
+# and would have ordered the entire reference pack drawn again.
+FINISHING_SETTINGS = ("captions", "music", "music_beds")
+
+
+def series_sha(series: dict) -> str:
+    shape = dict(series)
+    shape["format"] = {k: v for k, v in (series.get("format") or {}).items()
+                       if k not in FINISHING_SETTINGS}
+    return hashlib.sha256(json.dumps(shape, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
 class SeriesPackage:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -68,7 +83,7 @@ class SeriesPackage:
         self.series = _load(self.root / "series.json")
         _validate(self.series, schema.SERIES, "series.json")
         self.files: dict[str, dict | list] = {}
-        self.checksums: dict[str, str] = {"series.json": file_sha(self.root / "series.json")}
+        self.checksums: dict[str, str] = {"series.json": series_sha(self.series)}
         for rel, sch in schema.FILES.items():
             if rel == "series.json":
                 continue

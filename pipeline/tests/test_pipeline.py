@@ -721,3 +721,16 @@ def test_the_score_is_cut_to_the_scenes_rather_than_looped_over_them(tmp_path):
                                {"bed": bed, "seconds": 5.0, "db": -20.0}],
                               tmp_path / "score.wav")
     assert abs(media.duration(track) - 8.0) < 0.15
+
+
+def test_turning_music_on_does_not_read_as_a_different_series():
+    """It changes nothing that was generated, so it must not move the bible
+    version — that would order the whole reference pack drawn again — nor the
+    digest that guards an episode's finished video."""
+    from serial.package import series_sha
+    base = {"series_id": "s", "format": {"aspect_ratio": "9:16", "width": 1080, "height": 1920}}
+    with_music = {"series_id": "s", "format": {**base["format"], "music": "generate",
+                                               "music_beds": {"calm": "k"}, "captions": "none"}}
+    assert series_sha(base) == series_sha(with_music)
+    moved = {"series_id": "s", "format": {**base["format"], "aspect_ratio": "16:9"}}
+    assert series_sha(base) != series_sha(moved)

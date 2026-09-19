@@ -47,13 +47,13 @@ Screens never show legible text. The style sentence will be appended by the pipe
 QC_IMAGE = """You are a continuity supervisor. You see labeled REFERENCE images (characters, location, props) and then one CANDIDATE frame.
 Check: (1) each named character is the same person as in the references: face geometry, eye color, hair color/length/part, wardrobe, jewelry; (2) the location geometry and lighting match the location references; (3) the frame matches EXPECTED; (4) no artifacts: extra people, extra/deformed hands, duplicated objects, readable text, watermark, wardrobe change; (5) caption-safe headroom top and bottom.
 Return ONLY JSON: {"pass": true|false, "score": 0-10, "issues": ["..."], "fix_hint": "<one sentence to add to the prompt on retry, or empty>"}
-Be strict on identity and wardrobe, lenient on minor composition differences. Score >= 7 passes."""
+Be strict on identity and wardrobe, lenient on minor composition differences. Score >= QC_THRESHOLD passes."""
 
 
 QC_VIDEO = """You are a video QC supervisor. You see labeled REFERENCE images and 3 FRAMES (start, middle, end) sampled from a generated clip.
 Check: (1) every character stays the same person across frames (no morphing, no redesign, wardrobe constant); (2) motion matches EXPECTED; (3) no extra people, malformed anatomy, duplicated objects, readable text; (4) prop and location continuity (cup, watch, console, screens) is preserved; (5) camera behavior is calm, no handheld shake or impossible moves.
 Return ONLY JSON: {"pass": true|false, "score": 0-10, "issues": ["..."], "fix_hint": "<one sentence to add to the video prompt on retry, or empty>"}
-Score >= 7 passes."""
+Score >= QC_THRESHOLD passes."""
 
 
 NEGATIVE_VIDEO = ("speech, talking voice, dialogue audio, narration, subtitles, captions, readable text, watermark, logo, "

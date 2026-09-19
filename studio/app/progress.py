@@ -44,8 +44,27 @@ def _moment(value) -> datetime | None:
         return None
 
 
+# Rebuilding a series package means writing it out and parsing it again, and
+# the status page asks every thirty seconds while the worker holds the
+# database. Answering from a few seconds ago is indistinguishable on a screen
+# that refreshes at that rate, and it is the difference between a status page
+# and a gateway timeout.
+_RECENT: dict[str, tuple[float, tuple[int, int]]] = {}
+FRESH_SECONDS = 20
+
+
 def _pack(series_id: str) -> tuple[int, int]:
     """Reference images made for the current bible, and how many it wants."""
+    import time as _time
+    at, answer = _RECENT.get(series_id, (0.0, None))
+    if answer is not None and _time.time() - at < FRESH_SECONDS:
+        return answer
+    answer = _count_pack(series_id)
+    _RECENT[series_id] = (_time.time(), answer)
+    return answer
+
+
+def _count_pack(series_id: str) -> tuple[int, int]:
     from serial import reference_reuse
     from serial.package import SeriesPackage
     from .packaging import materialize
@@ -84,10 +103,44 @@ def redone(series_id: str, episode_id: str) -> int:
                 if int(t.get("attempt") or 0) > 0])
 
 
+def retry_policy() -> dict:
+    """What a miss costs, before it is spent rather than after.
+
+    A scene may be generated more than once when the check marks it down, and
+    nothing said so anywhere: the producer met the policy as a bill. These are
+    the numbers that decide it.
+    """
+    from serial.config import Config
+    from serial.costs import PRICE
+    from .config import PIPELINE_DIR
+    out = {"attempts": 1, "pass_score": 7.0, "close_enough": 1.0,
+           "per_clip": 0.0, "per_frame": 0.0, "worst_case": None}
+    try:
+        cfg = Config.load(PIPELINE_DIR, live=True)
+    except Exception:                                              # noqa: BLE001
+        return out
+    out["attempts"] = int(getattr(cfg, "max_scene_regenerations", 2)) + 1
+    out["pass_score"] = float(getattr(cfg, "qc_pass_score", 7.0))
+    out["close_enough"] = float(getattr(cfg, "qc_close_enough", 1.0))
+    try:
+        seconds = 7  # a scene is six to eight; this is what the arithmetic is for
+        rate = PRICE["veo31_fast_per_sec_audio" if getattr(cfg, "video_generate_audio", True)
+                     else "veo31_fast_per_sec_silent"]
+        out["per_clip"] = round(float(rate) * seconds, 2)
+    except Exception:                                              # noqa: BLE001
+        pass
+    try:
+        out["per_frame"] = round(float(PRICE["nano_banana_2_image_1k"]), 2)
+    except Exception:                                              # noqa: BLE001
+        pass
+    return out
+
+
 def report(series_id: str, episode_id: str, job: dict | None = None) -> dict:
     """Everything a screen needs about a run in flight. Never raises."""
     out: dict = {"made": 0, "needed": 0, "left": 0, "spent": 0.0, "budget": 0.0,
-                 "redone": 0, "minutes_left": None, "cost_left": None}
+                 "redone": 0, "minutes_left": None, "cost_left": None,
+                 "retries": retry_policy()}
     try:
         out["spent"] = spend(series_id, episode_id)
     except Exception:                                              # noqa: BLE001

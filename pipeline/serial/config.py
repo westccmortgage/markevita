@@ -55,6 +55,13 @@ class Config:
     # limits
     max_episode_budget_usd: float = 50.0
     max_scene_regenerations: int = 2
+    # What the quality check must score for a shot to be kept, and how far
+    # below that is close enough to keep anyway. Every miss is a fully paid
+    # regeneration, so the difference between 7 and 6 here is the difference
+    # between one clip and two for the same scene. Set the tolerance to 0 to
+    # pay for the retry every time.
+    qc_pass_score: float = 7.0
+    qc_close_enough: float = 1.0
     max_clip_seconds: int = 10
     # How long one queued provider request may stay unfinished before the run
     # gives up waiting. Without it a job sits in "running" forever: the worker
@@ -114,6 +121,8 @@ class Config:
             provider_input_mode=_env("PROVIDER_INPUT_MODE", "r2_presigned"),
             max_episode_budget_usd=float(_env("MAX_EPISODE_BUDGET_USD", "50")),
             max_scene_regenerations=int(_env("MAX_SCENE_REGENERATIONS", "2")),
+            qc_pass_score=float(_env("QC_PASS_SCORE", "7")),
+            qc_close_enough=float(_env("QC_CLOSE_ENOUGH", "1")),
             max_clip_seconds=int(_env("MAX_CLIP_SECONDS", "10")),
             fal_request_timeout_seconds=int(_env("FAL_REQUEST_TIMEOUT_SECONDS", "1800")),
             video_resolution=_env("VIDEO_RESOLUTION", "1080p"),

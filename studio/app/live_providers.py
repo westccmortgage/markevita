@@ -351,7 +351,8 @@ class DurableFal(Fal):
                 raise ProviderFailure(
                     info['message'] + ' The provider gave no result on either attempt. If this '
                     'is a character or a location, soften how it is described or keep a face '
-                    'for it; otherwise the input it was given is what to look at.') from exc
+                    'for it; otherwise the input it was given is what to look at.',
+                    decided=True) from exc
             self.state.save()
             raise ProviderFailure(info['message']) from exc
         take.pop('provider_error', None)

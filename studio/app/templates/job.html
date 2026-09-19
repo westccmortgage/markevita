@@ -26,6 +26,13 @@
       <dt>{{ _("Spent on this episode") }}</dt>
       <dd>${{ progress.spent }} {{ _("of") }} ${{ progress.budget }}</dd>
     {% endif %}
+    {% if progress.retries and progress.retries.attempts %}
+      <dt>{{ _("If the check marks a shot down") }}</dt>
+      <dd>{{ _("up to {attempts} attempt(s) per scene", attempts=progress.retries.attempts) }}
+        · ≈ ${{ progress.retries.per_clip }} {{ _("per clip") }},
+        ≈ ${{ progress.retries.per_frame }} {{ _("per frame") }}
+        <br><span class="small muted">{{ _("Kept at {pass_score} and above; within {close_enough} of it is kept rather than paid for again. MAX_SCENE_REGENERATIONS, QC_PASS_SCORE and QC_CLOSE_ENOUGH on the server decide this.", pass_score=progress.retries.pass_score, close_enough=progress.retries.close_enough) }}</span></dd>
+    {% endif %}
     {% if progress.redone %}
       <dt>{{ _("Frames the quality check sent back") }}</dt>
       <dd>{{ progress.redone }} <span class="small muted">{{ _("— each one is a picture paid for twice") }}</span></dd>

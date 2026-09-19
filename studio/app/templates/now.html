@@ -32,6 +32,11 @@
         {% if row.last_line %}
           <dt>{{ _("Last sign of life") }}</dt><dd class="small mono">{{ row.last_line }}</dd>
         {% endif %}
+        {% if row.others %}
+          <dt>{{ _("Older jobs") }}</dt>
+          <dd class="small muted">{{ _("{count} earlier job(s) for this episode are not shown.", count=row.others) }}
+            <a href="{{ base }}/jobs">{{ _("Jobs") }}</a></dd>
+        {% endif %}
       </dl>
     </div>
   {% endfor %}

@@ -857,3 +857,68 @@ def test_the_database_connection_is_used_by_one_thread_at_a_time(monkeypatch):
         return "eventually"
 
     assert supa._retrying(flaky) == "eventually"
+
+
+def test_the_status_page_does_not_repeat_itself_into_a_timeout(isolated_store, monkeypatch):
+    """Six cards for one episode meant six times the work, and a 504.
+
+    Each card rebuilt that episode's package and read three tables through to
+    the end — for the same episode, six times over, while the worker held the
+    database. The page took longer than the proxy would wait, so a producer
+    checking on a run got a gateway timeout instead of a status screen.
+    """
+    from app import progress, web
+
+    monkeypatch.setattr(web, "store", isolated_store, raising=False)
+    monkeypatch.setattr(web, "require_admin", lambda request: {"email": "p@example.test"})
+    for i in range(6):
+        isolated_store.insert("production_jobs", {
+            "id": f"j{i}", "series_id": SERIES, "episode_id": "s01e04", "mode": "live",
+            "state": "paused", "created_at": f"2026-09-19T0{i}:00:00", "progress": {}})
+
+    reports = []
+    monkeypatch.setattr(progress, "report",
+                        lambda s, e, job=None: reports.append((s, e)) or {"needed": 0})
+    rendered = {}
+    monkeypatch.setattr(web, "render", lambda request, template, **ctx: rendered.update(ctx))
+
+    web.now_page(None)
+    assert len(reports) == 1, "the same episode was measured once per job"
+    assert len(rendered["rows"]) == 1
+    assert rendered["rows"][0]["others"] == 5, "the older jobs are not accounted for"
+
+
+def test_the_pack_count_is_not_rebuilt_on_every_refresh(monkeypatch):
+    """The page asks every thirty seconds; the answer takes real work."""
+    from app import progress
+
+    counted = []
+    monkeypatch.setattr(progress, "_count_pack", lambda s: counted.append(s) or (9, 14))
+    progress._RECENT.clear()
+
+    assert progress._pack(SERIES) == (9, 14)
+    assert progress._pack(SERIES) == (9, 14)
+    assert len(counted) == 1, "it rebuilt the package for a screen it had just answered"
+
+    # But it does not go stale: past the window it looks again.
+    progress._RECENT[SERIES] = (0.0, (9, 14))
+    assert progress._pack(SERIES) == (9, 14)
+    assert len(counted) == 2
+
+
+def test_the_price_of_a_retry_is_on_the_screen_before_it_is_spent():
+    """A scene may be generated more than once and nothing said so.
+
+    The producer met the policy as a bill: twenty-seven frames regenerated and
+    a clip paid for three times, with no screen anywhere naming how many
+    attempts a miss buys or what one costs.
+    """
+    from app import progress
+
+    policy = progress.retry_policy()
+    assert policy["attempts"] >= 1
+    assert policy["per_clip"] > 0 and policy["per_frame"] > 0
+    assert policy["pass_score"] > 0 and policy["close_enough"] >= 0
+    # It is read from the server's settings, so what the screen says is what
+    # the run will actually do.
+    assert progress.report("s", "e")["retries"]["attempts"] == policy["attempts"]

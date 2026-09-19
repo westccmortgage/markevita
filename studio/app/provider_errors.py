@@ -3,7 +3,17 @@ import re
 
 
 class ProviderFailure(RuntimeError):
-    """Safe for the job page; the underlying exception must remain private."""
+    """Safe for the job page; the underlying exception must remain private.
+
+    `decided` marks a failure about this one piece of work — the model would
+    not make it, and asking again changes nothing. Everything else is about
+    the connection or the account, and stops the run where it stands: burning
+    every remaining scene's attempts against an outage helps nobody.
+    """
+
+    def __init__(self, message, decided=False):
+        super().__init__(message)
+        self.decided = bool(decided)
 
 
 _TYPES = {

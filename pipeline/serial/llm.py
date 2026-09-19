@@ -177,13 +177,20 @@ class LLM:
             content.append(_img_block(p))
         return content
 
+    def _threshold(self):
+        """The score the check is told to hold shots to. It is a setting now:
+        every miss is a fully paid regeneration, so the difference between
+        seven and six is the difference between one clip and two."""
+        value = getattr(self.cfg, "qc_pass_score", 7.0)
+        return int(value) if float(value).is_integer() else value
+
     def qc_image(self, refs: list[tuple[str, Path]], candidate: Path, expected: str) -> dict:
         if self.cfg.dry_run:
             return {"pass": True, "score": 9, "issues": [], "fix_hint": ""}
         content = self._refs_content(refs)
         content.append({"type": "text", "text": f"CANDIDATE frame. EXPECTED: {expected}"})
         content.append(_img_block(candidate))
-        return self._json(prompts.QC_IMAGE, content, max_tokens=4000)
+        return self._json(prompts.QC_IMAGE.replace("QC_THRESHOLD", str(self._threshold())), content, max_tokens=4000)
 
     def qc_video(self, refs: list[tuple[str, Path]], frames: list[Path], expected: str) -> dict:
         if self.cfg.dry_run:
@@ -191,4 +198,4 @@ class LLM:
         content = self._refs_content(refs)
         content.append({"type": "text", "text": f"CLIP FRAMES start/middle/end. EXPECTED: {expected}"})
         content += [_img_block(f) for f in frames]
-        return self._json(prompts.QC_VIDEO, content, max_tokens=4000)
+        return self._json(prompts.QC_VIDEO.replace("QC_THRESHOLD", str(self._threshold())), content, max_tokens=4000)

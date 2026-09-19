@@ -1356,12 +1356,26 @@ def now_page(request: Request):
     live = [j for j in store.list("production_jobs", {"mode": "live"},
                                   order="created_at", desc=True)
             if j.get("state") in ("running", "queued", "pausing", "paused", "interrupted")]
+    # One card per episode, newest first. Six jobs for one episode is six
+    # cards saying the same thing — and each card rebuilt that episode's
+    # package and read three tables through to the end, six times over, while
+    # the worker held the database. The page took longer than the proxy would
+    # wait and the producer got a gateway timeout instead of a status screen.
+    seen: set[tuple[str, str]] = set()
     rows = []
-    for job in live[:6]:
+    for job in live:
+        episode = (job["series_id"], job["episode_id"])
+        if episode in seen:
+            continue
+        seen.add(episode)
         rows.append({"job": job,
                      "progress": _progress.report(job["series_id"], job["episode_id"], job),
                      "waiting_for": (job.get("progress") or {}).get("waiting_for") or "",
-                     "last_line": ((job.get("log") or "").strip().splitlines() or [""])[-1]})
+                     "last_line": ((job.get("log") or "").strip().splitlines() or [""])[-1],
+                     "others": sum(1 for other in live
+                                   if (other["series_id"], other["episode_id"]) == episode) - 1})
+        if len(rows) >= 4:
+            break
     recent = [j for j in store.list("production_jobs", {"mode": "live"},
                                     order="created_at", desc=True)
               if j.get("state") in ("failed", "done", "cancelled")][:5]

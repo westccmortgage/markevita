@@ -576,3 +576,77 @@ def test_an_input_link_is_re_signed_before_it_can_lapse(tmp_path, monkeypatch):
     assert r2.puts == 1, "the same bytes were uploaded again to re-sign them"
     # And it is re-signed while the old one is still valid, never after.
     assert InputPublisher.REUSE_SECONDS < InputPublisher.LINK_SECONDS
+
+
+def test_one_shot_the_model_refuses_does_not_cost_the_other_twenty_seven():
+    """The episode stopped dead on the first scene a provider would not make.
+
+    A model that will not make this particular picture has decided about it,
+    and asking again changes nothing — but the whole run ended there, so every
+    refused scene was a separate evening and a separate resume. A connection
+    or an account failing has decided nothing, and burning the remaining
+    scenes' attempts against an outage helps nobody, so that still stops the
+    run where it stands.
+    """
+    from serial.pipeline import Pipeline
+
+    pipeline = Pipeline.__new__(Pipeline)
+
+    class Refused(RuntimeError):
+        decided = True
+
+    assert pipeline._decided_refusal(Refused('the model would not draw this'))
+    assert not pipeline._decided_refusal(RuntimeError('fal.ai denied access'))
+    assert not pipeline._decided_refusal(TimeoutError('lost the connection'))
+
+    # The flag has to be carried deliberately, never inferred from the text.
+    class Looks(RuntimeError):
+        pass
+
+    assert not pipeline._decided_refusal(Looks('The provider gave no result on either attempt'))
+
+
+def test_a_shot_one_point_short_is_not_paid_for_twice():
+    """Twenty-seven frames were regenerated to argue about a single point.
+
+    The threshold lived in the wording of the check's instructions and its
+    own pass flag was taken at its word, so nothing could be tuned without
+    editing a prompt. Every miss is a fully paid regeneration: at a threshold
+    of seven, a shot scoring six costs a second clip to try for the point.
+    """
+    from types import SimpleNamespace
+    from serial.pipeline import Pipeline
+
+    pipeline = Pipeline.__new__(Pipeline)
+    pipeline.cfg = SimpleNamespace(qc_pass_score=7.0, qc_close_enough=1.0)
+
+    assert pipeline._qc_verdict({"score": 8})[:2] == (True, True)
+    assert pipeline._qc_verdict({"score": 7})[:2] == (True, True)
+    assert pipeline._qc_verdict({"score": 6})[:2] == (False, True), "it paid again over one point"
+    assert pipeline._qc_verdict({"score": 5})[:2] == (False, False)
+
+    # The threshold is a setting, and so is how close counts as close.
+    pipeline.cfg = SimpleNamespace(qc_pass_score=6.0, qc_close_enough=0.0)
+    assert pipeline._qc_verdict({"score": 6})[:2] == (True, True)
+    assert pipeline._qc_verdict({"score": 5})[:2] == (False, False), "tolerance 0 still pays"
+
+    # A check that answers without a number falls back to its own verdict
+    # rather than silently keeping everything.
+    assert pipeline._qc_verdict({"pass": False})[:2] == (False, False)
+    assert pipeline._qc_verdict({"pass": True})[:2] == (True, False)
+
+
+def test_the_check_is_told_the_threshold_it_is_holding_shots_to():
+    """It was a 7 written into the prompt; nothing could tune it."""
+    from types import SimpleNamespace
+    from serial import prompts
+    from serial.llm import LLM
+
+    llm = LLM.__new__(LLM)
+    llm.cfg = SimpleNamespace(qc_pass_score=6.0)
+    assert llm._threshold() == 6
+    assert "Score >= 6 passes." in prompts.QC_IMAGE.replace("QC_THRESHOLD", str(llm._threshold()))
+    assert "Score >= 6 passes." in prompts.QC_VIDEO.replace("QC_THRESHOLD", str(llm._threshold()))
+
+    llm.cfg = SimpleNamespace(qc_pass_score=6.5)
+    assert llm._threshold() == 6.5

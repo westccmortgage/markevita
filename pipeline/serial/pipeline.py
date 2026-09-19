@@ -134,6 +134,33 @@ class Pipeline:
     def _loc(self, lid: str) -> dict:
         return self.pkg.locations[lid]
 
+    def _qc_verdict(self, qc) -> tuple[bool, bool, float]:
+        """Kept, close enough to keep, and the score — against the settings.
+
+        The check's own pass flag was taken at its word, and the threshold was
+        a number written into its instructions. Both are settings now, because
+        every miss is a fully paid regeneration: a shot scoring six against a
+        seven costs a whole second clip to try for the point.
+        """
+        try:
+            score = float(qc.get("score"))
+        except (TypeError, ValueError):
+            return bool(qc.get("pass")), False, 0.0
+        want = float(getattr(self.cfg, "qc_pass_score", 7.0))
+        near = float(getattr(self.cfg, "qc_close_enough", 1.0))
+        return score >= want, score >= want - near, score
+
+    def _decided_refusal(self, exc) -> bool:
+        """Did the provider decide about this one shot, or fail us generally?
+
+        A model that will not make this particular picture has decided, and
+        asking again changes nothing — so the scene is set aside and the rest
+        of the episode goes on. A connection or an account failing has decided
+        nothing, and burning every remaining scene's attempts against it helps
+        nobody, so that still stops the run where it stands.
+        """
+        return bool(getattr(exc, "decided", False))
+
     def _weak_is_allowed(self, scene_id: str) -> bool:
         """May the best attempt stand for this scene, though QC marked it down?
 
@@ -251,7 +278,13 @@ class Pipeline:
             qc = self.llm.qc_image(qc_refs, path, expected) if qc_refs else {"pass": True, "score": 10, "issues": []}
             take["qa"] = qc; self.state.save()
             last = path
-            if qc.get("pass"):
+            kept, near, score = self._qc_verdict(qc)
+            if kept:
+                return path
+            if near:
+                # A reference image one point short is not worth another
+                # reference image. Twenty-seven of these were paid for twice.
+                self.log(f"    QC {score}: принято как достаточно близкое")
                 return path
             hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
             self.log(f"    QC {qc.get('score')}: {qc.get('issues')}")
@@ -472,17 +505,34 @@ class Pipeline:
                       f"Avoid: {s.get('negative','')}, {neg_extra}, {prompts.NEGATIVE_IMAGE}.")
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_kf_", self._redo("keyframes", s["scene_id"]))
+            refused = None
             for attempt in range(base, base + self.regen + 1):
                 tid = self._take_id(s["scene_id"], "kf", attempt)
                 self.log(f"keyframes: {s['scene_id']} попытка {attempt+1}")
-                path, take = providers.gen_image(self.fal, tid, prompt + (f" Correction: {hint}" if hint else ""), self.work / "keyframes" / f"{s['scene_id']}_v{attempt}.png",
-                                                 [p for _, p in refs], self.episode["aspect_ratio"], False, f"keyframe {s['scene_id']}")
+                try:
+                    path, take = providers.gen_image(self.fal, tid, prompt + (f" Correction: {hint}" if hint else ""), self.work / "keyframes" / f"{s['scene_id']}_v{attempt}.png",
+                                                     [p for _, p in refs], self.episode["aspect_ratio"], False, f"keyframe {s['scene_id']}")
+                except Exception as exc:
+                    if not self._decided_refusal(exc):
+                        raise
+                    self.log(f"keyframes: {s['scene_id']} провайдер отказался это создавать; сцена отложена")
+                    refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["forced_by_operator"] = bool(base)
                 qc = self.llm.qc_image(refs, path, s["keyframe_expected"]); take["qa"] = qc; self.state.save()
-                self.log(f"keyframes: {s['scene_id']} QC {qc.get('score')} {'OK' if qc.get('pass') else 'FAIL'} {qc.get('issues') or ''}")
-                if qc.get("pass"):
+                kept, near, score = self._qc_verdict(qc)
+                self.log(f"keyframes: {s['scene_id']} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
+                if kept:
                     ok = (path, tid); break
+                if near:
+                    # Close enough to keep. Paying for another picture to
+                    # argue about one point is how a scene costs three times
+                    # what it is worth.
+                    self.log(f"keyframes: {s['scene_id']} принято как достаточно близкое ({score})")
+                    ok = (path, tid); st["keyframe_close"] = score; break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
+            if refused:
+                st["status"] = "refused"; st["refusal"] = refused
+                failed.append(s["scene_id"]); self.state.save(); continue
             if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["keyframe_weak"] = True
             if not ok:
@@ -521,18 +571,35 @@ class Pipeline:
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_vid_", self._redo("video", s["scene_id"]))
+            refused = None
             for attempt in range(base, base + self.regen + 1):
                 tid = self._take_id(s["scene_id"], "vid", attempt)
                 self.log(f"video: {s['scene_id']} {s['duration']}s попытка {attempt+1}")
-                path, take = providers.gen_video(self.fal, tid, Path(st["keyframe"]), prompt + (f" Correction: {hint}" if hint else ""), negative,
-                                                 s["duration"], self.work / "video" / f"{s['scene_id']}_v{attempt}.mp4", self.episode["aspect_ratio"], f"video {s['scene_id']}")
+                try:
+                    path, take = providers.gen_video(self.fal, tid, Path(st["keyframe"]), prompt + (f" Correction: {hint}" if hint else ""), negative,
+                                                     s["duration"], self.work / "video" / f"{s['scene_id']}_v{attempt}.mp4", self.episode["aspect_ratio"], f"video {s['scene_id']}")
+                except Exception as exc:
+                    if not self._decided_refusal(exc):
+                        raise
+                    # One shot the model will not make must not cost the other
+                    # twenty-seven: the episode stopped dead on the first of
+                    # them, so every refused scene was a separate evening.
+                    self.log(f"video: {s['scene_id']} провайдер отказался это создавать; сцена отложена")
+                    refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["parent_take"] = st.get("keyframe_take"); take["forced_by_operator"] = bool(base)
                 frames = media.sample_frames(path, self.work / "frames" / f"{s['scene_id']}_v{attempt}")
                 qc = self.llm.qc_video(refs, frames, s["video_expected"]); take["qa"] = qc; self.state.save()
-                self.log(f"video: {s['scene_id']} QC {qc.get('score')} {'OK' if qc.get('pass') else 'FAIL'} {qc.get('issues') or ''}")
-                if qc.get("pass"):
+                kept, near, score = self._qc_verdict(qc)
+                self.log(f"video: {s['scene_id']} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
+                if kept:
                     ok = (path, tid); break
+                if near:
+                    self.log(f"video: {s['scene_id']} принято как достаточно близкое ({score})")
+                    ok = (path, tid); st["video_close"] = score; break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
+            if refused:
+                st["status"] = "refused"; st["refusal"] = refused
+                failed.append(s["scene_id"]); self.state.save(); continue
             if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["video_weak"] = True
             if not ok:
@@ -540,7 +607,7 @@ class Pipeline:
             st["video"], st["video_take"], st["status"] = str(ok[0]), ok[1], "video_ok"; self.state.save()
         if failed:
             self.state.set_status("failed_qa")
-            raise SceneFailed(f"video не прошло QC: {failed}. --force <scene_id> после правки, либо --accept-weak")
+            raise SceneFailed(f"video не прошло QC: {failed}. Поправь описание сцены и --force <scene_id>, либо прими лучший дубль")
         self.state.mark_stage("video"); self.state.set_status("voice_pending")
 
     # ---------- stage: voice ----------

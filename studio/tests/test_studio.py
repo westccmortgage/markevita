@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -812,3 +813,47 @@ def test_the_counter_speaks_the_same_language_as_the_records(isolated_store, mon
         "owner_id": "adrian", "name": "profile_left"})
 
     assert progress._pack(SERIES) == (2, 4)
+
+
+def test_the_database_connection_is_used_by_one_thread_at_a_time(monkeypatch):
+    """A run died inside HTTP/2 header compression, nowhere near its own work.
+
+    One connection carries the whole studio: the worker thread, the pass that
+    looks for dead workers every thirty seconds, and every page a browser
+    opens. The header compressor keeps a table both ends must agree on, and
+    two threads writing headers at once tear it. More background work was
+    added today; this is what it bought.
+    """
+    import threading
+    from app.store import supa
+
+    monkeypatch.setattr(supa.time, "sleep", lambda _s: None)
+    inside, overlaps = [], []
+
+    def talk():
+        inside.append(1)
+        if len(inside) > 1:
+            overlaps.append(1)
+        time.sleep(0.002)
+        inside.pop()
+        return "answered"
+
+    threads = [threading.Thread(target=lambda: supa._retrying(talk)) for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not overlaps, "two threads were on the connection at once"
+
+    # Retrying a dropped connection still works while holding it: the lock
+    # must let the same thread back in rather than deadlocking the studio.
+    import httpx
+    tries = []
+
+    def flaky():
+        tries.append(1)
+        if len(tries) < 3:
+            raise httpx.RemoteProtocolError("server disconnected")
+        return "eventually"
+
+    assert supa._retrying(flaky) == "eventually"

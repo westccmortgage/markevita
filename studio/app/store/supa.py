@@ -1,6 +1,7 @@
 """Supabase (PostgREST) driver. Uses the service role key server-side only."""
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 
@@ -32,11 +33,22 @@ def _causes(exc):
     return seen
 
 
+# One HTTP/2 connection carries the whole studio: the worker thread, the
+# background pass that looks for dead workers every thirty seconds, and every
+# page a browser opens. Its header compressor keeps a table that both ends
+# must agree on, and two threads writing headers at once tear it — the run
+# died inside hpack, nowhere near anything it was doing. The client is used by
+# one thread at a time now. What that costs is a few milliseconds of waiting;
+# what it buys is that a request cannot corrupt another one's connection.
+_ONE_AT_A_TIME = threading.RLock()
+
+
 def _retrying(call):
     """Ask again when the connection failed, not when the database answered."""
     for attempt in range(ATTEMPTS):
         try:
-            return call()
+            with _ONE_AT_A_TIME:
+                return call()
         except Exception as exc:
             if attempt == ATTEMPTS - 1 or not _is_transport(exc):
                 raise

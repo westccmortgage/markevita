@@ -70,6 +70,13 @@
             {% endif %}</td></tr>
     {% endfor %}</tbody>
   </table></div>
+  {# Every scene accepted and nothing on the screen saying so: Resume lives on
+     the episode, and a panel that ends in six green pills left the producer
+     looking for a button that was never here. #}
+  {% if weak_scenes and not weak_scenes | reject("in", accepted_scenes) | list %}
+  <p><strong>{{ _("Every scene is accepted. Production carries on from the episode page.") }}</strong></p>
+  <p><a class="btn-primary" href="{{ base }}/series/{{ job.series_id }}/episodes/{{ job.episode_id }}">{{ _("Open the episode and Resume") }}</a></p>
+  {% endif %}
 </section>
 {% endif %}
 {% if stranded_call %}

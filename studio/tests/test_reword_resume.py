@@ -301,7 +301,7 @@ def test_the_plan_is_made_again_from_the_corrected_bible():
 
 # ── settings that only decide how the finished episode is packaged ─────────
 
-from app.live_jobs import generated_shape  # noqa: E402
+from app.live_jobs import generated_shape, shape_differences, shape_parts  # noqa: E402
 
 BRIEF = {"language": "en-US", "aspect_ratio": "9:16", "width": 1080, "height": 1920,
          "captions": "both", "music": "off", "bible_version": "aaaaaaaaaaaa",
@@ -347,3 +347,21 @@ def test_a_changed_action_is_not_the_same_production_either_way():
     scenes = _edited(action="She burns the list.")
     assert _shape(scenes=scenes) != _shape()
     assert _shape(scenes=scenes, with_words=False) != _shape(with_words=False)
+
+
+def test_a_refusal_names_what_moved():
+    """Guessing what had changed cost two rounds of deploy-and-press-again."""
+    from app.live_jobs import shape_differences, shape_parts
+    before = shape_parts(CHECKSUMS, BRIEF, SCENES, EPISODE)
+    after = shape_parts({**CHECKSUMS, "bible/style.json": "zzz"},
+                        {**BRIEF, "aspect_ratio": "16:9"},
+                        _edited(action="She burns the list."), EPISODE)
+    moved = shape_differences(before, after)
+    assert any(m.startswith("the bible and style files") for m in moved)
+    assert "the format and language: aspect_ratio" in moved
+    assert any(m.startswith("scene sc05: action") for m in moved)
+
+
+def test_nothing_is_named_when_nothing_moved():
+    assert shape_differences(shape_parts(CHECKSUMS, BRIEF, SCENES, EPISODE),
+                             shape_parts(CHECKSUMS, BRIEF, SCENES, EPISODE)) == []

@@ -84,6 +84,40 @@ def spoken_words_removed(checksums, scenes, episode_id):
 BRIEF_STRUCTURE = ('language', 'aspect_ratio', 'width', 'height')
 
 
+def shape_parts(checksums, brief, scenes, episode_id, with_words=True):
+    """The comparison broken into named parts, so a mismatch can say which.
+
+    Twice now a resume was refused as "a different script" and the only way to
+    learn what had actually moved was to guess, change something and ask the
+    producer to press the button again. The parts are named here so the
+    refusal can name them too.
+    """
+    files = {k: v for k, v in (checksums or {}).items()
+             if episode_id not in k and k != 'series.json'}
+    line_fields = LINE_STRUCTURE + (('text',) if with_words else ())
+    parts = {'the bible and style files': files,
+             'the format and language': {f: (brief or {}).get(f) for f in BRIEF_STRUCTURE}}
+    for scene in scenes or []:
+        parts[f"scene {scene.get('scene_id')}"] = {
+            **{f: scene.get(f) for f in SCENE_STRUCTURE},
+            'dialogue': [{f: line.get(f) for f in line_fields}
+                         for line in scene.get('dialogue', [])]}
+    return parts
+
+
+def shape_differences(saved_parts, current_parts) -> list[str]:
+    """Which named parts differ, and for the first few, which fields."""
+    out = []
+    for name in sorted(set(saved_parts) | set(current_parts)):
+        was, now_ = saved_parts.get(name), current_parts.get(name)
+        if was == now_:
+            continue
+        fields = sorted(k for k in set(was or {}) | set(now_ or {})
+                        if (was or {}).get(k) != (now_ or {}).get(k))
+        out.append(f"{name}: {', '.join(fields[:6])}" if fields else name)
+    return out
+
+
 def generated_shape(checksums, brief, scenes, episode_id, with_words=True):
     """Digest of everything that decides what gets generated, and nothing else.
 
@@ -97,16 +131,8 @@ def generated_shape(checksums, brief, scenes, episode_id, with_words=True):
     and the language — are taken from the brief instead, where the saved copy
     also has them. The bible and style files keep their own checksums.
     """
-    files = {k: v for k, v in (checksums or {}).items()
-             if episode_id not in k and k != 'series.json'}
-    head = {f: (brief or {}).get(f) for f in BRIEF_STRUCTURE}
-    line_fields = LINE_STRUCTURE + (('text',) if with_words else ())
-    shape = [{**{f: scene.get(f) for f in SCENE_STRUCTURE},
-              'dialogue': [{f: line.get(f) for f in line_fields}
-                           for line in scene.get('dialogue', [])]}
-             for scene in scenes]
-    return hashlib.sha256(json.dumps({'files': files, 'brief': head, 'scenes': shape},
-                                     sort_keys=True, default=str).encode()).hexdigest()
+    parts = shape_parts(checksums, brief, scenes, episode_id, with_words)
+    return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()
 
 
 def drop_voice_work(state):
@@ -491,10 +517,14 @@ def _prepare_and_run(manager, job, control, cfg, pkg, cp, lease, actor,
                 # and video stay: they were generated from the visible action.
                 drop_voice_work(old)
             elif scene_work_exists(old):
+                moved = shape_differences(
+                    shape_parts(old.data.get('package_checksums'), saved_brief, saved, episode_id),
+                    shape_parts(pkg.checksums, norm, norm['scenes'], episode_id))
                 raise ValueError('This episode has saved production for a different script or settings. '
                                  'Only the wording of spoken lines can be changed here. Anything else — a clip '
                                  'duration, the action, who is in frame — would not match the video already '
-                                 'generated, so it needs a new episode.')
+                                 'generated, so it needs a new episode.\n\nWhat moved since this episode '
+                                 'started:\n' + '\n'.join(f'  - {m}' for m in moved[:12]))
             else:
                 # Nothing bound to a scene has been made yet, so the new script
                 # or settings contradict nothing. Correcting the bible after a

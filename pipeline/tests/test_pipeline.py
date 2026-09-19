@@ -780,3 +780,22 @@ def test_a_held_shot_is_cut_from_the_frame_already_paid_for(tmp_path):
     assert abs(info["duration"] - 8.0) < 0.2
     assert (info["width"], info["height"]) == (1080, 1920)
     assert info["has_audio"], "a silent scene still needs a track to mix speech into"
+
+
+def test_the_hold_belongs_to_the_video_stage_not_the_keyframe_stage():
+    """The two stages have the same refusal block, so an edit meant for one
+    landed in the other: the hold went into the keyframe stage, where the
+    frame to hold does not exist yet, and the video stage kept failing. It
+    shipped and the producer found it."""
+    import inspect
+    from serial.pipeline import Pipeline
+    keyframes = inspect.getsource(Pipeline.stage_keyframes)
+    video = inspect.getsource(Pipeline.stage_video)
+    assert 'hold_from_still' in video
+    assert 'hold_from_still' not in keyframes, \
+        'the keyframe stage is what makes the frame; there is nothing to hold on yet'
+    # Both say it another way first.
+    assert 'self._soften(' in keyframes and 'self._soften(' in video
+    # A refused scene no longer joins the list that stops the episode.
+    refusal = video[video.index('if refused:'):]
+    assert 'failed.append' not in refusal.split('if not ok and self._weak_is_allowed')[0]

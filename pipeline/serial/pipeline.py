@@ -535,23 +535,11 @@ class Pipeline:
                     self.log(f"keyframes: {s['scene_id']} принято как достаточно близкое ({score})")
                     ok = (path, tid); st["keyframe_close"] = score; break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
-            if not ok and softened and not refused:
-                # The refusal came on the last attempt, so there was no room
-                # left to try the softened wording. Holding the frame is still
-                # better than stopping the episode.
-                refused = 'The provider refused this shot and no attempt was left to say it another way.'
             if refused:
-                # Said another way and still refused. The first frame of this
-                # scene exists and is paid for, so the shot is held on it: an
-                # ordinary thing in drama, and the episode finishes.
-                held = media.hold_from_still(Path(st["keyframe"]), s["duration"],
-                                             self.work / "video" / f"{s['scene_id']}_hold.mp4",
-                                             self.episode["width"], self.episode["height"])
-                st["video"], st["video_take"] = str(held), None
-                st["video_held"], st["refusal"], st["status"] = True, refused, "video_ok"
-                self.log(f"video: {s['scene_id']} провайдер отказался и после смягчения; "
-                         f"держим кадр {s['duration']}s")
-                self.state.save(); continue
+                # Nothing to hold this shot on: the first frame is what this
+                # stage makes, and it does not exist. The scene needs a person.
+                st["status"] = "refused"; st["refusal"] = refused
+                failed.append(s["scene_id"]); self.state.save(); continue
             if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["keyframe_weak"] = True
             if not ok:
@@ -621,9 +609,23 @@ class Pipeline:
                     self.log(f"video: {s['scene_id']} принято как достаточно близкое ({score})")
                     ok = (path, tid); st["video_close"] = score; break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
+            if not ok and softened and not refused:
+                # The refusal came on the last attempt, so there was no room
+                # left to try the softened wording. Holding the frame is still
+                # better than stopping the episode.
+                refused = 'The provider refused this shot and no attempt was left to say it another way.'
             if refused:
-                st["status"] = "refused"; st["refusal"] = refused
-                failed.append(s["scene_id"]); self.state.save(); continue
+                # Said another way and still refused. The first frame of this
+                # scene exists and is paid for, so the shot is held on it: an
+                # ordinary thing in drama, and the episode finishes.
+                held = media.hold_from_still(Path(st["keyframe"]), s["duration"],
+                                             self.work / "video" / f"{s['scene_id']}_hold.mp4",
+                                             self.episode["width"], self.episode["height"])
+                st["video"], st["video_take"] = str(held), None
+                st["video_held"], st["refusal"], st["status"] = True, refused, "video_ok"
+                self.log(f"video: {s['scene_id']} провайдер отказался и после смягчения; "
+                         f"держим кадр {s['duration']}s")
+                self.state.save(); continue
             if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["video_weak"] = True
             if not ok:

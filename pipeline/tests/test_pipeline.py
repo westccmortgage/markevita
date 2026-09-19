@@ -834,3 +834,68 @@ def test_every_paid_scene_take_records_the_cap_it_was_made_under():
     from serial.pipeline import Pipeline
     for stage in (Pipeline.stage_keyframes, Pipeline.stage_video):
         assert 'take["regen_cap"] = self.regen' in inspect.getsource(stage), stage.__name__
+
+
+def test_subtitles_and_music_are_read_as_they_read_now_not_as_they_read_at_intake():
+    """The episode dict is a snapshot written once, when the script was taken
+    in. Every later stage reads that snapshot, so an episode started days ago
+    was assembled to settings the producer had since changed twice — and the
+    screen showed the new ones, so there was no way to tell."""
+    import inspect
+    from serial.pipeline import Pipeline
+    src = inspect.getsource(Pipeline.stage_assemble)
+    assert 'finishing = self.pkg.series.get("format")' in src, \
+        'subtitles and music live in the series format, not in the episode file'
+    assert 'finishing.get("captions"' in src
+    assert 'finishing.get("music"' in src
+    # Read before anything uses it.
+    assert src.index('finishing = self.pkg') < src.index('finishing.get("music"')
+    assert src.index('finishing = self.pkg') < src.index('finishing.get("captions"')
+    # load_episode reads the episode file, which carries neither setting.
+    assert 'load_episode' not in src
+    # The snapshot still decides what was generated: sizes come from it.
+    assert 'w, h = e["width"], e["height"]' in src
+
+
+def _assembled(tmp_path, recorded, override=None):
+    import json as _json
+    from serial.pipeline import Pipeline
+    mdir = tmp_path / "v1"; mdir.mkdir(parents=True)
+    (mdir / "metadata.json").write_text(_json.dumps(recorded), encoding="utf-8")
+    p = Pipeline.__new__(Pipeline)
+    p.state = type("S", (), {"data": {"master_dir": str(mdir)}})()
+    p.captions_override = override
+    return p
+
+
+def test_an_overridden_subtitle_setting_is_what_the_master_is_compared_against(tmp_path):
+    """Comparing the package alone re-cut the master on every single rerun
+    whenever subtitles were being overridden."""
+    p = _assembled(tmp_path, {"captions": "none", "music": "off"}, override="none")
+    assert not p._finishing_changed({"captions": "both", "music": "off"})
+    p = _assembled(tmp_path / "b", {"captions": "none", "music": "off"}, override="burned")
+    assert p._finishing_changed({"captions": "none", "music": "off"})
+
+
+def test_a_master_is_cut_again_when_the_subtitles_setting_moved(tmp_path):
+    """Assemble is marked done after the first cut, so turning subtitles off
+    changed nothing: the episode shipped with the text still in frame."""
+    p = _assembled(tmp_path, {"captions": "both", "music": "off"})
+    assert p._finishing_changed({"captions": "none", "music": "off"})
+    assert p._finishing_changed({"captions": "both", "music": "generate"})
+    assert not p._finishing_changed({"captions": "both", "music": "off"})
+
+
+def test_a_master_from_before_these_settings_were_recorded_is_left_alone(tmp_path):
+    """Re-cutting costs nothing, but re-cutting on a guess is still a change
+    nobody asked for."""
+    p = _assembled(tmp_path, {"aspect_ratio": "9:16"})
+    assert not p._finishing_changed({"captions": "none", "music": "generate"})
+
+
+def test_nothing_is_cut_again_before_there_is_a_master(tmp_path):
+    from serial.pipeline import Pipeline
+    p = Pipeline.__new__(Pipeline)
+    p.state = type("S", (), {"data": {}})()
+    p.captions_override = None
+    assert not p._finishing_changed({"captions": "none"})

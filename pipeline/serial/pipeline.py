@@ -851,9 +851,47 @@ class Pipeline:
 
     # ---------- stage: assemble ----------
 
+    def _finishing_changed(self, finishing: dict) -> bool:
+        """Has a packaging setting moved since this master was cut?
+
+        `finishing` is the series format as the package reads it now. The
+        episode dict cannot answer this: it is a snapshot taken when the
+        script was taken in, so an episode started days ago was assembled to
+        settings the producer had since changed twice, with no way to tell
+        because the screen showed the new ones.
+
+        Re-cutting calls no provider and costs nothing, so a master carrying
+        subtitles the producer has since turned off is worth cutting again
+        rather than shipping. Only these settings qualify: everything else
+        that could differ would contradict footage already shot.
+        """
+        mdir = self.state.data.get("master_dir")
+        if not mdir:
+            return False
+        meta = Path(mdir) / "metadata.json"
+        if not meta.exists():
+            return False
+        try:
+            was = json.loads(meta.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return False
+        # Against the settings this run would actually use, overrides and
+        # all — comparing the package alone re-cut the master on every rerun
+        # whenever subtitles were being overridden on the command line.
+        wants = {"captions": self.captions_override or finishing.get("captions", "srt"),
+                 "music": finishing.get("music", "off")}
+        return any(key in was and was[key] != want for key, want in wants.items())
+
     def stage_assemble(self):
+        finishing = self.pkg.series.get("format") or {}
         if self._done("assemble"):
-            self.log("assemble: уже сделано"); return
+            if not self._finishing_changed(finishing):
+                self.log("assemble: уже сделано"); return
+            # Nothing generated is discarded: the scenes are already cut and
+            # the master is simply put together again from them.
+            self.log("assemble: субтитры или музыка изменились — собираем заново")
+            for stage in ("assemble", "qa"):
+                self.state.data.get("stages", {}).pop(stage, None)
         e = self.episode; w, h = e["width"], e["height"]
         norm, cues, spans, t = [], [], [], 0.0
         for s in self.scenes:
@@ -870,7 +908,7 @@ class Pipeline:
         if room:
             cur = media.add_bed(cur, room, self.work / "episode_room_tone.mp4", -28.0)
             self.log("assemble: room_tone подложен (-28.0 dB)")
-        music_mode = e.get("music", "off")
+        music_mode = finishing.get("music", e.get("music", "off"))
         if music_mode in ("files", "generate") and spans:
             plan = self._score_plan(spans)
             beds = self._music_beds({p["level"] for p in plan})
@@ -882,7 +920,12 @@ class Pipeline:
         elif (bed := next((p for p in (self.pkg.root / "assets").glob("music.*")), None)):
             cur = media.add_bed(cur, bed, self.work / "episode_music.mp4", -22.0)
             self.log("assemble: music подложен (-22.0 dB)")
-        captions = self.captions_override or e.get("captions", "srt")
+        # Read from the package as it reads now, not from the copy frozen when
+        # the script was taken in. Subtitles and music decide only how the
+        # finished episode is packaged, and an episode started days ago was
+        # assembled to settings the producer had since changed twice — with no
+        # way to tell, because the screen showed the new ones.
+        captions = self.captions_override or finishing.get("captions", e.get("captions", "srt"))
         # "none": ни поверх картинки, ни отдельным файлом. Реплики всё равно
         # считаются — иначе проверка "субтитры совпадают с диалогом" молча
         # отключилась бы вместе с субтитрами.

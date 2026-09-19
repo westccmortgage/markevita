@@ -424,6 +424,44 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         # series at a time — that is what the lease is — so the directory is
         # this worker's alone while it runs.
         cp = Checkpoint(cfg, runtime_root() / '_workers' / series_id, series_id, lease.check)
+        # Everything from here on happens in the worker. Fetching the saved
+        # work is a download of every keyframe and clip already made, and after
+        # a deploy the disk is empty so all of it comes down again — minutes,
+        # against the hundred seconds the proxy in front of this allows. Doing
+        # it inside the button left the producer with a gateway timeout and no
+        # way through at all, on an episode that was one stage from finished.
+        job = runner.store.insert('production_jobs', {
+            'series_id': series_id, 'episode_id': episode_id, 'stages': stages, 'mode': 'live',
+            'state': 'queued', 'requested_by': actor,
+            'idempotency_key': f'live:{series_id}:{episode_id}:{lease.owner}',
+            'force': [], 'progress': {'audio_mode': audio_mode, 'input_digest': actual_digest,
+                                      'approved_budget': pkg.limits(cfg)['budget'],
+                                      'done': [], 'total': len(stages)},
+            'created_at': now(), 'log': 'Fetching the work already saved for this episode.'})
+        control = runner._Control()
+        manager._controls[job['id']] = control
+        thread = threading.Thread(target=_prepare_and_run,
+                                  args=(manager, job, control, cfg, pkg, cp, lease, actor,
+                                        series_id, episode_id, stages, audio_mode, actual_digest),
+                                  daemon=True)
+        manager._threads[job['id']] = thread
+        thread.start()
+        return job
+    except Exception:
+        lease.close()
+        raise
+
+
+def _prepare_and_run(manager, job, control, cfg, pkg, cp, lease, actor,
+                     series_id, episode_id, stages, audio_mode, actual_digest):
+    """Fetch the saved work, check it against the current script, then run.
+
+    A refusal here used to arrive as a red line on the episode page. It now
+    arrives on the job's own page, because the request that asked for it has
+    long since been answered.
+    """
+    from . import runner
+    try:
         cp.restore()
         old = State(cp.root / episode_id)
         from serial.pipeline import SeriesState
@@ -476,27 +514,25 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         cp.save()
         # Freeze this job's package. The current editor may subsequently change.
         pkg.series['approval'] = {'status': 'approved', 'by': actor, 'at': now()}
-        for job in runner.store.list('production_jobs', {'series_id': series_id, 'mode': 'live'}):
-            if job.get('stages') != ['runtime_lease'] and job['state'] in ('queued','running','pausing','cancelling'):
-                runner.store.update('production_jobs', {'id': job['id']}, {'state': 'interrupted', 'error': 'Worker stopped; saved provider requests will be reused.'})
-        job = runner.store.insert('production_jobs', {
-            'series_id': series_id, 'episode_id': episode_id, 'stages': stages, 'mode': 'live',
-            'state': 'queued', 'requested_by': actor, 'idempotency_key': f'live:{series_id}:{episode_id}:{lease.owner}',
-            'force': [], 'progress': {'audio_mode': audio_mode, 'input_digest': actual_digest,
-                                     'approved_budget': pkg.limits(cfg)['budget'], 'done': [], 'total': len(stages)},
-            'created_at': now(), 'log': ''})
+        for other in runner.store.list('production_jobs', {'series_id': series_id, 'mode': 'live'}):
+            if (other['id'] != job['id'] and other.get('stages') != ['runtime_lease']
+                    and other['state'] in ('queued', 'running', 'pausing', 'cancelling')):
+                runner.store.update('production_jobs', {'id': other['id']}, {
+                    'state': 'interrupted',
+                    'error': 'Worker stopped; saved provider requests will be reused.'})
         runner.store.insert('approvals', {'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'episode_live', 'subject_id': actual_digest, 'decision': 'approved',
-            'actor': actor, 'note': f"Estimated spending cap ${pkg.limits(cfg)['budget']:.2f}; audio={audio_mode}", 'created_at': now()})
-        control = runner._Control()
-        manager._controls[job['id']] = control
-        thread = threading.Thread(target=run, args=(manager, job, control, cfg, pkg, cp, lease), daemon=True)
-        manager._threads[job['id']] = thread
-        thread.start()
-        return job
-    except Exception:
+            'actor': actor, 'note': f"Estimated spending cap ${pkg.limits(cfg)['budget']:.2f}; audio={audio_mode}",
+            'created_at': now()})
+    except Exception as exc:
+        detail = (str(exc) if isinstance(exc, (ValueError, PermissionError))
+                  else f'{type(exc).__name__}: the saved work could not be fetched or checked.')
+        runner.store.update('production_jobs', {'id': job['id']}, {
+            'state': 'failed', 'finished_at': now(),
+            'error': f'Production could not be prepared.\n\n{detail}'})
         lease.close()
-        raise
+        return
+    run(manager, job, control, cfg, pkg, cp, lease)
 
 
 def check_configuration(series_id, episode_id, stages, audio_mode):

@@ -1178,3 +1178,74 @@ def test_an_uploaded_bed_is_remembered_against_its_level(monkeypatch, tmp_path):
     # And now the series may be set to use its own music.
     assert _settings('files').status_code == 303
     assert store.get('series', {'id': 'island'})['format']['music'] == 'files'
+
+
+# ---------- the button must not wait for the download ----------
+
+def test_pressing_resume_returns_before_the_saved_work_is_fetched(monkeypatch):
+    """Fetching a started episode's keyframes and clips takes minutes, and
+    after a deploy the disk is empty so all of it comes down again. Doing it
+    inside the request put a gateway timeout in front of the producer, on an
+    episode one stage from finished."""
+    import threading as _threading
+    from app import live_jobs
+
+    store = StrictStore()
+    store.insert('scenes', {'series_id': 'island', 'episode_id': 's01e04', 'scene_id': 'sc01'})
+    fetching, released = _threading.Event(), _threading.Event()
+
+    class _Pkg:
+        series = {}
+        checksums = {}
+
+        def limits(self, cfg):
+            return {'budget': 50.0}
+
+    class _Lease:
+        owner = 'worker-1'
+
+        def __init__(self, *a, **kw):
+            pass
+
+        def check(self):
+            pass
+
+        def close(self):
+            pass
+
+    class _Checkpoint:
+        def __init__(self, *a, **kw):
+            self.root = Path('/nonexistent')
+
+        def restore(self):
+            fetching.set()
+            assert released.wait(5), 'the worker never got to fetch anything'
+
+        def save(self):
+            pass
+
+    monkeypatch.setattr(runner, 'store', store)
+    monkeypatch.setattr(live_jobs, 'materialize', lambda sid: Path('/nonexistent'))
+    monkeypatch.setattr(live_jobs.shutil, 'copytree', lambda src, dst: dst)
+    monkeypatch.setattr(live_jobs, 'SeriesPackage', lambda root: _Pkg())
+    monkeypatch.setattr(live_jobs, 'configuration', lambda *a, **kw: SimpleNamespace())
+    monkeypatch.setattr(live_jobs, 'video_model', lambda pkg: '')
+    monkeypatch.setattr(live_jobs, 'picture', lambda pkg: '')
+    monkeypatch.setattr(live_jobs, 'package_digest', lambda pkg, eid: 'digest')
+    monkeypatch.setattr(live_jobs.preflight, 'problems', lambda *a, **kw: [])
+    monkeypatch.setattr(live_jobs.preflight, 'voice_problems', lambda *a, **kw: [])
+    monkeypatch.setattr(live_jobs, 'SeriesLease', _Lease)
+    monkeypatch.setattr(live_jobs, 'Checkpoint', _Checkpoint)
+    monkeypatch.setattr(live_jobs, 'runtime_root', lambda: Path('/nonexistent'))
+    monkeypatch.setattr(live_jobs, 'run', lambda *a, **kw: None)
+
+    manager = SimpleNamespace(_controls={}, _threads={})
+    try:
+        job = live_jobs.start(manager, 'island', 's01e04', ['video'], 'admin@example.test',
+                              [], 'digest', True, 'native')
+        # Answered while the worker is still downloading.
+        assert fetching.wait(5), 'the worker never started fetching'
+        assert job['state'] == 'queued'
+        assert store.get('production_jobs', {'id': job['id']})['state'] == 'queued'
+    finally:
+        released.set()

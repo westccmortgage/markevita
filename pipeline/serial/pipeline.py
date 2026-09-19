@@ -134,6 +134,17 @@ class Pipeline:
     def _loc(self, lid: str) -> dict:
         return self.pkg.locations[lid]
 
+    def _weak_is_allowed(self, scene_id: str) -> bool:
+        """May the best attempt stand for this scene, though QC marked it down?
+
+        A judgement, and the producer's to make: the material exists and was
+        paid for, and nobody but them can say whether it is good enough for
+        this shot. The engine offered this as a command-line flag, so from the
+        studio the only way past a scene QC kept failing was to pay for it
+        again and hope — which is not a way past, it is a loop.
+        """
+        return bool(self.accept_weak) or scene_id in set(getattr(self.cfg, "accepted_weak", ()) or ())
+
     def _guard_live(self, stage: str):
         if self.cfg.dry_run or stage not in PAID_STAGES:
             return
@@ -472,7 +483,7 @@ class Pipeline:
                 if qc.get("pass"):
                     ok = (path, tid); break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
-            if not ok and self.accept_weak:
+            if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["keyframe_weak"] = True
             if not ok:
                 st["status"] = "failed_qa"; failed.append(s["scene_id"]); self.state.save(); continue
@@ -480,7 +491,7 @@ class Pipeline:
             prev_kf, prev_loc = ok[0], s["location"]
         if failed:
             self.state.set_status("failed_qa")
-            raise SceneFailed(f"keyframes не прошли QC: {failed}. Поправь production_prompts.json и --force <scene_id>, либо --accept-weak")
+            raise SceneFailed(f"keyframes не прошли QC: {failed}. Поправь production_prompts.json и --force <scene_id>, либо прими лучший дубль")
         self.state.mark_stage("keyframes")
 
     # ---------- stage: video ----------
@@ -522,7 +533,7 @@ class Pipeline:
                 if qc.get("pass"):
                     ok = (path, tid); break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
-            if not ok and self.accept_weak:
+            if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["video_weak"] = True
             if not ok:
                 st["status"] = "failed_qa"; failed.append(s["scene_id"]); self.state.save(); continue

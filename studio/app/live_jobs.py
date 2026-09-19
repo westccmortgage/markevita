@@ -485,6 +485,13 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         pipeline.state.data.update(live_input_digest=progress['input_digest'],
                                    audio_mode=progress['audio_mode'], mode='live')
         pipeline.state.save()
+        # Scenes whose best attempt the producer has accepted despite the
+        # quality check marking it down. The engine offered this as a
+        # command-line flag only, so from the studio the sole way past a scene
+        # QC kept failing was to pay for it again and hope.
+        cfg.accepted_weak = {a['subject_id'] for a in runner.store.list('approvals', {
+            'series_id': job['series_id'], 'episode_id': job['episode_id'],
+            'subject_type': 'scene_weak_accepted'}) if a.get('decision') == 'approved'}
         cfg.paid_calls = PaidCalls(pipeline.state, pipeline.budget, {
             a['subject_id'] for a in runner.store.list('approvals', {
                 'series_id': job['series_id'], 'episode_id': job['episode_id'],

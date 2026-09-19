@@ -1055,3 +1055,35 @@ def test_a_restart_is_noticed_without_anyone_opening_a_page(monkeypatch):
     looked.clear()
     live_jobs.resume_interrupted(object())
     assert looked == ['island']
+
+
+def test_a_scene_the_check_marked_down_has_a_way_past_it(tmp_path, monkeypatch):
+    """The engine named two ways past; the studio implemented the costly one.
+
+    A scene the quality check keeps failing could only be forced again from
+    the studio — another paid attempt at the same prompt, which can land in
+    the same place. The other way the engine offers, letting the best attempt
+    stand, existed as a command-line flag and nowhere a producer could reach.
+    So the one state the first full keyframe run reached had one exit, and it
+    was a loop.
+    """
+    from serial.config import Config
+    from serial.pipeline import Pipeline
+    from app.config import PIPELINE_DIR
+
+    cfg = Config.load(PIPELINE_DIR, live=False)
+    pipeline = Pipeline.__new__(Pipeline)
+    pipeline.cfg, pipeline.accept_weak = cfg, False
+
+    assert not pipeline._weak_is_allowed('sc13')
+    cfg.accepted_weak = {'sc13'}
+    assert pipeline._weak_is_allowed('sc13')
+    assert not pipeline._weak_is_allowed('sc14'), 'accepting one scene accepted them all'
+
+    # The run-wide flag still works, and a run without the attribute at all
+    # behaves as it always did rather than failing.
+    pipeline.accept_weak = True
+    del cfg.accepted_weak
+    assert pipeline._weak_is_allowed('sc99')
+    pipeline.accept_weak = False
+    assert not pipeline._weak_is_allowed('sc99')

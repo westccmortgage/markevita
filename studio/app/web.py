@@ -41,6 +41,9 @@ STRANDED_TAKE_RE = re.compile(r"^([\w./:-]{3,120}): submission outcome is unknow
 # The same shape one stage later: a media call whose response was never saved.
 # It named only the provider, so there was nothing on screen to act on.
 STRANDED_CALL_RE = re.compile(r"([a-z_]+:[0-9a-f]{64}): a paid request", re.M)
+# Scenes the quality check marked down. The engine names them and offers two
+# ways past; the studio implemented only the one that costs money again.
+SCENE_RE = re.compile(r"\bsc\d{1,3}\b")
 
 
 def _now() -> str:
@@ -1286,6 +1289,14 @@ def job_page(request: Request, job_id: str):
     already_reconciled = bool(stranded_take and store.list("approvals", {
         "series_id": job["series_id"], "episode_id": job["episode_id"],
         "subject_type": "take_reconciled", "subject_id": stranded_take}))
+    text = job.get("error") or ""
+    weak_scenes, accepted_scenes = [], set()
+    if job.get("state") == "failed" and ("QC" in text or "quality control" in text
+                                         or "проверку качества" in text):
+        weak_scenes = sorted(set(SCENE_RE.findall(text)))
+        accepted_scenes = {a["subject_id"] for a in store.list("approvals", {
+            "series_id": job["series_id"], "episode_id": job["episode_id"],
+            "subject_type": "scene_weak_accepted"})}
     call = STRANDED_CALL_RE.search(job.get("error") or "") if job.get("state") == "failed" else None
     stranded_call = call.group(1) if call else None
     call_reconciled = bool(stranded_call and store.list("approvals", {
@@ -1296,7 +1307,8 @@ def job_page(request: Request, job_id: str):
                   completed_stages=completed_stages, refused_request=refused_request,
                   already_released=already_released, stranded_take=stranded_take,
                   already_reconciled=already_reconciled, stranded_call=stranded_call,
-                  call_reconciled=call_reconciled,
+                  call_reconciled=call_reconciled, weak_scenes=weak_scenes,
+                  accepted_scenes=accepted_scenes,
                   progress=_progress.report(job["series_id"], job["episode_id"], job),
                   s=store.get("series", {"id": job["series_id"]}))
 
@@ -1418,6 +1430,34 @@ def reconcile_call(request: Request, job_id: str, operation: str = Form(...), no
             entity_type="paid_operation", entity_id=operation, actor=a["email"],
             detail={"note": note})
     return _redirect(back, ok="Recorded. Production continues from here and makes that one call again.")
+
+
+@router.post("/jobs/{job_id}/accept-scene")
+def accept_scene(request: Request, job_id: str, scene_id: str = Form(...), note: str = Form("")):
+    """Let the best attempt for one scene stand, though QC marked it down.
+
+    A judgement, and the producer's: the material exists and was paid for, and
+    nobody but them can say whether it is good enough for this shot. Without
+    it the only way past a scene the check kept failing was to pay for it
+    again and hope, which is a loop rather than a way past.
+    """
+    a = require_admin(request)
+    job = store.get("production_jobs", {"id": job_id})
+    if not job:
+        raise HTTPException(404, "job not found")
+    back = f"/jobs/{job_id}"
+    if scene_id not in set(SCENE_RE.findall(job.get("error") or "")):
+        return _redirect(back, err="This job did not report that scene as failing the check.")
+    if store.list("approvals", {"series_id": job["series_id"], "episode_id": job["episode_id"],
+                                "subject_type": "scene_weak_accepted", "subject_id": scene_id}):
+        return _redirect(back, ok="That scene is already accepted.")
+    store.insert("approvals", {
+        "series_id": job["series_id"], "episode_id": job["episode_id"],
+        "subject_type": "scene_weak_accepted", "subject_id": scene_id,
+        "decision": "approved", "actor": a["email"], "note": note, "created_at": _now()})
+    history(job["series_id"], job["episode_id"], "scene.weak_accepted",
+            entity_type="scene", entity_id=scene_id, actor=a["email"], detail={"note": note})
+    return _redirect(back, ok=f"{scene_id}: the best take stands. Resume the episode to carry on.")
 
 
 @router.get("/integrations", response_class=HTMLResponse)

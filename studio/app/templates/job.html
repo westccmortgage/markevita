@@ -45,6 +45,26 @@
   <p class="hint">{{ _("After approving the references, open the episode and click Resume to continue production.") }}</p>
 </section>
 {% endif %}
+{% if weak_scenes %}
+<section class="card" aria-labelledby="weak-scenes-title">
+  <h2 id="weak-scenes-title">{{ _("The quality check marked these scenes down") }}</h2>
+  <p>{{ _("The pictures exist and are paid for. The check is an opinion about them, and whether it is good enough for this shot is yours to decide — read its notes in the job log below.") }}</p>
+  <p class="hint">{{ _("Accepting one lets the best attempt stand and production carries on. The other way is to leave it and force that scene again, which costs another attempt and may land in the same place.") }}</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>{{ _("Scene") }}</th><th></th></tr></thead>
+    <tbody>{% for scene in weak_scenes %}
+      <tr><td class="mono small">{{ scene }}</td>
+        <td>{% if scene in accepted_scenes %}
+              <span class="pill ok">{{ _("accepted") }}</span>
+            {% else %}
+              <form method="post" action="{{ base }}/jobs/{{ job.id }}/accept-scene">
+                <input type="hidden" name="scene_id" value="{{ scene }}">
+                <button class="btn-sm" type="submit">{{ _("Let the best take stand") }}</button></form>
+            {% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
 {% if stranded_call %}
 <section class="card" aria-labelledby="stranded-call-title">
   <h2 id="stranded-call-title">{{ _("A paid call was interrupted before its answer was saved") }}</h2>

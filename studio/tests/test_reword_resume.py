@@ -76,7 +76,9 @@ def test_the_episode_brief_checksum_is_ignored():
     {"lighting_state": "default"},
     {"camera_motion": "static"},
     {"shot_type": "close-up"},
-    {"lens": "85mm"},
+    # 'lens' is deliberately absent: the direction stage chooses it when the
+    # script does not, so it is a result, not an instruction. See
+    # test_a_lens_the_director_chose_is_not_a_changed_script.
     {"continuity_out": "list burned"},
     {"props": [{"prop_id": "list", "state": "folded"}]},
 ])
@@ -365,3 +367,16 @@ def test_a_refusal_names_what_moved():
 def test_nothing_is_named_when_nothing_moved():
     assert shape_differences(shape_parts(CHECKSUMS, BRIEF, SCENES, EPISODE),
                              shape_parts(CHECKSUMS, BRIEF, SCENES, EPISODE)) == []
+
+
+def test_a_lens_the_director_chose_is_not_a_changed_script():
+    """When the script names no lens, the direction stage picks one and writes
+    it into the scene. The saved episode therefore has a lens the freshly read
+    script does not, and comparing it compared a result against its own input:
+    every episode that reached direction could never be resumed again."""
+    directed = copy.deepcopy(SCENES)
+    directed[0]["lens"] = "85mm"
+    as_written = copy.deepcopy(SCENES)
+    as_written[0].pop("lens", None)
+    assert shape_differences(shape_parts(CHECKSUMS, BRIEF, directed, EPISODE),
+                             shape_parts(CHECKSUMS, BRIEF, as_written, EPISODE)) == []

@@ -51,9 +51,15 @@ VOICE_STAGES = ('voice', 'lipsync', 'assemble', 'qa', 'deliver')
 # Everything that decides what is generated visually. Compared explicitly
 # rather than by diffing whole scene dicts, because the saved copy carries
 # prompts attached at intake that a freshly validated one does not.
+#
+# 'lens' belongs to that same group and was in this list by mistake. When the
+# script does not name one, the direction stage picks it and writes it back
+# into the scene, so a started episode has a lens and a freshly read script
+# has none. Comparing it compared a result against its own input, and every
+# episode that got as far as direction could never be resumed again.
 SCENE_STRUCTURE = ('scene_id', 'sequence', 'duration', 'duration_seconds', 'location',
                    'lighting_state', 'characters_in_frame', 'wardrobe', 'action',
-                   'shot_type', 'lens', 'camera_motion', 'continuity_in', 'continuity_out',
+                   'shot_type', 'camera_motion', 'continuity_in', 'continuity_out',
                    'props', 'is_cliffhanger', 'split', 'lipsync_speaker')
 LINE_STRUCTURE = ('speaker', 'delivery', 'voice_over')
 

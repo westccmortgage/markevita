@@ -164,6 +164,21 @@
         </select>
         <p class="hint">{{ _("Applies to every episode of this series, including the ones the studio writes next.") }}</p>
       </div>
+      {# Music follows the scene: calm where nothing is at stake, tighter where
+         something is. The level comes from the script — a cliffhanger, a secret
+         changing hands, a relationship moving. #}
+      <div class="field"><label>{{ _("Music") }}</label>
+        <select name="music">
+          {% set music = (s.format or {}).get('music', 'off') %}
+          {% for value, label in [
+              ('off', _("No music")),
+              ('generate', _("Generated for each episode — about $0.18")),
+              ('files', _("My own files, uploaded below")) ] %}
+          <option value="{{ value }}" {{ 'selected' if music == value }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ _("Music plays under every scene, quieter under dialogue and tighter as the scene tightens.") }}</p>
+      </div>
     </div>
     <div class="field"><label>{{ _("Logline") }}</label><input type="text" name="logline" value="{{ s.logline }}"></div>
 
@@ -218,5 +233,30 @@
     </fieldset>
     <button class="btn-primary" type="submit">{{ _("Save series") }}</button>
   </form>
+
+  <h2>{{ _("Your own music") }}</h2>
+  <p class="hint">{{ _("One file per level of tension. The studio loops each one under the scenes at that level, so a short piece is enough. Used only when Music above is set to your own files.") }}</p>
+  <table>
+    <thead><tr><th>{{ _("Level") }}</th><th>{{ _("File") }}</th><th></th></tr></thead>
+    <tbody>
+      {% set beds = (s.format or {}).get('music_beds') or {} %}
+      {% for level, caption in [
+          ('calm', _("Calm — nothing at stake")),
+          ('uneasy', _("Uneasy — something is moving")),
+          ('taut', _("Taut — a turn or a cliffhanger")) ] %}
+      <tr>
+        <td>{{ caption }}</td>
+        <td>{% if beds.get(level) %}{{ _("uploaded") }}{% else %}<span class="hint">{{ _("none yet") }}</span>{% endif %}</td>
+        <td>
+          <form method="post" action="{{ base }}/series/{{ s.id }}/music" enctype="multipart/form-data">
+            <input type="hidden" name="level" value="{{ level }}">
+            <input type="file" name="bed" accept="audio/*" required>
+            <button type="submit">{{ _("Upload") }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}

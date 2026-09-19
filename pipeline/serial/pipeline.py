@@ -729,27 +729,107 @@ class Pipeline:
             shutil.copy(cur, final); st["final"] = str(final); self.state.save()
         self.state.mark_stage("lipsync"); self.state.set_status("assembly_pending")
 
+    # ---------- music ----------
+
+    MUSIC_LEVELS = {1: "calm", 2: "uneasy", 3: "taut"}
+    MUSIC_PROMPTS = {
+        1: "Calm instrumental underscore, sparse and unhurried, soft sustained strings and gentle piano, "
+           "no drums, no vocals, no melody that pulls attention, loopable background bed.",
+        2: "Uneasy instrumental underscore, low pulsing drone with a quiet irregular heartbeat, muted strings, "
+           "restrained and tense but never loud, no vocals, loopable background bed.",
+        3: "Taut instrumental underscore, insistent low ostinato and rising strings, dread building without release, "
+           "no vocals, no melody, loopable background bed.",
+    }
+    # Loud enough to feel under an empty room, quiet enough to stay under a line.
+    MUSIC_DB = {1: -26.0, 2: -24.0, 3: -22.0}
+    MUSIC_DUCK_DB = 4.0
+    MUSIC_BED_SECONDS = 180
+
+    def _tension(self, scene: dict) -> int:
+        """How tight this scene is, from the script if it says so.
+
+        Episodes written before the script carried the field still need an
+        answer, and the facts that make a scene tense are already recorded:
+        a cliffhanger, a secret changing hands, a relationship moving.
+        """
+        stated = scene.get("tension")
+        if stated in (1, 2, 3):
+            return int(stated)
+        if scene.get("is_cliffhanger"):
+            return 3
+        if scene.get("knowledge_gained") or scene.get("relationship_changes"):
+            return 2
+        return 1
+
+    def _score_plan(self, spans: list[tuple[dict, float]]) -> list[dict]:
+        plan = []
+        for scene, seconds in spans:
+            level = self._tension(scene)
+            db = self.MUSIC_DB[level]
+            if scene.get("dialogue"):
+                db -= self.MUSIC_DUCK_DB
+            plan.append({"scene_id": scene["scene_id"], "level": level, "seconds": seconds, "db": db})
+        return plan
+
+    def _music_beds(self, levels: set[int]) -> dict[int, Path]:
+        """One bed per level in use. Files the producer supplied, or generated once."""
+        mode = self.episode.get("music", "off")
+        assets = self.pkg.root / "assets"
+        beds: dict[int, Path] = {}
+        for level in sorted(levels):
+            name = self.MUSIC_LEVELS[level]
+            supplied = next((p for p in assets.glob(f"music_{name}.*")), None) or next((p for p in assets.glob("music.*")), None)
+            if mode == "files":
+                if not supplied:
+                    raise RuntimeError(
+                        f"The series is set to use your own music, but no bed for '{name}' was uploaded. "
+                        "Upload one on the series page, or switch the series to generated music.")
+                beds[level] = supplied
+            else:
+                if supplied:
+                    beds[level] = supplied; continue
+                dest = self.work / "music" / f"{name}.wav"
+                if not dest.exists():
+                    tid = self._take_id("episode", "music", level)
+                    self.log(f"assemble: music {name} генерируется")
+                    providers.gen_music(self.fal, tid, self.MUSIC_PROMPTS[level],
+                                        self.MUSIC_BED_SECONDS, dest, f"music {name}")
+                beds[level] = dest
+        return beds
+
     # ---------- stage: assemble ----------
 
     def stage_assemble(self):
         if self._done("assemble"):
             self.log("assemble: уже сделано"); return
         e = self.episode; w, h = e["width"], e["height"]
-        norm, cues, t = [], [], 0.0
+        norm, cues, spans, t = [], [], [], 0.0
         for s in self.scenes:
             st = self.state.scene(s["scene_id"])
             dst = media.normalize_clip(Path(st["final"]), self.work / "norm" / f"{s['scene_id']}.mp4", w, h)
             d = media.duration(dst)
             for c in (st.get("voice") or {}).get("cues", []):
                 cues.append({"start": round(t + c["start"], 3), "end": round(min(t + c["end"], t + d - 0.05), 3), "text": c["text"]})
-            norm.append(dst); t += d
+            norm.append(dst); spans.append((s, d)); t += d
         ver = f"v{int(self.state.data.get('master_version', 0)) + 1}"
         mdir = self.out / "masters" / ver; mdir.mkdir(parents=True, exist_ok=True)
         cur = media.concat(norm, self.work / "episode_cut.mp4")
-        for name, db in (("room_tone", -28.0), ("music", -22.0)):
-            bed = next((p for p in (self.pkg.root / "assets").glob(f"{name}.*")), None)
-            if bed:
-                cur = media.add_bed(cur, bed, self.work / f"episode_{name}.mp4", db); self.log(f"assemble: {name} подложен ({db} dB)")
+        room = next((p for p in (self.pkg.root / "assets").glob("room_tone.*")), None)
+        if room:
+            cur = media.add_bed(cur, room, self.work / "episode_room_tone.mp4", -28.0)
+            self.log("assemble: room_tone подложен (-28.0 dB)")
+        music_mode = e.get("music", "off")
+        if music_mode in ("files", "generate") and spans:
+            plan = self._score_plan(spans)
+            beds = self._music_beds({p["level"] for p in plan})
+            track = media.score_track([{"bed": beds[p["level"]], "seconds": p["seconds"], "db": p["db"]} for p in plan],
+                                      self.work / "music" / "episode_score.wav")
+            cur = media.mix_track(cur, track, self.work / "episode_music.mp4")
+            counts = {name: sum(1 for p in plan if self.MUSIC_LEVELS[p["level"]] == name) for name in self.MUSIC_LEVELS.values()}
+            self.log("assemble: музыка подложена — " + ", ".join(f"{k} {v}" for k, v in counts.items() if v))
+        elif (bed := next((p for p in (self.pkg.root / "assets").glob("music.*")), None)):
+            cur = media.add_bed(cur, bed, self.work / "episode_music.mp4", -22.0)
+            self.log("assemble: music подложен (-22.0 dB)")
         captions = self.captions_override or e.get("captions", "srt")
         # "none": ни поверх картинки, ни отдельным файлом. Реплики всё равно
         # считаются — иначе проверка "субтитры совпадают с диалогом" молча
@@ -764,7 +844,7 @@ class Pipeline:
         media.poster_frame(master, 1.0, mdir / "poster.jpg")
         meta = {"series_id": e["series_id"], "season_id": e["season_id"], "episode_id": e["episode_id"], "number": e["number"], "title": e["title"],
                 "series_title": e["series_title"], "language": e["language"], "duration_seconds": round(media.duration(master), 2),
-                "aspect_ratio": e["aspect_ratio"], "captions": captions, "subtitle_cues": len(cues),
+                "aspect_ratio": e["aspect_ratio"], "captions": captions, "subtitle_cues": len(cues), "music": music_mode,
                 "cliffhanger": e["cliffhanger"],
                 "caption_text": f"{e['series_title']} · {e['season_id'].upper()}{e['episode_id'].upper()} «{e['title']}»\n{e.get('logline','')}",
                 "hashtags": [], "master_version": ver, "created_at": now()}

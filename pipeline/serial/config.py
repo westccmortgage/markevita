@@ -38,6 +38,7 @@ class Config:
     fal_image_t2i_model: str = "fal-ai/nano-banana-2"
     fal_image_pro_model: str = "fal-ai/nano-banana-pro"
     fal_lipsync_model: str = "fal-ai/sync-lipsync/v2"
+    fal_music_model: str = "cassetteai/music-generator"
     lipsync_variant: str = "lipsync-2"
     # elevenlabs
     elevenlabs_api_key: str = ""
@@ -107,6 +108,7 @@ class Config:
             fal_video_model=_env("FAL_VIDEO_MODEL", DEFAULT_VIDEO_MODEL),
             fal_image_model=_env("FAL_IMAGE_MODEL", "fal-ai/nano-banana-2/edit"),
             fal_lipsync_model=_env("FAL_LIPSYNC_MODEL", "fal-ai/sync-lipsync/v2"),
+            fal_music_model=_env("FAL_MUSIC_MODEL", "cassetteai/music-generator"),
             lipsync_variant=_env("LIPSYNC_VARIANT", "lipsync-2"),
             elevenlabs_api_key=_env("ELEVENLABS_API_KEY"),
             elevenlabs_model_id=_env("ELEVENLABS_MODEL_ID", "eleven_v3"),

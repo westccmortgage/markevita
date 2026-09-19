@@ -74,6 +74,12 @@ def image_cost(pro: bool, resolution: str) -> float:
     return PRICE.get(f"nano_banana_2_image_{r}", PRICE["nano_banana_2_image_1k"])
 
 
+def music_cost(seconds: float) -> float:
+    """Billed by the minute of output, rounded up the way the provider bills."""
+    import math as _math
+    return _math.ceil(max(1.0, seconds) / 60.0) * PRICE["cassette_music_per_min"]
+
+
 def lipsync_cost(seconds: float, variant: str) -> float:
     return seconds * (PRICE["sync_lipsync_2_pro_per_sec"] if variant == "lipsync-2-pro" else PRICE["sync_lipsync_2_per_sec"])
 

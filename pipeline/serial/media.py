@@ -124,6 +124,53 @@ def add_bed(video: Path, bed: Path, dest: Path, bed_db: float) -> Path:
     return dest
 
 
+def score_track(segments: list[dict], dest: Path) -> Path:
+    """One music track for the whole episode, cut to the scenes under it.
+
+    A single bed under everything was the only shape the engine had, so the
+    music could not know that one scene is a confession and the next is a
+    boat leaving. Each segment names its own bed and its own level; the bed
+    is looped to the segment's length, faded at both ends so the change of
+    mood does not arrive as a click, and the segments are laid end to end.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    parts, work = [], dest.parent / f"{dest.stem}_parts"
+    work.mkdir(parents=True, exist_ok=True)
+    for i, seg in enumerate(segments):
+        length = float(seg["seconds"])
+        if length <= 0:
+            continue
+        fade = min(0.8, length / 2)
+        part = work / f"{i:03d}.wav"
+        filt = (f"volume={float(seg['db'])}dB,"
+                f"afade=t=in:st=0:d={fade:.2f},"
+                f"afade=t=out:st={max(0.0, length - fade):.2f}:d={fade:.2f}")
+        _run(["ffmpeg", "-y", "-loglevel", "error", "-stream_loop", "-1", "-i", str(seg["bed"]),
+              "-t", f"{length:.3f}", "-af", filt, "-ar", "48000", "-ac", "2", str(part)])
+        parts.append(part)
+    if not parts:
+        raise RuntimeError("A music track needs at least one scene to play under.")
+    lst = work / "parts.txt"
+    lst.write_text("".join(f"file '{p.resolve()}'\n" for p in parts), encoding="utf-8")
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst),
+          "-ar", "48000", "-ac", "2", str(dest)])
+    return dest
+
+
+def mix_track(video: Path, track: Path, dest: Path) -> Path:
+    """Lay a finished track under the video without looping or re-levelling it.
+
+    add_bed loops its input forever and sets one level for the whole episode,
+    which is right for room tone and wrong for a score that already carries
+    its own shape.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    filt = "[0:a][1:a]amix=inputs=2:duration=first:normalize=0[a]"
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-i", str(track), "-filter_complex", filt,
+          "-map", "0:v:0", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", str(dest)])
+    return dest
+
+
 def loudnorm(video: Path, dest: Path, i: float = -14.0, tp: float = -1.5, lra: float = 11.0) -> Path:
     """Measure the entire soundtrack, then normalize using those measurements.
 

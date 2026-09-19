@@ -650,3 +650,74 @@ def test_the_check_is_told_the_threshold_it_is_holding_shots_to():
 
     llm.cfg = SimpleNamespace(qc_pass_score=6.5)
     assert llm._threshold() == 6.5
+
+
+# ---------- music under the scenes ----------
+
+class _FakeState:
+    def __init__(self, episode):
+        self.data = {"episode": episode}
+
+
+def _music_pipeline(music="generate"):
+    from serial.pipeline import Pipeline
+    p = Pipeline.__new__(Pipeline)
+    p.state = _FakeState({"music": music})
+    return p
+
+
+def test_a_scene_that_turns_the_story_gets_tighter_music_without_being_labelled():
+    """Episodes written before the field existed still need a level.
+
+    The script says whether a scene is a cliffhanger and whether a secret
+    changes hands; guessing from those beats regenerating every old script.
+    """
+    p = _music_pipeline()
+    assert p._tension({"scene_id": "sc01"}) == 1
+    assert p._tension({"scene_id": "sc02", "relationship_changes": [{"id": "r", "state": "x"}]}) == 2
+    assert p._tension({"scene_id": "sc03", "knowledge_gained": [{"character": "c", "secret": "s"}]}) == 2
+    assert p._tension({"scene_id": "sc04", "is_cliffhanger": True}) == 3
+
+
+def test_the_script_overrides_the_guess_when_it_states_the_tension():
+    p = _music_pipeline()
+    assert p._tension({"scene_id": "sc01", "tension": 3}) == 3
+    assert p._tension({"scene_id": "sc02", "tension": 1, "is_cliffhanger": True}) == 1
+
+
+def test_music_steps_back_under_a_line_and_forward_when_nobody_speaks():
+    """The ask was music in the scenes where nobody says anything."""
+    p = _music_pipeline()
+    silent, spoken = {"scene_id": "sc01"}, {"scene_id": "sc02", "dialogue": [{"speaker": "a", "text": "hi"}]}
+    plan = p._score_plan([(silent, 6.0), (spoken, 6.0)])
+    assert plan[0]["db"] > plan[1]["db"]
+    assert [seg["seconds"] for seg in plan] == [6.0, 6.0]
+
+
+def test_a_series_set_to_its_own_music_says_which_bed_is_missing(tmp_path):
+    from serial.pipeline import Pipeline
+
+    class _Pkg:
+        root = tmp_path
+    (tmp_path / "assets").mkdir()
+    p = _music_pipeline("files")
+    p.pkg = _Pkg()
+    try:
+        p._music_beds({2})
+    except RuntimeError as exc:
+        assert "uneasy" in str(exc)
+    else:
+        raise AssertionError("a missing bed must be reported, not silently skipped")
+
+
+def test_the_score_is_cut_to_the_scenes_rather_than_looped_over_them(tmp_path):
+    """One bed under everything could not follow the episode; this one can."""
+    import subprocess
+    from serial import media
+    bed = tmp_path / "bed.wav"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=220:duration=2", str(bed)], check=True)
+    track = media.score_track([{"bed": bed, "seconds": 3.0, "db": -26.0},
+                               {"bed": bed, "seconds": 5.0, "db": -20.0}],
+                              tmp_path / "score.wav")
+    assert abs(media.duration(track) - 8.0) < 0.15

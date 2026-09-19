@@ -1087,3 +1087,94 @@ def test_a_scene_the_check_marked_down_has_a_way_past_it(tmp_path, monkeypatch):
     assert pipeline._weak_is_allowed('sc99')
     pipeline.accept_weak = False
     assert not pipeline._weak_is_allowed('sc99')
+
+
+# ---------- music under the scenes ----------
+
+def _music_series(monkeypatch, fmt=None):
+    store = StrictStore()
+    store.insert('series', {'id': 'island', 'title': 'Island', 'format': dict(fmt or {})})
+    monkeypatch.setattr(web, 'store', store)
+    monkeypatch.setattr(web, 'require_admin', lambda request: {'email': 'admin@example.test'})
+    monkeypatch.setattr(web, 'history', lambda *a, **kw: None)
+    return store
+
+
+def _settings(music):
+    # Called directly, unfilled Form() defaults arrive as marker objects, so
+    # every field the route reads has to be named here.
+    return web.series_settings(None, 'island', title='Island', logline='', genre='',
+                               language='en-US', captions='none', music=music, budget='50',
+                               regenerations='2', min_scenes='12', max_scenes='18',
+                               min_seconds='', max_seconds='', style_sentence='',
+                               camera_rules='', color_rules='', negative_image='',
+                               negative_video='', video_model='', picture='')
+
+
+def test_a_series_cannot_be_set_to_music_it_has_not_uploaded(monkeypatch):
+    """Otherwise the setting is accepted and the episode fails at assembly,
+    an hour of generated video later."""
+    store = _music_series(monkeypatch)
+    response = _settings('files')
+    assert response.status_code == 303
+    assert 'err=' in response.headers['location']
+    assert (store.get('series', {'id': 'island'})['format'] or {}).get('music') is None
+
+
+def test_generated_music_needs_nothing_uploaded(monkeypatch):
+    store = _music_series(monkeypatch)
+    assert _settings('generate').status_code == 303
+    assert store.get('series', {'id': 'island'})['format']['music'] == 'generate'
+
+
+def test_an_unknown_music_setting_is_refused(monkeypatch):
+    store = _music_series(monkeypatch)
+    assert 'err=' in _settings('loud').headers['location']
+    assert (store.get('series', {'id': 'island'})['format'] or {}).get('music') is None
+
+
+class _Bed:
+    def __init__(self, filename, payload=b'x' * 64):
+        self.filename, self._payload = filename, payload
+
+    async def read(self):
+        return self._payload
+
+
+def _upload(filename, level='calm', payload=b'x' * 64):
+    import asyncio
+    return asyncio.run(web.upload_music_bed(None, 'island', level=level, bed=_Bed(filename, payload)))
+
+
+def test_a_music_bed_that_is_not_audio_is_refused_before_it_is_stored(monkeypatch):
+    store = _music_series(monkeypatch)
+    assert 'err=' in _upload('bed.exe').headers['location']
+    assert (store.get('series', {'id': 'island'})['format'] or {}).get('music_beds') is None
+
+
+def test_an_empty_music_bed_is_refused(monkeypatch):
+    store = _music_series(monkeypatch)
+    assert 'err=' in _upload('bed.mp3', payload=b'').headers['location']
+    assert (store.get('series', {'id': 'island'})['format'] or {}).get('music_beds') is None
+
+
+def test_an_uploaded_bed_is_remembered_against_its_level(monkeypatch, tmp_path):
+    store = _music_series(monkeypatch)
+    kept = {}
+
+    class _R2:
+        def __init__(self, *a, **kw):
+            pass
+
+        def put(self, path, key):
+            kept[key] = path.read_bytes()
+            return key
+
+    monkeypatch.setattr('serial.storage.R2', _R2)
+    assert 'ok=' in _upload('theme.mp3', level='taut').headers['location']
+    beds = store.get('series', {'id': 'island'})['format']['music_beds']
+    assert beds == {'taut': 'series/island/music/taut.mp3'}
+    assert kept['series/island/music/taut.mp3'] == b'x' * 64
+    # And now the series may be set to use its own music.
+    assert _settings('files').status_code == 303
+    assert store.get('series', {'id': 'island'})['format']['music'] == 'files'

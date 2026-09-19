@@ -368,4 +368,37 @@ def materialize(series_id: str, clean: bool = False) -> Path:
         _write(root / "episodes" / ep["episode_id"] / "brief.json", build_brief(series_id, ep))
 
     (root / "assets").mkdir(exist_ok=True)
+    _fetch_music_beds(series, root)
     return root
+
+
+def _fetch_music_beds(series: dict, root: Path) -> list[str]:
+    """Bring the series' own music into the package, if it has any.
+
+    Missing music is not a reason to refuse to build the package: the series
+    may be set to generate its beds instead, or to play none at all, and both
+    of those read the same empty assets folder.
+    """
+    beds = ((series.get("format") or {}).get("music_beds") or {})
+    if not beds:
+        return []
+    from .config import PIPELINE_DIR
+    from serial.config import Config
+    from serial.storage import R2
+    try:
+        storage = R2(Config.load(PIPELINE_DIR, live=True), lambda _message: None)
+    except Exception:
+        return []
+    brought = []
+    for level, key in sorted(beds.items()):
+        name = f"music_{level}{Path(str(key)).suffix or '.mp3'}"
+        dest = root / "assets" / name
+        if dest.exists() and dest.stat().st_size:
+            brought.append(name); continue
+        try:
+            storage.get(str(key), dest)
+        except Exception:
+            continue
+        if dest.exists() and dest.stat().st_size:
+            brought.append(name)
+    return brought

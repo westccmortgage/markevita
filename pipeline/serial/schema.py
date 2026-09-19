@@ -21,7 +21,8 @@ SERIES = {
         "format": {
             "type": "object", "required": ["aspect_ratio", "width", "height"],
             "properties": {"aspect_ratio": {"enum": ["9:16", "16:9"]}, "width": {"type": "integer"}, "height": {"type": "integer"},
-                           "captions": {"enum": ["srt", "burned", "both", "none"]}},
+                           "captions": {"enum": ["srt", "burned", "both", "none"]},
+                           "music": {"enum": ["off", "files", "generate"]}},
         },
         "seasons": {
             "type": "array", "minItems": 1,
@@ -116,6 +117,8 @@ SCENE = {
         "knowledge_gained": {"type": "array", "items": {"type": "object", "required": ["character", "secret"], "properties": {"character": _id, "secret": _id, "how": _str}}},
         "relationship_changes": {"type": "array", "items": {"type": "object", "required": ["id", "state"], "properties": {"id": _id, "state": _str, "note": _str}}},
         "is_cliffhanger": {"type": "boolean"},
+        # How tight the scene is, for the music under it: 1 calm, 2 uneasy, 3 taut.
+        "tension": {"enum": [1, 2, 3]},
     },
 }
 

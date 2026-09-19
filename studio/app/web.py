@@ -315,6 +315,10 @@ def series_page(request: Request, series_id: str):
 SUBTITLES = {"both": "on the video, plus a separate file", "burned": "on the video",
              "srt": "separate file only", "none": "off"}
 
+# Which music a series plays under its scenes, and where it comes from.
+MUSIC_MODES = ("off", "files", "generate")
+MUSIC_BED_LEVELS = ("calm", "uneasy", "taut")
+
 
 def _video_model_choices() -> dict:
     """What the producer picks between, with the rate each one bills at."""
@@ -330,10 +334,67 @@ def _video_model_choices() -> dict:
             "picture_levels": list(live_jobs.PICTURE)}
 
 
+MUSIC_AUDIO_SUFFIXES = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
+MUSIC_BED_MAX_BYTES = 25 * 1024 * 1024
+
+
+@router.post("/series/{series_id}/music")
+async def upload_music_bed(request: Request, series_id: str, level: str = Form(...),
+                           bed: UploadFile | None = File(None)):
+    """One music bed for one level of tension, kept for every episode of the series.
+
+    Generated music is a per-episode charge and sounds a little different each
+    time; a series that wants one recognisable sound needs its own files, and
+    there was nowhere to put them.
+    """
+    import tempfile
+    a = require_admin(request)
+    s = store.get("series", {"id": series_id})
+    if not s:
+        raise HTTPException(404, "series not found")
+    back = f"/series/{series_id}"
+    if level not in MUSIC_BED_LEVELS:
+        return _redirect(back, err="Choose one of the music levels.")
+    if bed is None or not bed.filename:
+        return _redirect(back, err="Choose an audio file to upload.")
+    suffix = Path(bed.filename).suffix.lower()
+    if suffix not in MUSIC_AUDIO_SUFFIXES:
+        return _redirect(back, err="That is not an audio file the studio can use "
+                                   f"({', '.join(sorted(MUSIC_AUDIO_SUFFIXES))}).")
+    raw = await bed.read()
+    if not raw:
+        return _redirect(back, err="That file is empty.")
+    if len(raw) > MUSIC_BED_MAX_BYTES:
+        return _redirect(back, err="That file is larger than 25 MB. A background bed does not need to be.")
+    from .config import PIPELINE_DIR
+    from serial.config import Config
+    from serial.storage import R2
+    key = f"series/{series_id}/music/{level}{suffix}"
+    try:
+        storage = R2(Config.load(PIPELINE_DIR, live=True), lambda _message: None)
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+            f.write(raw); staged = Path(f.name)
+        try:
+            storage.put(staged, key)
+        finally:
+            staged.unlink(missing_ok=True)
+    except Exception as exc:
+        return _redirect(back, err="The music bed could not be stored "
+                                   f"({type(exc).__name__}). Try again in a moment.")
+    fmt = dict(s.get("format") or {})
+    beds = dict(fmt.get("music_beds") or {})
+    beds[level] = key
+    fmt["music_beds"] = beds
+    store.update("series", {"id": series_id}, {"format": fmt, "updated_at": _now()})
+    history(series_id, "", "series.music_bed_uploaded", entity_type="music", entity_id=level,
+            actor=a["email"], detail={"filename": bed.filename, "bytes": len(raw)})
+    return _redirect(back, ok=f"Music for {level} scenes saved.")
+
+
 @router.post("/series/{series_id}/settings")
 def series_settings(request: Request, series_id: str, title: str = Form(...),
                     logline: str = Form(""), genre: str = Form(""), language: str = Form("en-US"),
-                    captions: str = Form("both"), budget: str = Form("50"),
+                    captions: str = Form("both"), music: str = Form("off"), budget: str = Form("50"),
                     regenerations: str = Form("2"), min_scenes: str = Form("12"),
                     max_scenes: str = Form("18"), min_seconds: str = Form(""),
                     max_seconds: str = Form(""), style_sentence: str = Form(""),
@@ -348,6 +409,12 @@ def series_settings(request: Request, series_id: str, title: str = Form(...),
     if captions not in ("both", "burned", "srt", "none"):
         return _redirect(f"/series/{series_id}", err="Choose one of the subtitle options.")
     fmt["captions"] = captions
+    if music not in MUSIC_MODES:
+        return _redirect(f"/series/{series_id}", err="Choose one of the music options.")
+    if music == "files" and not (fmt.get("music_beds") or {}):
+        return _redirect(f"/series/{series_id}",
+                         err="Upload at least one music bed before setting the series to use your own music.")
+    fmt["music"] = music
     limits = {**DEFAULT_LIMITS, **(s.get("production_limits") or {})}
     from serial.config import VIDEO_MODELS
     if video_model:

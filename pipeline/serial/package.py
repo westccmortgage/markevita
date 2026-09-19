@@ -402,7 +402,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
         "series_id": pkg.series["series_id"], "series_title": pkg.series["title"], "season_id": ep["season_id"],
         "episode_id": ep["episode_id"], "number": ep["number"], "title": ep["title"], "logline": ep.get("logline", ""),
         "language": pkg.series["language"], "aspect_ratio": fmt["aspect_ratio"], "width": fmt["width"], "height": fmt["height"],
-        "captions": fmt.get("captions", "srt"), "total_seconds": total, "brief_sha256": ep["_sha256"], "bible_version": pkg.bible_version,
+        "captions": fmt.get("captions", "srt"), "music": fmt.get("music", "off"), "total_seconds": total, "brief_sha256": ep["_sha256"], "bible_version": pkg.bible_version,
         "limits": L, "scenes": norm, "ledger": ledger, "warnings": warns, "cliffhanger": ch,
         "end_state": {"knowledge": {k: sorted(v) for k, v in knowledge.items()}, "relationships": relstate, "props": prop_state},
     }

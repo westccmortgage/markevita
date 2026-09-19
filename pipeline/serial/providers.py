@@ -253,6 +253,30 @@ def gen_video(fal: Fal, take_id: str, keyframe: Path, prompt: str, negative: str
     return dest, take
 
 
+# ---------------- music ----------------
+
+def gen_music(fal: Fal, take_id: str, prompt: str, seconds: int, dest: Path, what: str) -> tuple[Path, dict]:
+    """One instrumental bed. Paid for once and reused for every scene at that level."""
+    from . import costs
+    cfg = fal.cfg
+    args = {"prompt": prompt, "duration": int(seconds)}
+    est = costs.music_cost(seconds)
+    result, take = fal.run(cfg.fal_music_model, args, take_id, est, what,
+                           stub=lambda: {"audio_file": {"url": "dry://music"}})
+    take["prompt"] = prompt
+    if cfg.dry_run:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                        "-i", f"sine=frequency=220:duration={int(seconds)}",
+                        "-ar", "48000", "-ac", "2", str(dest)], check=True)
+    else:
+        payload = result.get("audio_file") or result.get("audio") or {}
+        download(payload["url"] if isinstance(payload, dict) else payload, dest)
+    take["local_path"] = str(dest); take["checksum"] = sha256(dest)
+    fal.state.save()
+    return dest, take
+
+
 # ---------------- lipsync ----------------
 
 def lipsync(fal: Fal, take_id: str, video: Path, audio: Path, seconds: float, dest: Path, what: str) -> tuple[Path, dict]:

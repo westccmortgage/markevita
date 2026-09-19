@@ -124,6 +124,24 @@ def add_bed(video: Path, bed: Path, dest: Path, bed_db: float) -> Path:
     return dest
 
 
+def hold_from_still(still: Path, seconds: float, dest: Path, w: int, h: int, fps: int = 24) -> Path:
+    """A held shot, cut from the frame that was already drawn and paid for.
+
+    When the video provider will not make a scene at all there is no take to
+    accept and nothing to fall back on, so one refused scene stopped a
+    finished episode. A locked shot on a still is an ordinary thing in drama,
+    and the first frame of that scene already exists.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+          f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,fps={fps},format=yuv420p")
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-i", str(still),
+          "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+          "-t", f"{float(seconds):.3f}", "-vf", vf, "-c:v", "libx264", "-preset", "medium",
+          "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-shortest", str(dest)])
+    return dest
+
+
 def score_track(segments: list[dict], dest: Path) -> Path:
     """One music track for the whole episode, cut to the scenes under it.
 

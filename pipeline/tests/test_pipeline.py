@@ -734,3 +734,49 @@ def test_turning_music_on_does_not_read_as_a_different_series():
     assert series_sha(base) == series_sha(with_music)
     moved = {"series_id": "s", "format": {**base["format"], "aspect_ratio": "16:9"}}
     assert series_sha(base) != series_sha(moved)
+
+
+# ---------- a scene the provider will not make ----------
+
+def test_a_refusal_is_said_another_way_before_it_is_given_up_on():
+    """Most refusals are the wording, not the beat. One Anthropic call is
+    cheaper than an evening of the producer's time."""
+    from serial.pipeline import Pipeline
+    said = {}
+
+    class _LLM:
+        def soften_shot(self, prompt, refusal):
+            said['prompt'], said['refusal'] = prompt, refusal
+            return {"prompt": "She turns away from the tile.", "changed": "off the body"}
+
+    p = Pipeline.__new__(Pipeline)
+    p.llm, p.log = _LLM(), lambda *a: None
+    assert p._soften("video sc08", "The body on the tile.", "422") == "She turns away from the tile."
+    assert said['refusal'] == "422"
+
+
+def test_a_rewrite_that_fails_does_not_make_the_refusal_worse():
+    from serial.pipeline import Pipeline
+
+    class _LLM:
+        def soften_shot(self, prompt, refusal):
+            raise RuntimeError("overloaded")
+
+    p = Pipeline.__new__(Pipeline)
+    p.llm, p.log = _LLM(), lambda *a: None
+    assert p._soften("video sc08", "anything", "422") is None
+
+
+def test_a_held_shot_is_cut_from_the_frame_already_paid_for(tmp_path):
+    """When the provider will not make a scene at all there is no take to
+    accept, so one refused scene stopped a finished episode."""
+    import subprocess
+    from serial import media
+    still = tmp_path / "keyframe.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                    "-i", "color=c=navy:s=540x960", "-frames:v", "1", str(still)], check=True)
+    held = media.hold_from_still(still, 8, tmp_path / "hold.mp4", 1080, 1920)
+    info = media.probe(held)
+    assert abs(info["duration"] - 8.0) < 0.2
+    assert (info["width"], info["height"]) == (1080, 1920)
+    assert info["has_audio"], "a silent scene still needs a track to mix speech into"

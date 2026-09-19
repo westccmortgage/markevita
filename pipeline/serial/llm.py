@@ -144,6 +144,16 @@ class LLM:
             fix = self._create("Return ONLY valid JSON. Fix the following so it parses. No prose.", text, max_tokens)
             return json.loads(_strip_fences(fix))
 
+    def soften_shot(self, prompt: str, refusal: str) -> dict:
+        """Say the same thing in a way the provider will make.
+
+        A refusal used to end the scene, and the scene used to end the episode.
+        Most of them are the wording rather than the beat.
+        """
+        return self._json(prompts.SOFTEN_SHOT, [{"type": "text", "text":
+            f"The provider refused this shot.\n\nRefusal: {refusal}\n\nShot description:\n{prompt}"}],
+            max_tokens=4000)
+
     # ---------- bible ----------
 
     def import_bible_markdown(self, bible_md: str) -> dict:

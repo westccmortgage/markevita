@@ -505,7 +505,7 @@ class Pipeline:
                       f"Avoid: {s.get('negative','')}, {neg_extra}, {prompts.NEGATIVE_IMAGE}.")
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_kf_", self._redo("keyframes", s["scene_id"]))
-            refused = None
+            refused, softened = None, None
             for attempt in range(base, base + self.regen + 1):
                 tid = self._take_id(s["scene_id"], "kf", attempt)
                 self.log(f"keyframes: {s['scene_id']} попытка {attempt+1}")
@@ -515,6 +515,11 @@ class Pipeline:
                 except Exception as exc:
                     if not self._decided_refusal(exc):
                         raise
+                    if not softened:
+                        softened = self._soften(f"keyframe {s['scene_id']}", prompt, str(exc))
+                        if softened:
+                            prompt = softened
+                            continue
                     self.log(f"keyframes: {s['scene_id']} провайдер отказался это создавать; сцена отложена")
                     refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["forced_by_operator"] = bool(base)
@@ -530,9 +535,23 @@ class Pipeline:
                     self.log(f"keyframes: {s['scene_id']} принято как достаточно близкое ({score})")
                     ok = (path, tid); st["keyframe_close"] = score; break
                 hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
+            if not ok and softened and not refused:
+                # The refusal came on the last attempt, so there was no room
+                # left to try the softened wording. Holding the frame is still
+                # better than stopping the episode.
+                refused = 'The provider refused this shot and no attempt was left to say it another way.'
             if refused:
-                st["status"] = "refused"; st["refusal"] = refused
-                failed.append(s["scene_id"]); self.state.save(); continue
+                # Said another way and still refused. The first frame of this
+                # scene exists and is paid for, so the shot is held on it: an
+                # ordinary thing in drama, and the episode finishes.
+                held = media.hold_from_still(Path(st["keyframe"]), s["duration"],
+                                             self.work / "video" / f"{s['scene_id']}_hold.mp4",
+                                             self.episode["width"], self.episode["height"])
+                st["video"], st["video_take"] = str(held), None
+                st["video_held"], st["refusal"], st["status"] = True, refused, "video_ok"
+                self.log(f"video: {s['scene_id']} провайдер отказался и после смягчения; "
+                         f"держим кадр {s['duration']}s")
+                self.state.save(); continue
             if not ok and self._weak_is_allowed(s["scene_id"]):
                 ok = (path, tid); st["keyframe_weak"] = True
             if not ok:
@@ -571,7 +590,7 @@ class Pipeline:
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_vid_", self._redo("video", s["scene_id"]))
-            refused = None
+            refused, softened = None, None
             for attempt in range(base, base + self.regen + 1):
                 tid = self._take_id(s["scene_id"], "vid", attempt)
                 self.log(f"video: {s['scene_id']} {s['duration']}s попытка {attempt+1}")
@@ -581,10 +600,15 @@ class Pipeline:
                 except Exception as exc:
                     if not self._decided_refusal(exc):
                         raise
-                    # One shot the model will not make must not cost the other
-                    # twenty-seven: the episode stopped dead on the first of
-                    # them, so every refused scene was a separate evening.
-                    self.log(f"video: {s['scene_id']} провайдер отказался это создавать; сцена отложена")
+                    # Most refusals are the wording, not the beat. Saying it
+                    # another way costs one Anthropic call and saves the scene;
+                    # a refused scene used to cost the producer an evening.
+                    if not softened:
+                        softened = self._soften(f"video {s['scene_id']}", prompt, str(exc))
+                        if softened:
+                            prompt = softened
+                            continue
+                    self.log(f"video: {s['scene_id']} провайдер отказался это создавать")
                     refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["parent_take"] = st.get("keyframe_take"); take["forced_by_operator"] = bool(base)
                 frames = media.sample_frames(path, self.work / "frames" / f"{s['scene_id']}_v{attempt}")
@@ -717,7 +741,14 @@ class Pipeline:
             if not v:
                 shutil.copy(video, final); st["final"] = str(final); self.state.save(); continue
             cur = video
-            if v.get("sync_track"):
+            if v.get("sync_track") and st.get("video_held"):
+                # Nothing moves in a held frame, so there are no lips to sync.
+                # Paying to animate a still would buy an uncanny mouth on an
+                # otherwise deliberate shot; the speech is mixed over it.
+                self.log(f"lipsync: {s['scene_id']} кадр удержан, губы не синхронизируем")
+                cur = media.mix_audio_into(cur, Path(v["sync_track"]),
+                                           self.work / "lipsync" / f"{s['scene_id']}_held.mp4")
+            elif v.get("sync_track"):
                 base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_ls_", self._redo("lipsync", s["scene_id"]))
                 tid = self._take_id(s["scene_id"], "ls", base)
                 self.log(f"lipsync: {s['scene_id']} ({s.get('lipsync_speaker')})")
@@ -728,6 +759,23 @@ class Pipeline:
                 cur = media.mix_audio_into(cur, Path(v["vo_track"]), self.work / "lipsync" / f"{s['scene_id']}_vo.mp4")
             shutil.copy(cur, final); st["final"] = str(final); self.state.save()
         self.state.mark_stage("lipsync"); self.state.set_status("assembly_pending")
+
+    def _soften(self, what: str, prompt: str, refusal: str) -> str | None:
+        """Ask for the same beat in words the provider will make.
+
+        Returns None if the rewrite itself fails, so a refusal is never made
+        worse by the attempt to work around it.
+        """
+        try:
+            said = self.llm.soften_shot(prompt, refusal)
+        except Exception as exc:
+            self.log(f"{what}: смягчить описание не удалось ({type(exc).__name__})")
+            return None
+        text = (said or {}).get("prompt")
+        if not text:
+            return None
+        self.log(f"{what}: провайдер отказал; говорим иначе — {said.get('changed', '')}")
+        return text
 
     # ---------- music ----------
 

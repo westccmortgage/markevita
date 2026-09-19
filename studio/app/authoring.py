@@ -452,6 +452,27 @@ ACTION AND CAMERA
 - Give every scene explicit `continuity_in` and `continuity_out` so the next
   scene can begin where this one ended.
 
+WHAT THE CAMERA CAN AFFORD
+This is an intimate drama, not a spectacle, and every scene is generated shot
+by shot at real cost. A scene the picture model fumbles is paid for twice; a
+scene it refuses outright stops the episode. So write only what a locked
+camera on two people can carry.
+- Write scenes that are almost still: a face, a held gaze, a hand on a rail,
+  someone deciding whether to speak. The tension is in what is being withheld,
+  not in what is happening.
+- No crowds, no fights, no chases, no vehicles or animals in motion, no
+  weather events, no fire or water in motion, no creatures, no stunts, no
+  anything that has to be simulated to look right. It will look wrong, and
+  wrong is worse than absent.
+- One or two people in frame. Three is already a composition the model loses
+  track of between the first and last frame.
+- Never depict a body, a wound, violence or its aftermath directly. The
+  provider refuses those and the scene cannot be made at all. Play the beat
+  off a reaction, a silhouette, a detail, an object, a closed door. A drama
+  can say someone drowned without the camera looking at them.
+- Prefer the reaction to the event. A woman hearing the news is a scene; the
+  news itself is usually not one worth paying for.
+
 CONTINUITY
 - Continue from `previous_final_scenes` and `carried_state`. Keep the geography,
   wardrobe and established positions. Do not restate what the audience just saw.

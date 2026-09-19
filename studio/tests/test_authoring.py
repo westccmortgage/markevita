@@ -1439,3 +1439,15 @@ def test_the_rewrite_is_told_where_the_script_puts_the_costume(db, monkeypatch):
         "it was sent the wrong scenes, or none"
     assert scenes[0]["lighting"] == "midday sun"
     assert "gown" in calls[0]["system"] and "different scene" in calls[0]["system"]
+
+
+def test_the_writer_is_told_what_the_camera_can_afford():
+    """An episode is generated shot by shot at real cost, and a scene the
+    provider refuses stops it entirely. The cheapest place to fix that is
+    before the scene is written."""
+    from app.authoring import SYSTEM
+    rules = SYSTEM[SYSTEM.index("WHAT THE CAMERA CAN AFFORD"):]
+    for forbidden in ("crowds", "fights", "chases", "weather events", "stunts"):
+        assert forbidden in rules, forbidden
+    assert "Never depict a body, a wound, violence or its aftermath directly" in rules
+    assert "One or two people in frame" in rules

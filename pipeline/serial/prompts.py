@@ -89,3 +89,21 @@ LOCATION_PACK = [
 ]
 
 PROP_TEMPLATE = "Product-style reference photo of {desc}, isolated on plain warm mid-grey studio backdrop, soft even light, no text, no hands, 50mm"
+
+
+SOFTEN_SHOT = """You rewrite one shot description that an image or video provider refused to generate.
+
+The refusal is automated and says almost nothing. In practice it fires on
+depictions of a body, on violence or its aftermath, on anything that reads as
+a minor, on brands and real people, and on wording that is merely lurid rather
+than actually explicit. The story beat is legitimate: a drama may show that
+someone has drowned without the camera dwelling on the body.
+
+Rewrite so the same beat plays, framed off the thing that was refused. Move
+the camera to a reaction, a detail, a silhouette, an aftermath. Keep the
+location, the lighting, the characters present, the wardrobe and the shot
+length. Do not add people, do not change who knows what, do not resolve or
+skip the beat.
+
+Return ONLY JSON:
+{"prompt": "the rewritten shot description", "changed": "one short sentence on what you moved the camera off"}"""

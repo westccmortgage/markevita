@@ -523,6 +523,7 @@ class Pipeline:
                     self.log(f"keyframes: {s['scene_id']} провайдер отказался это создавать; сцена отложена")
                     refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["forced_by_operator"] = bool(base)
+                take["regen_cap"] = self.regen
                 qc = self.llm.qc_image(refs, path, s["keyframe_expected"]); take["qa"] = qc; self.state.save()
                 kept, near, score = self._qc_verdict(qc)
                 self.log(f"keyframes: {s['scene_id']} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
@@ -599,6 +600,7 @@ class Pipeline:
                     self.log(f"video: {s['scene_id']} провайдер отказался это создавать")
                     refused = str(exc); break
                 take["scene_id"] = s["scene_id"]; take["attempt"] = attempt; take["parent_take"] = st.get("keyframe_take"); take["forced_by_operator"] = bool(base)
+                take["regen_cap"] = self.regen
                 frames = media.sample_frames(path, self.work / "frames" / f"{s['scene_id']}_v{attempt}")
                 qc = self.llm.qc_video(refs, frames, s["video_expected"]); take["qa"] = qc; self.state.save()
                 kept, near, score = self._qc_verdict(qc)
@@ -957,9 +959,34 @@ class Pipeline:
         ld = media.loudness(master)
         chk("loudness_target", ld["integrated_lufs"] is not None and -16.5 <= ld["integrated_lufs"] <= -11.5, f"{ld['integrated_lufs']} LUFS")
         chk("true_peak", ld["true_peak_dbtp"] is not None and ld["true_peak_dbtp"] <= -0.5, f"{ld['true_peak_dbtp']} dBTP")
-        weak = [s["scene_id"] for s in self.scenes if self.state.scene(s["scene_id"]).get("keyframe_weak") or self.state.scene(s["scene_id"]).get("video_weak")]
-        chk("scene_qc_all_passed", not weak, f"weak: {weak}" if weak else "")
-        over = [s["scene_id"] for s in self.scenes if sum(1 for t in self.state.data["takes"].values() if t.get("scene_id") == s["scene_id"] and t.get("endpoint") == self.cfg.fal_video_model and not t.get("forced_by_operator")) > self.regen + 1]
+        weak = [s["scene_id"] for s in self.scenes
+                if self.state.scene(s["scene_id"]).get("keyframe_weak")
+                or self.state.scene(s["scene_id"]).get("video_weak")]
+        # A scene the producer looked at and accepted is not a fault to report
+        # back at them. Offering the decision and then refusing the episode
+        # over it left the only way past a marked-down scene leading nowhere.
+        decided = [sid for sid in weak if self._weak_is_allowed(sid)]
+        unreviewed = [sid for sid in weak if sid not in decided]
+        chk("scene_qc_all_passed", not unreviewed,
+            (f"weak: {unreviewed}" if unreviewed else "")
+            + (f" (accepted by the producer: {decided})" if decided else ""))
+        held = [s["scene_id"] for s in self.scenes if self.state.scene(s["scene_id"]).get("video_held")]
+        if held:
+            self.log(f"qa: кадр удержан вместо видео в сценах {held}")
+        # Takes are immutable and survive every resume, so a lifetime count
+        # against the cap in force today condemns every scene shot under a
+        # larger one — lowering the setting made already-paid-for work a
+        # permanent failure. Only takes that recorded the cap they were made
+        # under can be judged; the rest are not this run's to answer for.
+        over = []
+        for scene in self.scenes:
+            made = [t for t in self.state.data["takes"].values()
+                    if t.get("scene_id") == scene["scene_id"]
+                    and t.get("endpoint") == self.cfg.fal_video_model
+                    and not t.get("forced_by_operator")
+                    and t.get("regen_cap") is not None]
+            if made and len(made) > min(int(t["regen_cap"]) for t in made) + 1:
+                over.append(scene["scene_id"])
         chk("retry_limit", not over, str(over) if over else "")
         chk("budget", self.budget.spent <= L["budget"], f"${self.budget.spent:.2f} / ${L['budget']:.2f}")
         prov_missing = [tid for tid, t in self.state.data["takes"].items() if t.get("status") == "succeeded" and not all(k in t for k in ("endpoint", "request_id", "checksum", "estimated_cost"))]

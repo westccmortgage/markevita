@@ -799,3 +799,38 @@ def test_the_hold_belongs_to_the_video_stage_not_the_keyframe_stage():
     # A refused scene no longer joins the list that stops the episode.
     refusal = video[video.index('if refused:'):]
     assert 'failed.append' not in refusal.split('if not ok and self._weak_is_allowed')[0]
+
+
+# ---------- the final check must not refuse a decision already made ----------
+
+def _qa_source():
+    import inspect
+    from serial.pipeline import Pipeline
+    return inspect.getsource(Pipeline.stage_qa)
+
+
+def test_a_scene_the_producer_accepted_does_not_fail_the_final_check():
+    """The studio offered the decision, the producer made it, the video stage
+    carried on — and then the last gate refused the episode for exactly that.
+    The one way past a marked-down scene led nowhere."""
+    src = _qa_source()
+    assert "self._weak_is_allowed(sid)" in src
+    accepted = src[src.index('weak = ['):src.index('chk("scene_qc_all_passed"')]
+    assert "decided" in accepted and "unreviewed" in accepted
+
+
+def test_lowering_the_retry_cap_does_not_condemn_work_already_paid_for():
+    """Takes are immutable and survive every resume, so counting a lifetime of
+    them against today's cap made every scene shot under a larger one a
+    permanent failure."""
+    src = _qa_source()
+    assert 't.get("regen_cap") is not None' in src, \
+        "a take that never recorded its cap cannot be judged against one"
+    assert 'min(int(t["regen_cap"]) for t in made)' in src
+
+
+def test_every_paid_scene_take_records_the_cap_it_was_made_under():
+    import inspect
+    from serial.pipeline import Pipeline
+    for stage in (Pipeline.stage_keyframes, Pipeline.stage_video):
+        assert 'take["regen_cap"] = self.regen' in inspect.getsource(stage), stage.__name__

@@ -78,7 +78,30 @@ CHARACTER_PACK = [
     ("expr_concerned",      "Medium close-up, concerned expression, brows slightly drawn, lips closed, 50mm"),
     ("expr_alarmed",        "Medium close-up, restrained alarm, eyes wider, still composed, 50mm"),
 ]
+
+# A real animal needs different identity views and different language from a
+# human actor.  These are deliberately anatomical/behavioural: no human smile,
+# cosmetics, hair, clothing, or anthropomorphic facial construction.
+WILD_FELINE_CHARACTER_PACK = [
+    ("front_headshot", "Front portrait of the same fully realistic adult wild forest cat, feline head and shoulders, looking toward the lens, natural closed mouth, 50mm"),
+    ("three_quarter_left", "Three-quarter portrait of the same fully realistic wild forest cat turned camera-left, natural feline anatomy, 50mm"),
+    ("three_quarter_right", "Three-quarter portrait of the same fully realistic wild forest cat turned camera-right, natural feline anatomy, 50mm"),
+    ("profile_left", "Clean left profile of the same fully realistic wild forest cat, ears and muzzle in natural alignment, 50mm"),
+    ("profile_right", "Clean right profile of the same fully realistic wild forest cat, ears and muzzle in natural alignment, 50mm"),
+    ("fullbody_front", "Full body of the same fully realistic large female wild forest cat, standing front view, natural paws and proportions, tail visible, 35mm"),
+    ("fullbody_three_quarter", "Full body of the same fully realistic large female wild forest cat, three-quarter view, graceful natural feline posture, tail visible, 35mm"),
+    ("fullbody_walking", "Full body side three-quarter view of the same fully realistic large female wild forest cat walking with graceful natural feline movement, all four paws anatomically correct, tail visible, 35mm"),
+    ("expr_feminine_gaze", "Close portrait of the same fully realistic large female wild forest cat, expressive intelligent feminine gaze conveyed only through eyes, attention and proud feline posture; natural closed feline mouth, 50mm"),
+    ("expr_feline_half_smirk", "Close portrait of the same fully realistic large female wild forest cat with a subtle natural feline half-smirk conveyed by asymmetrical whisker pad, eyes and playful defiance; no human lips or human smile, 50mm"),
+]
 CHARACTER_PACK_BACKDROP = "plain seamless warm mid-grey studio backdrop, soft even key light, no props, no text"
+
+
+def character_pack(character: dict) -> list[tuple[str, str]]:
+    appearance = (character.get("appearance") or "").lower()
+    if "wild forest cat" in appearance or ("wildcat" in appearance and "feline" in appearance):
+        return WILD_FELINE_CHARACTER_PACK
+    return CHARACTER_PACK
 
 LOCATION_PACK = [
     ("wide",         "Wide establishing view from the canonical master angle, empty of people, 35mm"),

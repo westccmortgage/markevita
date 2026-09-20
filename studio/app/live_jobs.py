@@ -209,6 +209,13 @@ def video_model(pkg):
     return chosen or DEFAULT_VIDEO_MODEL
 
 
+def video_route(pkg, episode_id):
+    """Episode-specific ordered QC route, falling back to the series model."""
+    load_episode = getattr(pkg, 'load_episode', None)
+    route = tuple((load_episode(episode_id).get('video_route') if load_episode else ()) or ())
+    return route or (video_model(pkg),)
+
+
 # What a producer is really choosing when they ask for it to look like cinema.
 # The language model writes the words and costs cents; the picture is where the
 # money goes, so these three settings move together under one name.
@@ -227,7 +234,7 @@ def picture(pkg) -> str:
     return chosen if chosen in PICTURE else 'standard'
 
 
-def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
+def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard', route=None):
     if not settings.allow_paid:
         raise PermissionError('STUDIO_ALLOW_PAID must be enabled for live production.')
     cfg = Config.load(PIPELINE_DIR, live=True)
@@ -240,6 +247,12 @@ def configuration(audio_mode, model=DEFAULT_VIDEO_MODEL, quality='standard'):
     if model not in VIDEO_MODELS:
         raise ValueError(f'This series is set to an unsupported video model: {model!r}.')
     cfg.fal_video_model = model
+    cfg.video_model_route = tuple(route or (model,))
+    unknown = [item for item in cfg.video_model_route if item not in VIDEO_MODELS]
+    if unknown:
+        raise ValueError(f'This episode route contains unsupported video models: {unknown!r}.')
+    if cfg.video_model_route[0] != model:
+        raise ValueError('The first route engine must match the selected primary video model.')
     if quality not in PICTURE:
         raise ValueError(f'This series is set to an unknown picture quality: {quality!r}.')
     for field, value in PICTURE[quality].items():
@@ -450,7 +463,9 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     frozen = settings.package_dir / '_live_jobs' / str(uuid.uuid4())
     shutil.copytree(source, frozen)
     pkg = SeriesPackage(frozen)
-    cfg = configuration(audio_mode, video_model(pkg), picture(pkg))
+    route = video_route(pkg, episode_id)
+    cfg = configuration(audio_mode, route[0], picture(pkg))
+    cfg.video_model_route = route
     actual_digest = package_digest(pkg, episode_id)
     if not digest or actual_digest != digest:
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
@@ -583,7 +598,9 @@ def _prepare_and_run(manager, job, control, cfg, pkg, cp, lease, actor,
 def check_configuration(series_id, episode_id, stages, audio_mode):
     """Read-only local checks; no lease, checkpoint mutation or paid request."""
     pkg = SeriesPackage(materialize(series_id))
-    cfg = configuration(audio_mode, video_model(pkg), picture(pkg))
+    route = video_route(pkg, episode_id)
+    cfg = configuration(audio_mode, route[0], picture(pkg))
+    cfg.video_model_route = route
     errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     try:
         validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)

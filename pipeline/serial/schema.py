@@ -129,6 +129,13 @@ EPISODE = {
         "schema_version": {"const": SCHEMA_VERSION},
         "series_id": _id, "season_id": _id, "episode_id": _id, "number": {"type": "integer"},
         "title": _str, "logline": _str,
+        "video_route": {"type": "array", "items": {"enum": [
+            "fal-ai/veo3.1/fast/image-to-video",
+            "fal-ai/veo3.1/image-to-video",
+            "xai/grok-imagine-video/v1.5/image-to-video",
+            "bytedance/seedance-2.0/image-to-video",
+            "fal-ai/kling-video/v3/pro/image-to-video",
+        ]}, "minItems": 1, "uniqueItems": True},
         "opening_state": {"type": "object",
                           "properties": {"knowledge": {"type": "object", "additionalProperties": {"type": "array", "items": _id}},   # {secret_id: [char_ids]}
                                          "relationships": {"type": "object", "additionalProperties": _str}}},                       # {rel_id: state}

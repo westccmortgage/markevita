@@ -22,13 +22,22 @@ from serial.config import DEFAULT_VIDEO_MODEL, VIDEO_MODELS, Config  # noqa: E40
 
 FAST = "fal-ai/veo3.1/fast/image-to-video"
 FULL = "fal-ai/veo3.1/image-to-video"
+GROK = "xai/grok-imagine-video/v1.5/image-to-video"
+SEEDANCE = "bytedance/seedance-2.0/image-to-video"
+KLING = "fal-ai/kling-video/v3/pro/image-to-video"
 
 
 # ── price ──────────────────────────────────────────────────────────────────
 
 def test_both_models_are_offered():
-    assert set(VIDEO_MODELS) == {FAST, FULL}
+    assert set(VIDEO_MODELS) == {FAST, FULL, GROK, SEEDANCE, KLING}
     assert DEFAULT_VIDEO_MODEL == FAST
+
+
+def test_episode_two_models_use_their_published_1080p_rates():
+    assert costs.video_cost(8, False, "1080p", GROK) == pytest.approx(2.01)
+    assert costs.video_cost(8, False, "1080p", SEEDANCE) == pytest.approx(5.456)
+    assert costs.video_cost(8, False, "1080p", KLING) == pytest.approx(0.896)
 
 
 @pytest.mark.parametrize("audio,resolution,fast,full", [
@@ -70,6 +79,15 @@ def _package(series_limits):
 def test_the_series_choice_is_what_a_run_uses():
     from app import live_jobs
     assert live_jobs.video_model(_package({"video_model": FULL})) == FULL
+
+
+def test_an_episode_route_overrides_the_series_model_in_order():
+    from app import live_jobs
+    from types import SimpleNamespace
+    route = [GROK, SEEDANCE, KLING, FULL]
+    pkg = SimpleNamespace(series={"production_limits": {"video_model": FAST}},
+                          load_episode=lambda _episode_id: {"video_route": route})
+    assert live_jobs.video_route(pkg, "s01e02") == tuple(route)
 
 
 def test_a_series_that_never_chose_keeps_the_fast_model():
@@ -124,6 +142,18 @@ def test_assigned_voices_switch_off_the_models_own_speech(monkeypatch, audio_mod
     cfg = live_jobs.configuration(audio_mode, FULL)
     assert cfg.fal_video_model == FULL
     assert cfg.video_generate_audio is generates
+
+
+def test_configuration_locks_the_ordered_episode_route(monkeypatch):
+    from app import live_jobs
+    from app.config import settings
+    monkeypatch.setattr(settings, "allow_paid", True)
+    monkeypatch.setattr(settings, "store_driver", "supabase")
+    monkeypatch.setenv("PIPELINE_ALLOW_PAID", "true")
+    route = (GROK, SEEDANCE, KLING, FULL)
+    cfg = live_jobs.configuration("voices", GROK, "standard", route)
+    assert cfg.video_model_route == route
+    assert cfg.fal_video_model == GROK
 
 
 def test_a_series_set_to_an_unknown_model_does_not_start(monkeypatch):

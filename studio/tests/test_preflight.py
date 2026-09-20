@@ -26,7 +26,7 @@ def test_preflight_collects_all_configuration_problems(short_package, monkeypatc
     pkg = SeriesPackage(live_jobs.materialize(sid))
     cfg = configured()
     cfg.fal_key = ''
-    cfg.fal_video_model = 'bytedance/seedance-2.0/image-to-video'
+    cfg.fal_video_model = 'fal-ai/unsupported-video/image-to-video'
     cfg.video_resolution = 'typo'
     cfg.provider_input_mode = 'typo'
     monkeypatch.setattr(preflight.shutil, 'which', lambda name: None)

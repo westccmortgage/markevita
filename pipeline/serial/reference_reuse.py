@@ -152,8 +152,9 @@ def expected(pkg):
     wanted = {"characters": {}, "locations": {}, "props": {}}
     for cid, c in pkg.characters.items():
         if c["visual"]:
-            wanted["characters"][cid] = [key for key, _ in prompts.CHARACTER_PACK if not key.startswith("fullbody")]
-            wanted["characters"][cid] += [f"{key}__{variant}" for key, _ in prompts.CHARACTER_PACK
+            pack = prompts.character_pack(c)
+            wanted["characters"][cid] = [key for key, _ in pack if not key.startswith("fullbody")]
+            wanted["characters"][cid] += [f"{key}__{variant}" for key, _ in pack
                                            if key.startswith("fullbody") for variant in c["wardrobe"]["variants"]]
     wanted["locations"] = {lid: [key for key, _ in prompts.LOCATION_PACK] for lid in pkg.locations}
     wanted["props"] = {pid: [pid] for pid in pkg.props}

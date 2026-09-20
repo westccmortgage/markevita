@@ -350,7 +350,16 @@ class Pipeline:
             self.sstate.save()
         elif (self.sstate.data.get("reference_pack_complete") == bv
               and self._done("references") and R["characters"]):
-            self.log("references: уже сделано для этой версии bible"); return
+            wanted = reference_reuse.expected(self.pkg)
+            missing = [(kind, owner, name) for kind, owners in wanted.items()
+                       for owner, names in owners.items() for name in names
+                       if owner not in R[kind] or (kind != "props" and name not in R[kind][owner])]
+            if not missing:
+                self.log("references: уже сделано для этой версии bible"); return
+            self.log(f"references: в зафиксированном пакете нет {len(missing)} обязательных кадров; достраиваю")
+            self.sstate.data["approvals"].pop("references", None)
+            self.sstate.data.pop("reference_pack_complete", None)
+            self.sstate.save()
         elif self._done("references") and R["characters"]:
             # The stage was marked done under an earlier bible and that mark is
             # never cleared. When the bible moved, the pack was emptied and
@@ -375,33 +384,39 @@ class Pipeline:
             cid = c["id"]; pack = R["characters"].setdefault(cid, {}); fz = self._redo("references", cid)
             seeds = [self.pkg.root / a for a in c.get("seed_assets", [])]
             wdef = c["wardrobe"]["variants"][c["wardrobe"]["default"]]["description"]
-            key, tmpl = prompts.CHARACTER_PACK[0]
+            character_pack = prompts.character_pack(c)
+            key, tmpl = character_pack[0]
+            is_feline = character_pack is prompts.WILD_FELINE_CHARACTER_PACK
+            same_identity = ("Same animal as the reference: identical coat markings, face, eyes, ear notch, build and tail"
+                             if is_feline else "Same person as the reference: identical face and hair")
             if key not in pack or self._redo("references", cid):
                 self.log(f"references: {cid} identity ({'from seed' if seeds else 'text-to-image pro'})")
                 desc = f"{c['name']}, {c.get('age','')}. {c['appearance']} Wearing: {wdef}. {backdrop}. {style}"
                 if seeds:
-                    p = self._gen_ref(f"ref_{bv}_{cid}_{key}", f"Same person as the reference image(s): identical face, hair, build. {tmpl}. {desc}",
+                    seed_identity = ("Same animal as the reference image(s): identical coat markings, face, eyes, ear notch, build and tail"
+                                     if is_feline else "Same person as the reference image(s): identical face, hair, build")
+                    p = self._gen_ref(f"ref_{bv}_{cid}_{key}", f"{seed_identity}. {tmpl}. {desc}",
                                       rdir / "characters" / cid / f"{key}.png", seeds, "3:4", False, f"ref {cid}/{key}", [(f"{c['name']} seed", seeds[0])], f"{tmpl}; same person as seed", forced=fz)
                 else:
                     p = self._gen_ref(f"ref_{bv}_{cid}_{key}", f"{tmpl}. {desc}", rdir / "characters" / cid / f"{key}.png", [], "3:4", True, f"ref {cid}/{key}", [], "", forced=fz)
                 pack[key] = self._ref_record(p, self.keys.bible_char(cid, bv, f"{key}.png")); self.sstate.save()
             identity = Path(pack[key]["path"])
-            for key, tmpl in prompts.CHARACTER_PACK[1:]:
+            for key, tmpl in character_pack[1:]:
                 if key.startswith("fullbody"):
                     continue
                 if key in pack and not self._redo("references", cid):
                     continue
                 self.log(f"references: {cid} {key}")
-                p = self._gen_ref(f"ref_{bv}_{cid}_{key}", f"Same person as the reference: identical face and hair. {tmpl}. Wearing: {wdef}. {backdrop}. {style}",
+                p = self._gen_ref(f"ref_{bv}_{cid}_{key}", f"{same_identity}. {tmpl}. Wearing: {wdef}. {backdrop}. {style}",
                                   rdir / "characters" / cid / f"{key}.png", [identity], "3:4", False, f"ref {cid}/{key}", [(f"{c['name']} identity", identity)], f"{tmpl}; same person", forced=fz)
                 pack[key] = self._ref_record(p, self.keys.bible_char(cid, bv, f"{key}.png")); self.sstate.save()
             for vid_, variant in c["wardrobe"]["variants"].items():
-                for key, tmpl in [k for k in prompts.CHARACTER_PACK if k[0].startswith("fullbody")]:
+                for key, tmpl in [k for k in character_pack if k[0].startswith("fullbody")]:
                     vkey = f"{key}__{vid_}"
                     if vkey in pack and not self._redo("references", cid):
                         continue
                     self.log(f"references: {cid} {vkey}")
-                    p = self._gen_ref(f"ref_{bv}_{cid}_{vkey}", f"Same person as the reference: identical face and hair. {tmpl}. Wearing: {variant['description']}. {backdrop}. {style}",
+                    p = self._gen_ref(f"ref_{bv}_{cid}_{vkey}", f"{same_identity}. {tmpl}. Wearing: {variant['description']}. {backdrop}. {style}",
                                       rdir / "characters" / cid / f"{vkey}.png", [identity] + seeds[:1], "9:16", False, f"ref {cid}/{vkey}", [(f"{c['name']} identity", identity)], f"{tmpl}; same person; wardrobe: {variant['description'][:80]}", forced=fz)
                     pack[vkey] = self._ref_record(p, self.keys.bible_char(cid, bv, f"{vkey}.png")); self.sstate.save()
 
@@ -461,6 +476,15 @@ class Pipeline:
             keys = ["front_headshot", "three_quarter_left", f"fullbody_front__{variant}"]
             if f"expr_{expr}" in pack:
                 keys.append(f"expr_{expr}")
+            action = " ".join((s.get("action") or "", s.get("keyframe_prompt") or "",
+                               s.get("video_prompt") or "")).lower()
+            if "expr_feminine_gaze" in pack and any(x in action for x in ("gaze", "look", "eyes", "watch")):
+                keys.append("expr_feminine_gaze")
+            if "expr_feline_half_smirk" in pack and any(x in action for x in ("half-smirk", "half smirk", "playful", "defian")):
+                keys.append("expr_feline_half_smirk")
+            walking = f"fullbody_walking__{variant}"
+            if walking in pack and any(x in action for x in ("walk", "follow", "pad", "step")):
+                keys.append(walking)
             start = len(refs) + 1
             for k in keys:
                 if k in pack:
@@ -578,6 +602,53 @@ class Pipeline:
                           + (f"Speak these lines exactly once with synchronized lips; all other people remain silent: {dialogue}" if dialogue else "Nobody speaks."))
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
+            route = tuple(getattr(self.cfg, "video_model_route", ()) or (self.cfg.fal_video_model,))
+            if len(route) > 1:
+                refusals = []
+                for route_index, endpoint in enumerate(route):
+                    tid = self._take_id(s["scene_id"], f"vid_r{route_index}", 0)
+                    self.log(f"video: {s['scene_id']} {s['duration']}s route {route_index + 1}/{len(route)}: {endpoint}")
+                    try:
+                        path, take = providers.gen_video(
+                            self.fal, tid, Path(st["keyframe"]),
+                            prompt + (f" Correction from prior QC: {hint}" if hint else ""), negative,
+                            s["duration"], self.work / "video" / f"{s['scene_id']}_r{route_index}.mp4",
+                            self.episode["aspect_ratio"], f"video {s['scene_id']}", endpoint=endpoint)
+                    except Exception as exc:
+                        if not self._decided_refusal(exc):
+                            raise
+                        refusals.append(str(exc))
+                        self.log(f"video: {s['scene_id']} {endpoint} refused; advancing to next route engine")
+                        continue
+                    take.update(scene_id=s["scene_id"], attempt=route_index,
+                                route_index=route_index, route_endpoint=endpoint,
+                                parent_take=st.get("keyframe_take"), forced_by_operator=False,
+                                regen_cap=0)
+                    frames = media.sample_frames(path, self.work / "frames" / f"{s['scene_id']}_r{route_index}")
+                    qc = self.llm.qc_video(refs, frames, s["video_expected"])
+                    take["qa"] = qc; self.state.save()
+                    kept, near, score = self._qc_verdict(qc)
+                    self.log(f"video: {s['scene_id']} {endpoint} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
+                    if kept:
+                        ok = (path, tid); break
+                    if near:
+                        self.log(f"video: {s['scene_id']} принято как достаточно близкое ({score})")
+                        ok = (path, tid); st["video_close"] = score; break
+                    hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
+                if not ok and len(refusals) == len(route):
+                    held = media.hold_from_still(Path(st["keyframe"]), s["duration"],
+                                                 self.work / "video" / f"{s['scene_id']}_hold.mp4",
+                                                 self.episode["width"], self.episode["height"])
+                    st["video"], st["video_take"] = str(held), None
+                    st["video_held"], st["refusal"], st["status"] = True, refusals[-1], "video_ok"
+                    self.log(f"video: {s['scene_id']} all route engines refused; holding frame {s['duration']}s")
+                    self.state.save(); continue
+                if not ok and self._weak_is_allowed(s["scene_id"]):
+                    ok = (path, tid); st["video_weak"] = True
+                if not ok:
+                    st["status"] = "failed_qa"; failed.append(s["scene_id"]); self.state.save(); continue
+                st["video"], st["video_take"], st["status"] = str(ok[0]), ok[1], "video_ok"
+                self.state.save(); continue
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_vid_", self._redo("video", s["scene_id"]))
             refused, softened = None, None
             for attempt in range(base, base + self.regen + 1):
@@ -1030,13 +1101,19 @@ class Pipeline:
         # permanent failure. Only takes that recorded the cap they were made
         # under can be judged; the rest are not this run's to answer for.
         over = []
+        route = tuple(getattr(self.cfg, "video_model_route", ()) or (self.cfg.fal_video_model,))
         for scene in self.scenes:
             made = [t for t in self.state.data["takes"].values()
                     if t.get("scene_id") == scene["scene_id"]
-                    and t.get("endpoint") == self.cfg.fal_video_model
+                    and t.get("endpoint") in route
                     and not t.get("forced_by_operator")
                     and t.get("regen_cap") is not None]
-            if made and len(made) > min(int(t["regen_cap"]) for t in made) + 1:
+            if len(route) > 1:
+                endpoints = [t.get("endpoint") for t in made]
+                exceeded = len(endpoints) != len(set(endpoints)) or len(endpoints) > len(route)
+            else:
+                exceeded = bool(made and len(made) > min(int(t["regen_cap"]) for t in made) + 1)
+            if exceeded:
                 over.append(scene["scene_id"])
         chk("retry_limit", not over, str(over) if over else "")
         chk("budget", self.budget.spent <= L["budget"], f"${self.budget.spent:.2f} / ${L['budget']:.2f}")

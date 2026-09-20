@@ -16,12 +16,14 @@ def _env(name: str, default: str = "") -> str:
     return default if v is None or v == "" else v
 
 
-# Обе поддерживаемые модели видео принимают одну и ту же схему запроса и
-# отличаются только ценой и качеством. Список — источник истины и для
-# валидации настройки, и для выпадающего списка в студии.
+# Supported image-to-video endpoints.  Their request schemas are not identical;
+# providers.gen_video translates the common pipeline request for each one.
 VIDEO_MODELS = {
     "fal-ai/veo3.1/fast/image-to-video": "Veo 3.1 Fast",
-    "fal-ai/veo3.1/image-to-video": "Veo 3.1",
+    "fal-ai/veo3.1/image-to-video": "Veo 3.1 Quality",
+    "xai/grok-imagine-video/v1.5/image-to-video": "Grok Imagine 1.5",
+    "bytedance/seedance-2.0/image-to-video": "Seedance 2.0",
+    "fal-ai/kling-video/v3/pro/image-to-video": "Kling 3 Pro",
 }
 DEFAULT_VIDEO_MODEL = "fal-ai/veo3.1/fast/image-to-video"
 
@@ -34,6 +36,9 @@ class Config:
     # fal
     fal_key: str = ""
     fal_video_model: str = DEFAULT_VIDEO_MODEL
+    # Ordered QC route.  A one-item route preserves the legacy retry policy;
+    # multi-provider routes make one attempt per provider, then advance.
+    video_model_route: tuple[str, ...] = ()
     fal_image_model: str = "fal-ai/nano-banana-2/edit"
     fal_image_t2i_model: str = "fal-ai/nano-banana-2"
     fal_image_pro_model: str = "fal-ai/nano-banana-pro"
@@ -140,6 +145,11 @@ class Config:
             raise ValueError(
                 f"FAL_VIDEO_MODEL={c.fal_video_model!r} is not supported. "
                 f"Choose one of: {', '.join(sorted(VIDEO_MODELS))}.")
+        route = tuple(x.strip() for x in _env("FAL_VIDEO_MODEL_ROUTE", "").split(",") if x.strip())
+        c.video_model_route = route or (c.fal_video_model,)
+        unknown = [x for x in c.video_model_route if x not in VIDEO_MODELS]
+        if unknown:
+            raise ValueError(f"FAL_VIDEO_MODEL_ROUTE contains unsupported model(s): {', '.join(unknown)}")
         if c.fal_key:
             os.environ["FAL_KEY"] = c.fal_key
         return c

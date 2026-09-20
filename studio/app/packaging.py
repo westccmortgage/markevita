@@ -227,6 +227,9 @@ def build_brief(series_id: str, episode: dict) -> dict:
     }
     if episode.get("opening_state"):
         brief["opening_state"] = episode["opening_state"]
+    route = episode.get("video_route") or (episode.get("brief") or {}).get("video_route")
+    if route:
+        brief["video_route"] = list(route)
     return brief
 
 

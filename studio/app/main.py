@@ -134,6 +134,9 @@ async def seed_bundled_wildcat() -> None:
             from .the_wild_cat_seed import seed_if_missing
             if seed_if_missing():
                 print("[studio] seeded The Wild Cat / s01e01 (draft, no spend)", flush=True)
+            from .the_wild_cat_episode_2 import seed_if_missing as seed_episode_2
+            if seed_episode_2():
+                print("[studio] prepared The Wild Cat / s01e02 (draft, no spend)", flush=True)
         except Exception as exc:                        # never block the server from starting
             print(f"[studio] could not seed The Wild Cat: {type(exc).__name__}", flush=True)
 

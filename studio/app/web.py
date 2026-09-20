@@ -514,14 +514,16 @@ def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> di
     from serial.package import (PackageError, SeriesPackage, estimate_first_pass,
                                 validate_episode)
     from .config import PIPELINE_DIR
-    from .live_jobs import video_model
+    from .live_jobs import video_route
     from .packaging import materialize
     try:
         cfg = Config.load(PIPELINE_DIR, live=False)
         pkg = SeriesPackage(materialize(series_id))
         # The figure must be the chosen model's, not the server default's:
         # Veo 3.1 bills about twice what Fast does per second of video.
-        cfg.fal_video_model = video_model(pkg)
+        route = video_route(pkg, episode_id)
+        cfg.fal_video_model = route[0]
+        cfg.video_model_route = route
         for field, value in live_jobs.PICTURE[live_jobs.picture(pkg)].items():
             setattr(cfg, field, value)
         # Native scene audio is what the form offers first, and Veo bills more

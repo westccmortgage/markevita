@@ -143,10 +143,12 @@ class Fal:
             # the new one would report nothing and invite a second paid call.
             self.log(f"  {take_id}: сохранённый запрос принадлежит {submitted_to}, забираю результат оттуда")
             endpoint = submitted_to
+        url_fields = ("image_url", "image_urls", "video_url", "audio_url",
+                      "start_image_url", "end_image_url")
         take.update({"provider": "fal.ai", "endpoint": endpoint, "what": what,
-                     "params": {k: v for k, v in args.items() if k not in ("image_url", "image_urls", "video_url", "audio_url")},
+                     "params": {k: v for k, v in args.items() if k not in url_fields},
                      "input_refs": {k: ("<presigned/transport url omitted>" if isinstance(v, str) else f"{len(v)} urls")
-                                    for k, v in args.items() if k in ("image_url", "image_urls", "video_url", "audio_url")},
+                                    for k, v in args.items() if k in url_fields},
                      "estimated_cost": round(est_cost, 4)})
         if take.get("status") == "submitted" and take.get("request_id") and not self.cfg.dry_run:
             self.log(f"  {take_id}: найден незавершённый request {take['request_id']}, забираю результат")
@@ -233,16 +235,40 @@ def gen_image(fal: Fal, take_id: str, prompt: str, dest: Path, refs: list[Path],
 
 # ---------------- video ----------------
 
-def gen_video(fal: Fal, take_id: str, keyframe: Path, prompt: str, negative: str, seconds: int, dest: Path, aspect: str, what: str) -> tuple[Path, dict]:
+def _video_args(fal: Fal, endpoint: str, keyframe: Path, prompt: str, negative: str,
+                seconds: int, aspect: str) -> dict:
+    """Translate the pipeline's common shot request to one provider schema."""
+    cfg = fal.cfg
+    image_url = fal.inputs.url(keyframe, "keyframes")
+    avoid = (negative + ", " if negative else "") + prompts.NEGATIVE_VIDEO
+    if endpoint == "xai/grok-imagine-video/v1.5/image-to-video":
+        return {"prompt": f"{prompt} Avoid: {avoid}", "image_url": image_url,
+                "duration": int(seconds), "resolution": cfg.video_resolution}
+    if endpoint == "bytedance/seedance-2.0/image-to-video":
+        return {"prompt": f"{prompt} Avoid: {avoid}", "image_url": image_url,
+                "duration": str(seconds), "resolution": cfg.video_resolution,
+                "aspect_ratio": aspect, "generate_audio": cfg.video_generate_audio}
+    if endpoint == "fal-ai/kling-video/v3/pro/image-to-video":
+        return {"prompt": prompt, "start_image_url": image_url,
+                "duration": str(seconds), "generate_audio": cfg.video_generate_audio,
+                "shot_type": "customize", "negative_prompt": avoid, "cfg_scale": 0.5}
+    return {"prompt": prompt, "image_url": image_url, "aspect_ratio": aspect,
+            "duration": f"{seconds}s", "resolution": cfg.video_resolution,
+            "generate_audio": cfg.video_generate_audio, "negative_prompt": avoid,
+            "auto_fix": cfg.video_auto_fix, "safety_tolerance": "4"}
+
+
+def gen_video(fal: Fal, take_id: str, keyframe: Path, prompt: str, negative: str,
+              seconds: int, dest: Path, aspect: str, what: str,
+              endpoint: str | None = None) -> tuple[Path, dict]:
     from . import costs
     cfg = fal.cfg
-    args = {"prompt": prompt, "image_url": fal.inputs.url(keyframe, "keyframes"), "aspect_ratio": aspect,
-            "duration": f"{seconds}s", "resolution": cfg.video_resolution, "generate_audio": cfg.video_generate_audio,
-            "negative_prompt": (negative + ", " if negative else "") + prompts.NEGATIVE_VIDEO,
-            "auto_fix": cfg.video_auto_fix, "safety_tolerance": "4"}
-    est = costs.video_cost(seconds, cfg.video_generate_audio, cfg.video_resolution, cfg.fal_video_model)
-    result, take = fal.run(cfg.fal_video_model, args, take_id, est, what, stub=lambda: {"video": {"url": "dry://video"}})
-    take["prompt"] = prompt; take["negative"] = args["negative_prompt"]
+    endpoint = endpoint or cfg.fal_video_model
+    args = _video_args(fal, endpoint, keyframe, prompt, negative, seconds, aspect)
+    est = costs.video_cost(seconds, cfg.video_generate_audio, cfg.video_resolution, endpoint)
+    result, take = fal.run(endpoint, args, take_id, est, what, stub=lambda: {"video": {"url": "dry://video"}})
+    take["prompt"] = prompt
+    take["negative"] = (negative + ", " if negative else "") + prompts.NEGATIVE_VIDEO
     take["input_checksums"] = [sha256(keyframe)]
     if cfg.dry_run:
         _placeholder_mp4(dest, seconds, prompt, aspect)

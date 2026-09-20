@@ -50,6 +50,9 @@ class BudgetExceeded(RuntimeError):
 VIDEO_PRICE_FAMILY = {
     "fal-ai/veo3.1/fast/image-to-video": "veo31_fast",
     "fal-ai/veo3.1/image-to-video": "veo31",
+    "xai/grok-imagine-video/v1.5/image-to-video": "grok_imagine_15",
+    "bytedance/seedance-2.0/image-to-video": "seedance_20",
+    "fal-ai/kling-video/v3/pro/image-to-video": "kling_30_pro",
 }
 
 
@@ -63,6 +66,18 @@ def video_cost(seconds: int, audio: bool, resolution: str, endpoint: str) -> flo
         raise UnknownVideoModel(
             f"No published price for video model {endpoint!r}. "
             f"Known: {', '.join(sorted(VIDEO_PRICE_FAMILY))}.")
+    if family == "grok_imagine_15":
+        if resolution not in ("480p", "720p", "1080p"):
+            raise UnknownVideoModel(f"Grok Imagine 1.5 does not support {resolution} output.")
+        return seconds * PRICE[f"grok_imagine_15_per_sec_{resolution}"] + PRICE["grok_imagine_15_input_image"]
+    if family == "seedance_20":
+        if resolution not in ("480p", "720p", "1080p"):
+            raise UnknownVideoModel(f"Seedance 2.0 does not support {resolution} output.")
+        return seconds * PRICE[f"seedance_20_per_sec_{resolution}"]
+    if family == "kling_30_pro":
+        if resolution != "1080p":
+            raise UnknownVideoModel("Kling 3 Pro route is configured for 1080p output only.")
+        return seconds * PRICE[f"kling_30_pro_per_sec_{'audio' if audio else 'silent'}"]
     k4 = "_4k" if resolution == "4k" else ""
     return seconds * PRICE[f"{family}_per_sec{k4}_{'audio' if audio else 'silent'}"]
 

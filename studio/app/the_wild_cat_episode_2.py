@@ -9,6 +9,7 @@ from .store import store
 SERIES_ID = "the_wild_cat"
 EPISODE_ID = "s01e02"
 MARKER_EVENT = "series.episode_2_prepared.complete"
+CORRECTION_EVENT = "series.episode_2_continuity_corrected.complete"
 VIDEO_ROUTE = [
     "xai/grok-imagine-video/v1.5/image-to-video",
     "bytedance/seedance-2.0/image-to-video",
@@ -107,6 +108,10 @@ SCENES = [
            "cliffhanger reveal and gaze", "50mm", "slow reveal from pack to watching wildcat", "Morning follows their quiet shared night.",
            "Her gaze holds his for one beat. Hard cut before he responds.", cliffhanger=True),
 ]
+SCENES[11]["relationship_changes"] = [{
+    "id": "hunter_wildcat_bond", "state": "first_trust",
+    "note": "The wildcat voluntarily chooses a nearer place by the fire; the hunter leaves her free to go.",
+}]
 
 
 def seed_if_missing() -> bool:
@@ -123,9 +128,9 @@ def seed_if_missing() -> bool:
         "episode_id": EPISODE_ID, "number": 2, "title": "The Shadow",
         "logline": "The wildcat follows the hunter while pretending not to, and chooses a place closer to his fire.",
         "video_route": VIDEO_ROUTE,
-        "opening_state": {"relationships": {"hunter_wildcat_bond": "first_trust"}},
+        "opening_state": {"relationships": {"hunter_wildcat_bond": "strangers"}},
         "scenes": SCENES,
-        "cliffhanger": {"scene_id": "sc15", "hook": "At dawn the wildcat leaves a fresh rabbit beside the hunter's pack and watches his response.", "resolves_in": "s01e03"},
+        "cliffhanger": {"scene_id": "sc15", "hook": "At dawn the wildcat leaves a fresh rabbit beside the hunter's pack and watches his response.", "resolves_in": "tbd"},
     }
     cap = float((series.get("production_limits") or {}).get("maximum_episode_budget_usd") or 100)
     store.upsert("episodes", {
@@ -157,6 +162,45 @@ def seed_if_missing() -> bool:
                    "video_route": VIDEO_ROUTE,
                    "reference_policy": "Reuse Episode 1 Hunter and Wildcat references; require enhanced Wildcat views before approval.",
                    "note": "Draft only. No paid generation, approval, job, or publishing was started."},
+        "created_at": timestamp,
+    })
+    return True
+
+
+def correct_seeded_draft_if_needed() -> bool:
+    """One-time repair for the initial draft; never touch started or edited work."""
+    if store.get("generation_history", {"series_id": SERIES_ID, "event": CORRECTION_EVENT}):
+        return False
+    episode = store.get("episodes", {"series_id": SERIES_ID, "episode_id": EPISODE_ID})
+    if not episode or episode.get("status") != "draft" or float(episode.get("spent_usd") or 0):
+        return False
+    brief = dict(episode.get("brief") or {})
+    opening = dict(brief.get("opening_state") or episode.get("opening_state") or {})
+    relationships = dict(opening.get("relationships") or {})
+    cliff = dict(brief.get("cliffhanger") or episode.get("cliffhanger") or {})
+    if relationships.get("hunter_wildcat_bond") != "first_trust" or cliff.get("resolves_in") != "s01e03":
+        return False
+    relationships["hunter_wildcat_bond"] = "strangers"
+    opening["relationships"] = relationships
+    cliff["resolves_in"] = "tbd"
+    scenes = [dict(scene) for scene in brief.get("scenes") or []]
+    scene12 = next((scene for scene in scenes if scene.get("scene_id") == "sc12"), None)
+    if not scene12:
+        return False
+    change = dict(SCENES[11]["relationship_changes"][0])
+    scene12["relationship_changes"] = [change]
+    brief.update(opening_state=opening, cliffhanger=cliff, scenes=scenes)
+    timestamp = _now()
+    store.update("episodes", {"series_id": SERIES_ID, "episode_id": EPISODE_ID}, {
+        "brief": brief, "opening_state": opening, "cliffhanger": cliff, "updated_at": timestamp,
+    })
+    store.update("scenes", {"series_id": SERIES_ID, "episode_id": EPISODE_ID, "scene_id": "sc12"}, {
+        "relationship_changes": [change],
+    })
+    store.insert("generation_history", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID, "event": CORRECTION_EVENT,
+        "entity_type": "episode", "entity_id": EPISODE_ID, "actor": "seed",
+        "detail": {"note": "Aligned opening relationship with Episode 1 carried state and deferred the uncreated Episode 3 target. No generation or spending."},
         "created_at": timestamp,
     })
     return True

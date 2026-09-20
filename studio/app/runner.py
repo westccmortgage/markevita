@@ -39,6 +39,10 @@ from serial.state import State
 RUNS_ROOT = PIPELINE_DIR / "runs"
 # Every stage except publish. Publishing is a separate, explicitly approved act.
 DEFAULT_STAGES = [s for s in STAGES if s != "publish"]
+# These bounded tools own their own worker/recovery rules and must not be
+# mistaken for an abandoned episode pipeline merely because they do not hold
+# the series production lease.
+INDEPENDENT_STAGES = (["runtime_lease"], ["clip_preview"], ["narration_track"])
 
 
 def _now() -> str:
@@ -136,7 +140,7 @@ class JobManager:
         if lease and lease.get("state") == "leased" and unexpired(lease):
             return  # a worker is alive and holding this series
         for job in store.list("production_jobs", {"series_id": series_id, "mode": "live"}):
-            if job.get("stages") == ["runtime_lease"]:
+            if job.get("stages") in INDEPENDENT_STAGES:
                 continue
             if job.get("state") in ("queued", "running", "pausing", "cancelling"):
                 store.update("production_jobs", {"id": job["id"]}, {
@@ -148,9 +152,11 @@ class JobManager:
         self.reconcile_abandoned(series_id)
         for job in store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
                               order="created_at", desc=True):
+            if job.get("stages") in INDEPENDENT_STAGES:
+                continue
             if job.get("state") in ("queued", "running", "paused"):
                 return job
-            if job.get('mode') == 'live' and job.get('stages') != ['runtime_lease']:
+            if job.get('mode') == 'live':
                 # A newer attempt supersedes an older reference-review pause.
                 return None
         return None

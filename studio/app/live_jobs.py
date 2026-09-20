@@ -87,7 +87,11 @@ def spoken_words_removed(checksums, scenes, episode_id):
 
 # What the episode itself declares that decides generation. The rest of the
 # brief is bookkeeping (ids, totals) or a digest of its own.
-BRIEF_STRUCTURE = ('language', 'aspect_ratio', 'width', 'height')
+# Visual format is bound to the generated clips.  Spoken language is not: it
+# belongs with the wording and can be replaced while preserving every image
+# and video take.  It is included only in the full comparison below so a
+# language-only edit still drops and regenerates the voice work.
+BRIEF_STRUCTURE = ('aspect_ratio', 'width', 'height')
 
 
 def shape_parts(checksums, brief, scenes, episode_id, with_words=True):
@@ -102,7 +106,9 @@ def shape_parts(checksums, brief, scenes, episode_id, with_words=True):
              if episode_id not in k and k != 'series.json'}
     line_fields = LINE_STRUCTURE + (('text',) if with_words else ())
     parts = {'the bible and style files': files,
-             'the format and language': {f: (brief or {}).get(f) for f in BRIEF_STRUCTURE}}
+             'the visual format': {f: (brief or {}).get(f) for f in BRIEF_STRUCTURE}}
+    if with_words:
+        parts['the spoken language'] = {'language': (brief or {}).get('language')}
     for scene in scenes or []:
         parts[f"scene {scene.get('scene_id')}"] = {
             **{f: scene.get(f) for f in SCENE_STRUCTURE},

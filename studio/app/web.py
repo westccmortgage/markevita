@@ -16,9 +16,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, authoring, integrations, runner, scripts as scriptmod
+from . import auth, authoring, integrations, narration_tracks, runner, scripts as scriptmod
 from . import live_jobs
 from . import i18n
 from .preview_web import _check_form, _csrf_token
@@ -571,6 +571,7 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
     context.update(
         blockers=blockers, memory=memory, fill=authoring.fill_state(series_id),
         writing=authoring.work_state(series_id, "script", episode_id),
+        narration_track=narration_tracks.status(series_id, episode_id),
         script=authoring.readable(scenes, memory),
         estimate=_estimate(series_id, episode_id, runtime.get("audio_mode", "native"))
                  if scenes else None,
@@ -580,6 +581,46 @@ def episode_studio(request: Request, series_id: str, episode_id: str):
         voiceless=[c["id"] for c in memory["characters"]
                    if c["on_camera"] and not c["has_voice"]])
     return render(request, "authoring.html", **context)
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/narration-track")
+def generate_narration_track(request: Request, series_id: str, episode_id: str,
+                             approve_voice: str = Form(""), csrf_token: str = Form("")):
+    admin = require_admin(request)
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
+    _check_form(request, admin, csrf_token)
+    if approve_voice != "yes":
+        return _redirect(back, err="Approve the narration-only provider call first.")
+    try:
+        job = narration_tracks.start(series_id, episode_id, admin["email"])
+    except narration_tracks.NarrationTrackError as exc:
+        return _redirect(back, err=str(exc))
+    state = job.get("state")
+    if state == "done":
+        digest = (job.get("progress") or {}).get("digest", "")
+        return _redirect(f"/series/{series_id}/episodes/{episode_id}/narration-track/{digest}")
+    return _redirect(back, ok="Generating only the narration track. The picture and existing takes are untouched.")
+
+
+@router.get("/series/{series_id}/episodes/{episode_id}/narration-track/{digest}")
+def download_narration_track(request: Request, series_id: str, episode_id: str, digest: str):
+    require_admin(request)
+    if (not ID_RE.fullmatch(series_id) or not ID_RE.fullmatch(episode_id)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+        raise HTTPException(404, "Narration track not found")
+    try:
+        key = narration_tracks.object_key(series_id, episode_id, digest)
+        storage = narration_tracks._r2()
+        obj = storage.client.get_object(Bucket=storage.cfg.r2_bucket, Key=key)
+    except narration_tracks.NarrationTrackError as exc:
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        raise HTTPException(404, "Narration track not found") from None
+    return StreamingResponse(
+        obj["Body"], media_type="audio/mpeg",
+        headers={"Content-Disposition": f'attachment; filename="{episode_id}_ru_narration.mp3"',
+                 "Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/draft")

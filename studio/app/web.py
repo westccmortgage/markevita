@@ -514,7 +514,7 @@ def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> di
     from serial.package import (PackageError, SeriesPackage, estimate_first_pass,
                                 validate_episode)
     from .config import PIPELINE_DIR
-    from .live_jobs import video_route
+    from .live_jobs import recorded_previous_end_state, video_route
     from .packaging import materialize
     try:
         cfg = Config.load(PIPELINE_DIR, live=False)
@@ -529,7 +529,8 @@ def _estimate(series_id: str, episode_id: str, audio_mode: str = "native") -> di
         # Native scene audio is what the form offers first, and Veo bills more
         # for it. Estimating silent here would understate the usual run.
         cfg.video_generate_audio = audio_mode != "voices"
-        norm = validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
+        norm = validate_episode(pkg, pkg.load_episode(episode_id),
+                                recorded_previous_end_state(pkg, episode_id), cfg)
         refs = store.list("reference_assets", {"series_id": series_id})
         est = estimate_first_pass(norm, pkg, cfg, not refs)
         return {"ok": True, "seconds": norm["total_seconds"], "clips": len(norm["scenes"]),

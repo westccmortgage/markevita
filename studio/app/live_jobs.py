@@ -216,6 +216,24 @@ def video_route(pkg, episode_id):
     return route or (video_model(pkg),)
 
 
+def recorded_previous_end_state(pkg, episode_id):
+    """Read the delivered previous episode's durable continuity ledger."""
+    from . import runner
+    previous = pkg.previous_episode(episode_id)
+    if not previous:
+        return None
+    rows = runner.store.list('knowledge_state', {
+        'series_id': pkg.series['series_id'], 'episode_id': previous,
+    })
+    if not rows:
+        return None
+    end = {'knowledge': {}, 'relationships': {}, 'props': {}}
+    for row in rows:
+        bucket = 'knowledge' if row.get('kind') == 'knowledge' else 'relationships'
+        end[bucket][row['subject_id']] = row.get('value')
+    return end
+
+
 # What a producer is really choosing when they ask for it to look like cinema.
 # The language model writes the words and costs cents; the picture is where the
 # money goes, so these three settings move together under one name.
@@ -603,7 +621,8 @@ def check_configuration(series_id, episode_id, stages, audio_mode):
     cfg.video_model_route = route
     errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     try:
-        validate_episode(pkg, pkg.load_episode(episode_id), None, cfg)
+        validate_episode(pkg, pkg.load_episode(episode_id),
+                         recorded_previous_end_state(pkg, episode_id), cfg)
     except ValueError as exc:
         errors.append(str(exc))
     if errors:

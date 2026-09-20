@@ -124,6 +124,20 @@ async def carry_on_after_restart() -> None:
 
 
 @app.on_event("startup")
+async def seed_bundled_wildcat() -> None:
+    """Load The Wild Cat creative package once without starting paid work."""
+    def run() -> None:
+        try:
+            from .the_wild_cat_seed import seed_if_missing
+            if seed_if_missing():
+                print("[studio] seeded The Wild Cat / s01e01 (draft, no spend)", flush=True)
+        except Exception as exc:                        # never block the server from starting
+            print(f"[studio] could not seed The Wild Cat: {type(exc).__name__}", flush=True)
+
+    threading.Thread(target=run, daemon=True, name="seed-the-wild-cat").start()
+
+
+@app.on_event("startup")
 async def report_configuration() -> None:
     """Print a configuration report at boot.
 

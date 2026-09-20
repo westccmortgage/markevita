@@ -74,3 +74,13 @@ Cliffhanger into Episode 3: the next morning the Hunter wakes to find a freshly 
 ## Direction rule
 
 Do not make the feminine quality obvious all at once. It should emerge episode by episode as trust grows. Episode 2 is the first time the audience should consciously wonder whether there is something almost human in the way she looks at him — but the camera must never prove or explain it.
+
+## Editorial and sound canon
+
+The series uses no musical score or generated music. Emotion must come from performance, image, pacing, narration and the natural world.
+
+Keep a continuous, natural sound environment across edits: forest air, leaves, birds, water, footsteps, animal movement and fire where they belong in the scene. Ambient sound must cross scene boundaries smoothly and must never restart abruptly with each generated clip. Sparse narration may sit above the environment, but the surroundings should remain audible and believable.
+
+Generated clips are source material, not finished scenes. The final edit must use only the strongest portion of each take, remove unstable opening and closing frames, reject any frame where a character's identity or age changes, and use natural detail shots or close-ups to bridge time and geography. Do not assemble an episode as a sequence of untouched equal-length clips.
+
+Before delivery, inspect every cut and the final second frame by frame. The Hunter and the Wild Cat must remain canonical through the last visible frame.

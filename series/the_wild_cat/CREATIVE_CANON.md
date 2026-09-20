@@ -54,10 +54,26 @@ They survive and help each other through the burning forest. Their relationship 
 Episode 9 — **After the Fire**  
 Among the first green shoots after the burn, the Hunter finally understands the nature of their bond: he never tamed her. She stayed.
 
+## Parable narration arc
+
+The user's original Russian parable **«Дикая кошка»** is the narration source for the whole first arc. It must be adapted as nine consecutive chapters, never repeated in full inside one episode and never allowed to reveal later events early.
+
+- Episode 1 — loneliness, distrust, hunger, the first meeting, and the Hunter's first gift of food.
+- Episode 2 — she becomes his shadow, studies his silence, follows by choice, and begins to seek a place near his fire.
+- Episode 3 — gratitude grows into attachment; she dreams of making the Hunter her companion and sharing more than survival.
+- Episode 4 — the quarrel, wounded pride, anger, and her decision to run away rather than submit.
+- Episode 5 — the edge of the world, the sea, freedom, memory, and the emptiness she cannot outrun.
+- Episode 6 — the long return, the Hunter waiting by the fire, and reunion chosen freely by both.
+- Episode 7 — friendship becomes partnership; they read the forest together and combine their strengths when danger approaches.
+- Episode 8 — they survive the wild world through mutual trust, sharing risk, courage, loss, and hope.
+- Episode 9 — neither truly tamed the other; each found a home in the other, and their story became a legend told beside the fire.
+
+Narration should feel like one continuous Russian fairy-tale storyteller across the season. Each episode receives only its assigned chapter. The natural environment remains audible below the voice, with no music.
+
 ## Episode 2 — production story direction
 
-Target: 120 seconds, 9:16, English, fairy-tale drama/adventure.  
-No burned-in captions or on-screen text. Sparse English narrator voice-over only.
+Target: approximately 120 seconds, 9:16, Russian narration, fairy-tale drama/adventure.
+No burned-in captions or on-screen text. Episode 2 carries its assigned chapter of the Russian parable across the full episode; it must not narrate later chapters early.
 
 Opening: dawn after the first night by the fire. The Hunter wakes and the Wild Cat appears to be gone.
 

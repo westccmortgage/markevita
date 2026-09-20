@@ -819,6 +819,14 @@ def test_final_duration_boundary_allows_encode_drift():
     assert 'abs(p["duration"] - e["total_seconds"]) <= duration_tolerance' in src
 
 
+def test_final_budget_check_uses_the_current_approved_cap():
+    """Intake is immutable, so its old budget must not overrule a later
+    explicit budget approval during recovery."""
+    src = _qa_source()
+    assert 'self.budget.spent <= self.budget.cap' in src
+    assert 'f"${self.budget.spent:.2f} / ${self.budget.cap:.2f}"' in src
+
+
 def test_a_scene_the_producer_accepted_does_not_fail_the_final_check():
     """The studio offered the decision, the producer made it, the video stage
     carried on — and then the last gate refused the episode for exactly that.

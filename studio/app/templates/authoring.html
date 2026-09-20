@@ -124,6 +124,27 @@
     </form>
   </div>
 
+  {% if mode == 'live' %}
+  <div class="card" id="narration-track">
+    <h2>{{ _("Narration track only") }}</h2>
+    <p class="hint">{{ _("Creates one audio file from the current narrator lines. It does not generate or change video, images, references, music or existing takes, and it does not publish.") }}</p>
+    {% if narration_track.state == 'done' %}
+      <p><a class="btn btn-primary" href="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/narration-track/{{ narration_track.digest }}">{{ _("Download narration track") }}</a></p>
+    {% elif narration_track.state in ('queued', 'running') %}
+      <meta http-equiv="refresh" content="8">
+      <div class="notice info">{{ _("Narration is being generated. This page refreshes to show the download.") }}</div>
+    {% elif narration_track.state == 'failed' %}
+      <div class="notice err">{{ _("Narration generation stopped without an automatic retry:") }} {{ narration_track.error }}</div>
+    {% elif narration_track.state != 'unavailable' %}
+      <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/narration-track">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label><input type="checkbox" name="approve_voice" value="yes"> {{ _("Approve one ElevenLabs narration call using the current script and assigned narrator voice.") }}</label>
+        <p><button class="btn-primary" type="submit">{{ _("Generate narration track only") }}</button></p>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- ── 4. making the video ───────────────────────────────────────────── -->
   <div class="card">
     <h2>{{ _("Make the video") }}</h2>

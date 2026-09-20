@@ -1116,7 +1116,14 @@ class Pipeline:
             if exceeded:
                 over.append(scene["scene_id"])
         chk("retry_limit", not over, str(over) if over else "")
-        chk("budget", self.budget.spent <= L["budget"], f"${self.budget.spent:.2f} / ${L['budget']:.2f}")
+        # Intake freezes the episode shape, including the budget that was in
+        # force when production first started.  A later, explicitly approved
+        # budget increase updates the live Budget object, but must not rewrite
+        # that old creative snapshot.  Judge the finished run against the
+        # effective approved cap or recovery can spend within the new limit
+        # and then be rejected by QA against the stale one.
+        chk("budget", self.budget.spent <= self.budget.cap,
+            f"${self.budget.spent:.2f} / ${self.budget.cap:.2f}")
         prov_missing = [tid for tid, t in self.state.data["takes"].items() if t.get("status") == "succeeded" and not all(k in t for k in ("endpoint", "request_id", "checksum", "estimated_cost"))]
         chk("provenance_complete", not prov_missing, str(prov_missing[:5]) if prov_missing else "")
         srt_file = mdir / "episode.srt"

@@ -290,8 +290,17 @@ BACKOFF_MINUTES = 2
 
 
 def _worth_another_go(job) -> bool:
-    """Did this failure decide anything, or was it just a bad minute?"""
+    """Did this failure decide anything, or was it just a bad minute?
+
+    A duration-only final-QA failure from the old strict boundary is also
+    resumable. The master already exists and every paid generation stage is
+    checkpointed; after the encode-tolerance fix, resuming only re-runs QA and
+    delivery. This is deliberately narrow so other QA failures still require
+    a producer decision.
+    """
     text = job.get('error') or ''
+    if 'QA failed (duration_range)' in text:
+        return True
     if any(mark.lower() in text.lower() for mark in DECIDED):
         return False
     return any(mark.lower() in text.lower() for mark in TRANSIENT)

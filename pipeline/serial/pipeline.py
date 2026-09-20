@@ -993,8 +993,16 @@ class Pipeline:
         p = media.probe(master); checks = []
         def chk(name, ok, detail=""):
             checks.append({"check": name, "pass": bool(ok), "detail": detail}); self.log(f"qa: {'OK  ' if ok else 'FAIL'} {name} {detail}")
-        chk("duration_range", L["min_sec"] <= p["duration"] <= L["max_sec"], f"{p['duration']:.2f}s")
-        chk("duration_matches_plan", abs(p["duration"] - e["total_seconds"]) <= 1.0, f"plan {e['total_seconds']}s")
+        # Final mux/encode may add or remove a fraction of a second through
+        # frame/audio padding. Judge that technical drift with the same one-second
+        # tolerance already used against the planned duration; otherwise a 120s
+        # episode can be rejected at 120.23s even though it matches its plan.
+        duration_tolerance = 1.0
+        chk("duration_range",
+            L["min_sec"] - duration_tolerance <= p["duration"] <= L["max_sec"] + duration_tolerance,
+            f"{p['duration']:.2f}s (encode tolerance ±{duration_tolerance:.0f}s)")
+        chk("duration_matches_plan", abs(p["duration"] - e["total_seconds"]) <= duration_tolerance,
+            f"plan {e['total_seconds']}s")
         chk("resolution", (p["width"], p["height"]) == (e["width"], e["height"]), f"{p['width']}x{p['height']}")
         chk("decodes_clean", media.decode_check(master))
         blacks = [b for b in media.black_segments(master) if b["end"] < p["duration"] - 1.0]

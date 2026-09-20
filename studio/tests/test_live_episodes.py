@@ -555,6 +555,21 @@ def test_a_job_with_no_lease_at_all_is_not_left_running(monkeypatch):
     assert job['state'] == 'interrupted'
 
 
+def test_narration_only_worker_is_not_claimed_by_episode_lease(monkeypatch):
+    store = StrictStore()
+    monkeypatch.setattr(runner, 'store', store)
+    store.insert('production_jobs', {
+        'series_id': 'island', 'episode_id': 's01e04', 'stages': ['narration_track'],
+        'mode': 'live', 'state': 'running', 'requested_by': 'admin@example.test',
+        'idempotency_key': 'narration-track:island:s01e04:digest', 'force': [],
+        'progress': {'digest': 'digest'}, 'created_at': '2026-09-20T10:23:00+00:00',
+        'log': 'Generating narration only.'})
+    runner.jobs.reconcile_abandoned('island')
+    job = store.list('production_jobs', {'series_id': 'island', 'episode_id': 's01e04'})[0]
+    assert job['state'] == 'running'
+    assert runner.jobs.active_job('island', 's01e04') is None
+
+
 def test_the_live_transport_logs_where_the_producer_reads():
     """The provider transport was built with the engine's own log, captured
     before the job log was wired in, so fal.ai's explanation of a refusal never

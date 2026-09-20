@@ -345,6 +345,12 @@ def test_a_reworded_line_is_a_changed_production_until_the_words_are_dropped():
     assert _shape(scenes=scenes, with_words=False) == _shape(with_words=False)
 
 
+def test_a_new_spoken_language_remakes_voice_but_preserves_video():
+    russian = {**BRIEF, "language": "ru-RU"}
+    assert _shape(brief=russian) != _shape()
+    assert _shape(brief=russian, with_words=False) == _shape(with_words=False)
+
+
 def test_a_changed_action_is_not_the_same_production_either_way():
     scenes = _edited(action="She burns the list.")
     assert _shape(scenes=scenes) != _shape()
@@ -360,7 +366,7 @@ def test_a_refusal_names_what_moved():
                         _edited(action="She burns the list."), EPISODE)
     moved = shape_differences(before, after)
     assert any(m.startswith("the bible and style files") for m in moved)
-    assert "the format and language: aspect_ratio" in moved
+    assert "the visual format: aspect_ratio" in moved
     assert any(m.startswith("scene sc05: action") for m in moved)
 
 

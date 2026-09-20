@@ -1019,6 +1019,20 @@ def test_an_interrupted_voice_call_is_not_a_life_sentence(tmp_path, monkeypatch)
             'elevenlabs', params, 0.5, lambda: pytest.fail('repeated blindly'))
 
 
+def test_duration_only_final_qa_failure_is_resumable_after_boundary_fix():
+    """The old strict 120.00s gate rejected a 120.23s encoded master. After
+    the tolerance fix, startup recovery must be allowed to re-run QA/delivery
+    without repeating paid generation."""
+    from app import live_jobs
+
+    assert live_jobs._worth_another_go({
+        'error': 'RuntimeError: QA failed (duration_range), report /tmp/report.json'
+    })
+    assert not live_jobs._worth_another_go({
+        'error': 'RuntimeError: QA failed (scene_qc_all_passed), report /tmp/report.json'
+    })
+
+
 def test_a_restart_is_noticed_without_anyone_opening_a_page(monkeypatch):
     """The recovery could only run after someone came to look.
 

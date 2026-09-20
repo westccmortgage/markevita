@@ -864,5 +864,12 @@
   "— Series Studio": "— Студия сериалов",
   "— each one is a picture paid for twice": "— каждый это оплаченная дважды картинка",
   "— the voice id itself never enters the database.": "— сам идентификатор голоса не сохраняется в базе.",
-  "…or upload a .txt / .json file": "…или загрузите файл .txt / .json"
+  "…or upload a .txt / .json file": "…или загрузите файл .txt / .json",
+  "Narration track only": "Только дорожка рассказчика",
+  "Creates one audio file from the current narrator lines. It does not generate or change video, images, references, music or existing takes, and it does not publish.": "Создаёт один аудиофайл из текущих реплик рассказчика. Не генерирует и не изменяет видео, изображения, референсы, музыку или существующие дубли и ничего не публикует.",
+  "Download narration track": "Скачать дорожку рассказчика",
+  "Narration is being generated. This page refreshes to show the download.": "Озвучка создаётся. Страница обновится и покажет ссылку для скачивания.",
+  "Narration generation stopped without an automatic retry:": "Создание озвучки остановилось без автоматической повторной попытки:",
+  "Approve one ElevenLabs narration call using the current script and assigned narrator voice.": "Разрешить один запрос ElevenLabs для озвучки текущего сценария назначенным голосом рассказчика.",
+  "Generate narration track only": "Создать только дорожку рассказчика"
 }

@@ -125,7 +125,10 @@ async def carry_on_after_restart() -> None:
 
 @app.on_event("startup")
 async def seed_bundled_wildcat() -> None:
-    """Load The Wild Cat creative package once without starting paid work."""
+    """Load The Wild Cat creative package once in the production Supabase store."""
+    if settings.store_driver != "supabase":
+        return
+
     def run() -> None:
         try:
             from .the_wild_cat_seed import seed_if_missing

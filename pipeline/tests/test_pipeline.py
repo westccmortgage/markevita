@@ -809,6 +809,16 @@ def _qa_source():
     return inspect.getsource(Pipeline.stage_qa)
 
 
+def test_final_duration_boundary_allows_encode_drift():
+    """Muxing can add a fraction of a second to an exactly 120s plan. The
+    range gate and the plan gate must use the same one-second tolerance."""
+    src = _qa_source()
+    assert 'duration_tolerance = 1.0' in src
+    assert 'L["min_sec"] - duration_tolerance' in src
+    assert 'L["max_sec"] + duration_tolerance' in src
+    assert 'abs(p["duration"] - e["total_seconds"]) <= duration_tolerance' in src
+
+
 def test_a_scene_the_producer_accepted_does_not_fail_the_final_check():
     """The studio offered the decision, the producer made it, the video stage
     carried on — and then the last gate refused the episode for exactly that.

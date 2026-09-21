@@ -1227,7 +1227,7 @@ def test_pressing_resume_returns_before_the_saved_work_is_fetched(monkeypatch):
         series = {}
         checksums = {}
 
-        def limits(self, cfg):
+        def limits(self, cfg, episode_id=None):
             return {'budget': 50.0}
 
     class _Lease:

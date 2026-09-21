@@ -186,7 +186,7 @@
       <legend>{{ _("Production limits") }}</legend>
       {% set lim = s.production_limits or {} %}
       <div class="row">
-        <div class="field"><label>{{ _("Episode budget (USD)") }}</label><input type="number" step="0.01" name="budget" value="{{ lim.get('maximum_episode_budget_usd', 50) }}"></div>
+        <div class="field"><label>{{ _("Default budget for new episodes (USD)") }}</label><input type="number" step="0.01" name="budget" value="{{ lim.get('maximum_episode_budget_usd', 50) }}"></div>
         <div class="field"><label>{{ _("Regenerations per scene") }}</label><input type="number" name="regenerations" value="{{ lim.get('maximum_regenerations_per_scene', 2) }}"></div>
         <div class="field"><label>{{ _("Min scenes") }}</label><input type="number" name="min_scenes" value="{{ lim.get('min_scenes', 12) }}"></div>
         <div class="field"><label>{{ _("Max scenes") }}</label><input type="number" name="max_scenes" value="{{ lim.get('max_scenes', 18) }}"></div>

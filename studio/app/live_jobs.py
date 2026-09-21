@@ -504,7 +504,7 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
     actual_digest = package_digest(pkg, episode_id)
     if not digest or actual_digest != digest:
         raise ValueError('The script or series settings changed. Refresh this page and review the current version.')
-    errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
+    errors = preflight.problems(cfg, stages, pkg, episode_id) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     if errors:
         raise ValueError('\n'.join(errors))
     lease = SeriesLease(runner.store, series_id, actor)
@@ -526,7 +526,7 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
             'state': 'queued', 'requested_by': actor,
             'idempotency_key': f'live:{series_id}:{episode_id}:{lease.owner}',
             'force': force, 'progress': {'audio_mode': audio_mode, 'input_digest': actual_digest,
-                                      'approved_budget': pkg.limits(cfg)['budget'],
+                                      'approved_budget': pkg.limits(cfg, episode_id)['budget'],
                                       'done': [], 'total': len(stages)},
             'created_at': now(), 'log': 'Fetching the work already saved for this episode.'})
         control = runner._Control()
@@ -617,7 +617,7 @@ def _prepare_and_run(manager, job, control, cfg, pkg, cp, lease, actor,
                     'error': 'Worker stopped; saved provider requests will be reused.'})
         runner.store.insert('approvals', {'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'episode_live', 'subject_id': actual_digest, 'decision': 'approved',
-            'actor': actor, 'note': f"Estimated spending cap ${pkg.limits(cfg)['budget']:.2f}; audio={audio_mode}",
+            'actor': actor, 'note': f"Estimated spending cap ${pkg.limits(cfg, episode_id)['budget']:.2f}; audio={audio_mode}",
             'created_at': now()})
     except Exception as exc:
         detail = (str(exc) if isinstance(exc, (ValueError, PermissionError))
@@ -636,7 +636,7 @@ def check_configuration(series_id, episode_id, stages, audio_mode):
     route = video_route(pkg, episode_id)
     cfg = configuration(audio_mode, route[0], picture(pkg))
     cfg.video_model_route = route
-    errors = preflight.problems(cfg, stages, pkg) + preflight.voice_problems(cfg, stages, pkg, episode_id)
+    errors = preflight.problems(cfg, stages, pkg, episode_id) + preflight.voice_problems(cfg, stages, pkg, episode_id)
     try:
         validate_episode(pkg, pkg.load_episode(episode_id),
                          recorded_previous_end_state(pkg, episode_id), cfg)

@@ -43,7 +43,7 @@ def wardrobe_problems(pkg):
             'costume notes — or reword them yourself.']
 
 
-def problems(cfg, stages, pkg):
+def problems(cfg, stages, pkg, episode_id=None):
     """Collect deterministic blockers together, rather than fail one at a time."""
     errors = []
     unknown = set(stages) - {'intake', 'direction', 'references', 'keyframes', 'video', 'voice', 'lipsync', 'assemble', 'qa', 'deliver'}
@@ -99,7 +99,7 @@ def problems(cfg, stages, pkg):
             continue
         if type(amount) not in (int, float) or not math.isfinite(amount) or amount < 0:
             errors.append(f'PRICE_{name.upper()}: enter a finite, non-negative price.')
-    budget = pkg.limits(cfg)['budget']
+    budget = pkg.limits(cfg, episode_id)['budget']
     if not math.isfinite(budget) or budget <= 0:
         errors.append('Episode budget: enter a finite amount greater than zero.')
     return errors

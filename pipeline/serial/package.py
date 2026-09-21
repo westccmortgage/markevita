@@ -183,10 +183,19 @@ class SeriesPackage:
         i = order.index(episode_id) if episode_id in order else -1
         return order[i - 1] if i > 0 else None
 
-    def limits(self, cfg) -> dict:
+    def limits(self, cfg, episode_id: str | None = None) -> dict:
         pl = self.series.get("production_limits", {})
+        # The series value is a template for episodes which predate explicit
+        # episode budgets.  Once an episode carries its own approved ceiling,
+        # it is authoritative.  cfg remains the deployment-wide safety ceiling.
+        episode_budget = None
+        if episode_id:
+            episode_budget = self.load_episode(episode_id).get("maximum_episode_budget_usd")
+        approved_budget = (float(episode_budget) if episode_budget is not None
+                           else float(pl.get("maximum_episode_budget_usd",
+                                             cfg.max_episode_budget_usd)))
         return {
-            "budget": min(float(pl.get("maximum_episode_budget_usd", cfg.max_episode_budget_usd)), cfg.max_episode_budget_usd),
+            "budget": min(approved_budget, cfg.max_episode_budget_usd),
             "regen": min(int(pl.get("maximum_regenerations_per_scene", cfg.max_scene_regenerations)), cfg.max_scene_regenerations),
             "allowed": tuple(pl.get("allowed_clip_seconds", cfg.allowed_clip_seconds)),
             "min_scenes": int(pl.get("min_scenes", cfg.min_scenes)), "max_scenes": int(pl.get("max_scenes", cfg.max_scenes)),
@@ -257,7 +266,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
     отношения от этого не меняются. Всё остальное — непрерывность, реплики,
     клиффхэнгер — проверяется как обычно.
     """
-    L = pkg.limits(cfg)
+    L = pkg.limits(cfg, ep["episode_id"])
     errs, warns = [], []
     scenes = sorted(ep["scenes"], key=lambda s: s["sequence"])
     if size_limits and not (L["min_scenes"] <= len(scenes) <= L["max_scenes"]):

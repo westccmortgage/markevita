@@ -19,6 +19,7 @@ engine with private checkpoints, a durable worker lease and paid-call tracking.
 """
 from __future__ import annotations
 
+import math
 import re
 
 import threading
@@ -460,17 +461,29 @@ def record_override(series_id: str, episode_id: str, key: str, value: str,
     the specification requires. No agent can raise a limit by itself."""
     if not (actor and reason):
         raise ValueError("An override requires both an actor and a reason.")
-    import os
-    ep_dir = RUNS_ROOT / series_id / episode_id
+    if key != "MAX_EPISODE_BUDGET_USD":
+        raise ValueError("Only the episode budget can be changed here.")
+    try:
+        amount = float(value)
+        if not math.isfinite(amount) or amount <= 0:
+            raise ValueError
+    except ValueError:
+        raise ValueError("The episode budget must be a positive number.") from None
+    episode = store.get("episodes", {"series_id": series_id, "episode_id": episode_id}) or {}
+    old_value = episode.get("budget_usd")
+    ep_dir = runtime_root() / series_id / episode_id
     ep_dir.mkdir(parents=True, exist_ok=True)
     st = State(ep_dir)
     st.data["overrides"].append({
-        "key": key, "old": os.environ.get(key), "new": value,
+        "key": key, "old": old_value, "new": str(amount),
         "reason": reason, "by": actor, "at": _now(),
     })
     if st.data.get("status") == "needs_budget_override":
         st.data["status"] = "validated"
     st.save()
+    store.update("episodes", {"series_id": series_id, "episode_id": episode_id}, {
+        "budget_usd": round(amount, 2), "updated_at": _now(),
+    })
     history(series_id, episode_id, "override.recorded", entity_type="episode",
             entity_id=episode_id, actor=actor, detail={"key": key, "new": value, "reason": reason})
     return {"key": key, "new": value}

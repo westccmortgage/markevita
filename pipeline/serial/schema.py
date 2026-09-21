@@ -129,6 +129,10 @@ EPISODE = {
         "schema_version": {"const": SCHEMA_VERSION},
         "series_id": _id, "season_id": _id, "episode_id": _id, "number": {"type": "integer"},
         "title": _str, "logline": _str,
+        # The producer approves money per episode.  The similarly named value
+        # in series.json is only the default for newly-created episodes; it
+        # must not make one episode inherit another episode's ceiling.
+        "maximum_episode_budget_usd": {"type": "number", "exclusiveMinimum": 0},
         "video_route": {"type": "array", "items": {"enum": [
             "fal-ai/veo3.1/fast/image-to-video",
             "fal-ai/veo3.1/image-to-video",

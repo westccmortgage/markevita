@@ -76,8 +76,8 @@ class Pipeline:
         self.logf = open(self.ep / "log.txt", "a", encoding="utf-8")
         self.state = State(self.ep)
         self.sstate = SeriesState(self.series_dir / "series_state.json")
-        self.budget = Budget(pkg.limits(cfg)["budget"], self.state)
-        self.regen = pkg.limits(cfg)["regen"]
+        self.budget = Budget(pkg.limits(cfg, episode_id)["budget"], self.state)
+        self.regen = pkg.limits(cfg, episode_id)["regen"]
         self.llm = LLM(cfg, self.log)
         self.r2 = R2(cfg, self.log)
         self.keys = Keys(pkg.series["series_id"], episode_id)

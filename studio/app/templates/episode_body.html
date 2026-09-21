@@ -25,7 +25,7 @@
 </section>
 {% endif %}
 
-{% set budget = (s.production_limits or {}).get('maximum_episode_budget_usd', 50)|float %}
+{% set budget = (ep.budget_usd or (s.production_limits or {}).get('maximum_episode_budget_usd', 50))|float %}
 {% set pct = ((runtime.spent_usd / budget * 100) if budget else 0) %}
 <div class="grid g4" style="margin-bottom:18px">
   <div class="stat"><div class="k">{{ _("Status") }}</div><div class="v" style="font-size:17px">{{ (runtime.status)|ui }}</div></div>
@@ -321,6 +321,10 @@ speak is split automatically into sub-shots, one speaker each.</pre>
         <div class="field"><label>{{ _("Number") }}</label><input type="number" name="number" value="{{ ep.number }}"></div>
       </div>
       <div class="field"><label>{{ _("Logline") }}</label><input type="text" name="logline" value="{{ ep.logline }}"></div>
+      <div class="field"><label>{{ _("This episode budget (USD)") }}</label>
+        <input type="number" min="0.01" step="0.01" name="budget" value="{{ budget }}" required>
+        <p class="hint">{{ _("Applies only to this episode. Spending from other episodes is not counted.") }}</p>
+      </div>
       <fieldset><legend>{{ _("Cliffhanger (required by the validator)") }}</legend>
         {% set cl = ep.cliffhanger or {} %}
         <div class="row">

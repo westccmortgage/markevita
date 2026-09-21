@@ -88,13 +88,13 @@ def spend(series_id: str, episode_id: str) -> float:
     return round(total, 2)
 
 
-def budget(series_id: str) -> float:
+def budget(series_id: str, episode_id: str) -> float:
     from serial.config import Config
     from serial.package import SeriesPackage
     from .config import PIPELINE_DIR
     from .packaging import materialize
     pkg = SeriesPackage(materialize(series_id))
-    return float(pkg.limits(Config.load(PIPELINE_DIR, live=True))["budget"])
+    return float(pkg.limits(Config.load(PIPELINE_DIR, live=True), episode_id)["budget"])
 
 
 def redone(series_id: str, episode_id: str) -> int:
@@ -146,7 +146,7 @@ def report(series_id: str, episode_id: str, job: dict | None = None) -> dict:
     except Exception:                                              # noqa: BLE001
         pass
     try:
-        out["budget"] = budget(series_id)
+        out["budget"] = budget(series_id, episode_id)
     except Exception:                                              # noqa: BLE001
         pass
     try:

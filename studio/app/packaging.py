@@ -225,6 +225,8 @@ def build_brief(series_id: str, episode: dict) -> dict:
         "scenes": [_scene_json(s) for s in scenes],
         "cliffhanger": episode.get("cliffhanger") or {},
     }
+    if float(episode.get("budget_usd") or 0) > 0:
+        brief["maximum_episode_budget_usd"] = float(episode["budget_usd"])
     if episode.get("opening_state"):
         brief["opening_state"] = episode["opening_state"]
     route = episode.get("video_route") or (episode.get("brief") or {}).get("video_route")

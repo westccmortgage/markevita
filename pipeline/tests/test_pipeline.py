@@ -53,6 +53,21 @@ def test_package_loads_and_versions(fx):
     assert pkg.previous_episode("s01e02") == "s01e01" and pkg.previous_episode("s01e01") is None
 
 
+def test_each_episode_uses_only_its_own_budget(fx, cfg):
+    """One episode's ceiling must never be shared with another episode."""
+    first = _ep(fx, "s01e01")
+    second = _ep(fx, "s01e02")
+    first["maximum_episode_budget_usd"] = 12
+    second["maximum_episode_budget_usd"] = 37
+    _write_ep(fx, "s01e01", first)
+    _write_ep(fx, "s01e02", second)
+
+    pkg = _pkg(fx)
+    assert pkg.limits(cfg, "s01e01")["budget"] == 12
+    assert pkg.limits(cfg, "s01e02")["budget"] == 37
+    assert pkg.limits(cfg)["budget"] == 50  # legacy/new-episode default only
+
+
 def test_split_two_visible_speakers(fx, cfg):
     pkg = _pkg(fx)
     norm = pkgmod.validate_episode(pkg, pkg.load_episode("s01e01"), None, cfg)

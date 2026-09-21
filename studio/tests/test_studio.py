@@ -727,7 +727,7 @@ def test_a_run_in_flight_reports_what_it_has_made_and_what_it_cost(isolated_stor
 
     monkeypatch.setattr(progress, "store", isolated_store, raising=False)
     monkeypatch.setattr(progress, "_pack", lambda series_id: (9, 14))
-    monkeypatch.setattr(progress, "budget", lambda series_id: 200.0)
+    monkeypatch.setattr(progress, "budget", lambda series_id, episode_id: 200.0)
     for stage, actual in (("live/ref", 4.0), ("live/ref", 2.5), ("clip_preview", 99.0)):
         isolated_store.insert("costs", {"series_id": SERIES, "episode_id": "s01e04",
                                         "stage": stage, "actual_usd": actual})
@@ -752,7 +752,7 @@ def test_the_estimate_comes_from_this_run_s_own_pace(isolated_store, monkeypatch
 
     monkeypatch.setattr(progress, "store", isolated_store, raising=False)
     monkeypatch.setattr(progress, "_pack", lambda series_id: (10, 20))
-    monkeypatch.setattr(progress, "budget", lambda series_id: 200.0)
+    monkeypatch.setattr(progress, "budget", lambda series_id, episode_id: 200.0)
     started = datetime.now(timezone.utc) - timedelta(minutes=20)
     for i in range(10):
         isolated_store.upsert("takes", {

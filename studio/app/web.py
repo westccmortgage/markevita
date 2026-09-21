@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 from urllib.parse import quote
 from pathlib import Path
@@ -988,6 +989,7 @@ def _episode_context(request: Request, series_id: str, episode_id: str) -> dict:
 @router.post("/series/{series_id}/episodes/{episode_id}/settings")
 def episode_settings(request: Request, series_id: str, episode_id: str,
                      title: str = Form(""), logline: str = Form(""), number: str = Form("1"),
+                     budget: str = Form(""),
                      cliff_scene: str = Form(""), cliff_hook: str = Form(""),
                      cliff_resolves: str = Form("tbd")):
     require_admin(request)
@@ -996,6 +998,15 @@ def episode_settings(request: Request, series_id: str, episode_id: str,
         patch["number"] = int(number or 1)
     except ValueError:
         pass
+    if budget.strip():
+        try:
+            amount = float(budget)
+            if not math.isfinite(amount) or amount <= 0:
+                raise ValueError
+            patch["budget_usd"] = round(amount, 2)
+        except ValueError:
+            return _redirect(f"/series/{series_id}/episodes/{episode_id}/studio",
+                             err="Enter a positive budget for this episode.")
     if cliff_scene or cliff_hook:
         patch["cliffhanger"] = {"scene_id": _slug(cliff_scene), "hook": cliff_hook,
                                 "resolves_in": cliff_resolves or "tbd"}

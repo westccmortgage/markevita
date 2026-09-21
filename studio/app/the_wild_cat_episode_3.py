@@ -59,6 +59,9 @@ def _now() -> str:
 
 def _scene(number: int, action: str, narration: str) -> dict:
     locations = ["camp_clearing", "spring_forest", "mossy_trail", "creek_crossing"]
+    lenses = ["50mm", "85mm", "35mm", "85mm", "50mm",
+              "50mm", "50mm", "85mm", "35mm", "85mm",
+              "50mm", "85mm", "50mm", "85mm", "35mm"]
     return {
         "scene_id": f"sc{number:02d}", "sequence": number, "duration_seconds": 8,
         "location": locations[min((number - 1) // 4, 3)], "lighting_state": "natural",
@@ -68,7 +71,7 @@ def _scene(number: int, action: str, narration: str) -> dict:
         "dialogue": [{"speaker": "narrator", "text": narration,
                       "delivery": "calm, intimate, mature Russian fairy-tale narration",
                       "voice_over": True}],
-        "shot_type": "cinematic selected coverage", "lens": "35mm/50mm/85mm",
+        "shot_type": "cinematic selected coverage", "lens": lenses[number - 1],
         "camera_motion": "slow motivated movement only",
         "continuity_in": "Preserve canonical Hunter, Wildcat, direction and natural ambience.",
         "continuity_out": "End on a stable gaze, gesture or detail suitable for a smooth cut.",

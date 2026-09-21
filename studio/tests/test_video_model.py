@@ -179,6 +179,14 @@ def test_stage_qualified_video_retry_does_not_invalidate_keyframes(tmp_path):
     assert pipeline._redo("video", "sc03") is True
 
 
+def test_explicit_fallback_index_can_select_the_already_paid_final_route():
+    from serial.pipeline import video_fallback_index
+    force = {"video:sc03:r3", "video:sc05:r2", "video:sc12:r1"}
+    assert video_fallback_index(force, "sc03") == 3
+    assert video_fallback_index(force, "sc05") == 2
+    assert video_fallback_index(force, "sc12") == 1
+
+
 def test_a_series_set_to_an_unknown_model_does_not_start(monkeypatch):
     from app import live_jobs
     from app.config import settings

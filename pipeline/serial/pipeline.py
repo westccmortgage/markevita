@@ -671,6 +671,13 @@ class Pipeline:
                     self.log(f"video: {s['scene_id']} {endpoint} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
                     if kept:
                         ok = (path, tid); break
+                    # A producer may explicitly choose the strongest already-paid
+                    # fallback.  Accept it immediately after verification so the
+                    # route cannot spend on a later engine merely to rediscover
+                    # that the chosen take was intentionally kept.
+                    if self._weak_is_allowed(s["scene_id"]):
+                        self.log(f"video: {s['scene_id']} producer accepted this existing fallback")
+                        ok = (path, tid); st["video_weak"] = True; break
                     # A routed video QC failure always advances to the next
                     # engine.  The close-enough shortcut is useful for a
                     # single-model workflow, but here it silently defeated the

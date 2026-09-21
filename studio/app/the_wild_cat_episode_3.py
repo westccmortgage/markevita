@@ -171,8 +171,22 @@ def launch_if_approved() -> str:
 
     from . import live_jobs, runner
 
-    digest = live_jobs.review(SERIES_ID, EPISODE_ID)
-    if not digest:
+    try:
+        from serial.package import SeriesPackage
+        package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+        digest = live_jobs.package_digest(package, EPISODE_ID)
+    except Exception as exc:
+        store.insert("generation_history", {
+            "series_id": SERIES_ID,
+            "episode_id": EPISODE_ID,
+            "event": "episode.production_package_preflight_failed",
+            "entity_type": "episode",
+            "entity_id": EPISODE_ID,
+            "actor": "startup",
+            "detail": {"error_type": type(exc).__name__, "error": str(exc)[:1000],
+                       "paid_job_created": False},
+            "created_at": _now(),
+        })
         return ""
     try:
         job = runner.jobs.start(

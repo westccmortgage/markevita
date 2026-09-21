@@ -174,16 +174,30 @@ def launch_if_approved() -> str:
     digest = live_jobs.review(SERIES_ID, EPISODE_ID)
     if not digest:
         return ""
-    job = runner.jobs.start(
-        SERIES_ID,
-        EPISODE_ID,
-        runner.DEFAULT_STAGES,
-        approval.get("actor") or "approved producer",
-        [],
-        approved_digest=digest,
-        approve_live=True,
-        audio_mode="voices",
-    )
+    try:
+        job = runner.jobs.start(
+            SERIES_ID,
+            EPISODE_ID,
+            runner.DEFAULT_STAGES,
+            approval.get("actor") or "approved producer",
+            [],
+            approved_digest=digest,
+            approve_live=True,
+            audio_mode="voices",
+        )
+    except Exception as exc:
+        store.insert("generation_history", {
+            "series_id": SERIES_ID,
+            "episode_id": EPISODE_ID,
+            "event": "episode.production_launch_preflight_failed",
+            "entity_type": "episode",
+            "entity_id": EPISODE_ID,
+            "actor": "startup",
+            "detail": {"error_type": type(exc).__name__, "error": str(exc)[:1000],
+                       "paid_job_created": False},
+            "created_at": _now(),
+        })
+        return ""
     store.insert("generation_history", {
         "series_id": SERIES_ID,
         "episode_id": EPISODE_ID,

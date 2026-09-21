@@ -336,11 +336,18 @@ def retry_failed_scene_if_authorized() -> str:
     jobs = store.list("production_jobs", {
         "series_id": SERIES_ID, "episode_id": EPISODE_ID,
     }, order="created_at", desc=True)
-    if any(scene_id in (job.get("force") or []) for job in jobs):
-        return ""
-    failed = next((job for job in jobs if job.get("state") == "failed"), None)
-    if not failed or scene_id not in (failed.get("error") or ""):
-        return ""
+    forced = next((job for job in jobs if scene_id in (job.get("force") or [])), None)
+    if forced:
+        # A deploy may interrupt the one approved retry while a provider is
+        # working.  Resume that same checkpoint once; DurableFal recovers the
+        # saved request and live_jobs removes the consumed keyframe force.
+        if forced.get("state") != "interrupted":
+            return ""
+        failed = forced
+    else:
+        failed = next((job for job in jobs if job.get("state") == "failed"), None)
+        if not failed or scene_id not in (failed.get("error") or ""):
+            return ""
 
     from . import live_jobs, runner
     try:
@@ -348,12 +355,18 @@ def retry_failed_scene_if_authorized() -> str:
 
         package = SeriesPackage(live_jobs.materialize(SERIES_ID))
         digest = live_jobs.package_digest(package, EPISODE_ID)
-        job = runner.jobs.start(
-            SERIES_ID, EPISODE_ID, list(failed.get("stages") or runner.DEFAULT_STAGES),
-            approval.get("actor") or "approved producer", [scene_id],
+        common = dict(
             approved_digest=digest, approve_live=True,
             audio_mode=(failed.get("progress") or {}).get("audio_mode") or "voices",
         )
+        if forced:
+            job = runner.jobs.resume(
+                SERIES_ID, EPISODE_ID,
+                approval.get("actor") or "approved producer", **common)
+        else:
+            job = runner.jobs.start(
+                SERIES_ID, EPISODE_ID, list(failed.get("stages") or runner.DEFAULT_STAGES),
+                approval.get("actor") or "approved producer", [scene_id], **common)
     except Exception as exc:
         store.insert("generation_history", {
             "series_id": SERIES_ID, "episode_id": EPISODE_ID,

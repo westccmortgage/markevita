@@ -157,12 +157,26 @@ def test_configuration_locks_the_ordered_episode_route(monkeypatch):
 
 
 def test_episode_can_limit_automatic_route_without_losing_fallback_order():
-    from serial.pipeline import capped_video_route
+    from serial.pipeline import capped_video_route, video_fallback_index
     from types import SimpleNamespace
     cfg = SimpleNamespace(video_model_route=(GROK, SEEDANCE, KLING, FULL),
                           fal_video_model=GROK)
     assert capped_video_route(cfg, {"max_video_route_attempts": 2}) == (GROK, SEEDANCE)
     assert capped_video_route(cfg, {}) == (GROK, SEEDANCE, KLING, FULL)
+    assert video_fallback_index({"video:sc03:r2"}, "sc03") == 2
+    assert video_fallback_index({"video:sc03:r2"}, "sc04") is None
+
+
+def test_stage_qualified_video_retry_does_not_invalidate_keyframes(tmp_path):
+    """The recovery receipt must never buy a replacement reference frame."""
+    from serial.pipeline import Pipeline
+    pipeline = object.__new__(Pipeline)
+    pipeline.force = {"video:sc03:r2"}
+    pipeline.state = type("State", (), {"stage_done": lambda self, stage: True})()
+    assert pipeline._done("keyframes") is True
+    assert pipeline._done("video") is False
+    assert pipeline._redo("keyframes", "sc03") is False
+    assert pipeline._redo("video", "sc03") is True
 
 
 def test_a_series_set_to_an_unknown_model_does_not_start(monkeypatch):

@@ -484,11 +484,23 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         # ``--force`` switch.  It is allowed only for individual scenes which
         # have a recorded producer approval.  This keeps a single bad frame
         # from turning a resume into a regeneration of the episode or stage.
-        invalid = [item for item in force if not (item.startswith('sc') and item[2:].isdigit())]
+        def video_token(item):
+            parts = item.split(':')
+            return (len(parts) == 3 and parts[0] == 'video' and
+                    parts[1].startswith('sc') and parts[1][2:].isdigit() and
+                    parts[2].startswith('r') and parts[2][1:].isdigit() and
+                    0 <= int(parts[2][1:]) <= 3)
+        scene_items = [item for item in force if item.startswith('sc') and item[2:].isdigit()]
+        video_items = [item for item in force if video_token(item)]
+        invalid = [item for item in force if item not in scene_items and item not in video_items]
         approved_scenes = {row['subject_id'] for row in runner.store.list('approvals', {
             'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'scene_regeneration'}) if row.get('decision') == 'approved'}
-        unauthorized = [item for item in force if item not in approved_scenes]
+        approved_videos = {row['subject_id'] for row in runner.store.list('approvals', {
+            'series_id': series_id, 'episode_id': episode_id,
+            'subject_type': 'video_fallback'}) if row.get('decision') == 'approved'}
+        unauthorized = ([item for item in scene_items if item not in approved_scenes] +
+                        [item for item in video_items if item not in approved_videos])
         if invalid or unauthorized:
             raise PermissionError('Live regeneration requires a recorded approval for each individual scene.')
     if not runner.store.list('scenes', {'series_id': series_id, 'episode_id': episode_id}):

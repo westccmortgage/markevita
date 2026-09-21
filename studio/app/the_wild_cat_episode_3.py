@@ -12,6 +12,7 @@ LAUNCH_APPROVAL_TYPE = "episode_launch"
 PREFLIGHT_RETRY_APPROVAL_TYPE = "episode_preflight_retry"
 REFERENCE_RESUME_APPROVAL_TYPE = "episode_reference_resume"
 SCENE_RETRY_APPROVAL_TYPE = "scene_regeneration"
+VIDEO_FALLBACK_APPROVAL_TYPE = "video_fallback"
 VIDEO_ROUTE = [
     "xai/grok-imagine-video/v1.5/image-to-video",
     "bytedance/seedance-2.0/image-to-video",
@@ -382,5 +383,57 @@ def retry_failed_scene_if_authorized() -> str:
         "entity_id": job["id"], "actor": approval.get("actor") or "approved producer",
         "detail": {"scene_id": scene_id, "preserve_other_takes": True,
                    "publish": False}, "created_at": _now(),
+    })
+    return job["id"]
+
+
+def retry_failed_videos_if_authorized() -> str:
+    """Launch one receipt-backed, video-only fallback pass from the checkpoint."""
+    from .config import settings
+
+    if not settings.allow_paid:
+        return ""
+    approvals = [row for row in store.list("approvals", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+        "subject_type": VIDEO_FALLBACK_APPROVAL_TYPE,
+    }) if row.get("decision") == "approved"]
+    tokens = sorted({row.get("subject_id") or "" for row in approvals})
+    if not tokens or any(len(t.split(":")) != 3 for t in tokens):
+        return ""
+    jobs = store.list("production_jobs", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+    }, order="created_at", desc=True)
+    if any(set(job.get("force") or []) == set(tokens) for job in jobs):
+        return ""
+    failed = next((job for job in jobs if job.get("state") == "failed"), None)
+    if not failed:
+        return ""
+
+    from . import live_jobs, runner
+    try:
+        from serial.package import SeriesPackage
+        package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+        digest = live_jobs.package_digest(package, EPISODE_ID)
+        job = runner.jobs.start(
+            SERIES_ID, EPISODE_ID, list(failed.get("stages") or runner.DEFAULT_STAGES),
+            approvals[-1].get("actor") or "approved producer", tokens,
+            approved_digest=digest, approve_live=True,
+            audio_mode=(failed.get("progress") or {}).get("audio_mode") or "voices",
+        )
+    except Exception as exc:
+        store.insert("generation_history", {
+            "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+            "event": "episode.video_fallback_launch_failed", "entity_type": "episode",
+            "entity_id": EPISODE_ID, "actor": "startup",
+            "detail": {"error_type": type(exc).__name__, "error": str(exc)[:1000],
+                       "new_paid_work_started": False}, "created_at": _now(),
+        })
+        return ""
+    store.insert("generation_history", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+        "event": "episode.video_fallback_started", "entity_type": "job",
+        "entity_id": job["id"], "actor": approvals[-1].get("actor") or "approved producer",
+        "detail": {"force": tokens, "preserve_keyframes": True,
+                   "preserve_other_takes": True, "publish": False}, "created_at": _now(),
     })
     return job["id"]

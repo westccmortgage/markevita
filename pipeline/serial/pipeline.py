@@ -24,6 +24,15 @@ def capped_video_route(cfg, episode: dict) -> tuple[str, ...]:
     route = tuple(getattr(cfg, "video_model_route", ()) or (cfg.fal_video_model,))
     cap = int(episode.get("max_video_route_attempts") or len(route))
     return route[:max(1, cap)]
+
+
+def video_fallback_index(force: set[str], scene_id: str) -> int | None:
+    """Return the explicitly approved route offset in ``video:scNN:rK``."""
+    prefix = f"video:{scene_id}:r"
+    for item in force:
+        if item.startswith(prefix) and item[len(prefix):].isdigit():
+            return int(item[len(prefix):])
+    return None
 # Defined in package.py so validation and production cannot drift apart.
 LEAD_IN = pkgmod.LEAD_IN
 GAP = pkgmod.GAP
@@ -102,7 +111,10 @@ class Pipeline:
     def _done(self, stage: str) -> bool:
         if stage in self.force or not self.state.stage_done(stage):
             return False
-        items = self.force - set(STAGES)
+        if any(item.startswith(f"{stage}:") for item in self.force):
+            return False
+        # A stage-qualified retry must not invalidate earlier or later stages.
+        items = {item for item in self.force - set(STAGES) if ":" not in item}
         if not items:
             return True
         if stage in ("intake", "direction"):
@@ -113,7 +125,8 @@ class Pipeline:
         return False
 
     def _redo(self, stage: str, item_id: str) -> bool:
-        return stage in self.force or item_id in self.force
+        return (stage in self.force or item_id in self.force or
+                any(item.startswith(f"{stage}:{item_id}:") for item in self.force))
 
     @property
     def episode(self) -> dict:
@@ -615,12 +628,25 @@ class Pipeline:
                           + (f"Speak these lines exactly once with synchronized lips; all other people remain silent: {dialogue}" if dialogue else "Nobody speaks."))
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
-            route = capped_video_route(self.cfg, self.episode)
-            if len(route) > 1:
+            route_start = video_fallback_index(self.force, s["scene_id"])
+            full_route = tuple(getattr(self.cfg, "video_model_route", ()) or
+                               (self.cfg.fal_video_model,))
+            if route_start is None:
+                indexed_route = list(enumerate(capped_video_route(self.cfg, self.episode)))
+            else:
+                if route_start >= len(full_route):
+                    raise ValueError(f"Invalid video fallback route index for {s['scene_id']}: {route_start}")
+                indexed_route = list(enumerate(full_route))[route_start:]
+                previous = self.state.take(self._take_id(s["scene_id"], f"vid_r{route_start - 1}", 0)) if route_start else None
+                if previous:
+                    prior_qc = previous.get("qa") or {}
+                    hint = prior_qc.get("fix_hint") or "; ".join(prior_qc.get("issues") or [])
+            route = tuple(endpoint for _, endpoint in indexed_route)
+            if route_start is not None or len(route) > 1:
                 refusals = []
-                for route_index, endpoint in enumerate(route):
+                for route_index, endpoint in indexed_route:
                     tid = self._take_id(s["scene_id"], f"vid_r{route_index}", 0)
-                    self.log(f"video: {s['scene_id']} {s['duration']}s route {route_index + 1}/{len(route)}: {endpoint}")
+                    self.log(f"video: {s['scene_id']} {s['duration']}s route {route_index + 1}/{len(full_route)}: {endpoint}")
                     try:
                         path, take = providers.gen_video(
                             self.fal, tid, Path(st["keyframe"]),
@@ -635,7 +661,8 @@ class Pipeline:
                         continue
                     take.update(scene_id=s["scene_id"], attempt=route_index,
                                 route_index=route_index, route_endpoint=endpoint,
-                                parent_take=st.get("keyframe_take"), forced_by_operator=False,
+                                parent_take=st.get("keyframe_take"),
+                                forced_by_operator=route_start is not None,
                                 regen_cap=0)
                     frames = media.sample_frames(path, self.work / "frames" / f"{s['scene_id']}_r{route_index}")
                     qc = self.llm.qc_video(refs, frames, s["video_expected"])

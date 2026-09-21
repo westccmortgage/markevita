@@ -146,6 +146,7 @@ async def seed_bundled_wildcat() -> None:
             from .the_wild_cat_episode_3 import (approve_references_and_resume_if_authorized,
                                                   launch_if_approved as launch_episode_3,
                                                   retry_failed_scene_if_authorized,
+                                                  retry_failed_videos_if_authorized,
                                                   seed_if_missing as seed_episode_3)
             if seed_episode_3():
                 print("[studio] prepared The Wild Cat / s01e03 (draft, no spend)", flush=True)
@@ -161,6 +162,10 @@ async def seed_bundled_wildcat() -> None:
             if retried_episode_3_job:
                 print(f"[studio] retried approved The Wild Cat / s01e03 scene as job "
                       f"{retried_episode_3_job}", flush=True)
+            video_retry_job = retry_failed_videos_if_authorized()
+            if video_retry_job:
+                print(f"[studio] started approved The Wild Cat / s01e03 video fallbacks as job "
+                      f"{video_retry_job}", flush=True)
         except Exception as exc:                        # never block the server from starting
             print(f"[studio] could not seed The Wild Cat: {type(exc).__name__}", flush=True)
 

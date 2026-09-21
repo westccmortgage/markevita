@@ -136,6 +136,7 @@ EPISODE = {
             "bytedance/seedance-2.0/image-to-video",
             "fal-ai/kling-video/v3/pro/image-to-video",
         ]}, "minItems": 1, "uniqueItems": True},
+        "max_video_route_attempts": {"type": "integer", "minimum": 1, "maximum": 4},
         "opening_state": {"type": "object",
                           "properties": {"knowledge": {"type": "object", "additionalProperties": {"type": "array", "items": _id}},   # {secret_id: [char_ids]}
                                          "relationships": {"type": "object", "additionalProperties": _str}}},                       # {rel_id: state}

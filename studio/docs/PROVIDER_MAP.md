@@ -1,5 +1,10 @@
 # Which provider for which job (decided 2026-09-14)
 
+## Series override — The Wild Cat from Episode 2
+
+For this series, the approved video QC route overrides the older default below:
+Grok Imagine 1.5 → Seedance 2.0 → Kling 3 Pro → Veo 3.1 Quality. Advance after the first failed QC attempt; do not automatically repeat a failed engine; preserve canonical references. Provider audio is discarded/disabled and final audio uses Russian narration plus continuous natural ambience, with no music.
+
 Facts below come from fal's own OpenAPI schemas and pricing pages, read
 2026-09-14. Supersedes the first version of this note, which contained an
 error — see "Correction" at the end.

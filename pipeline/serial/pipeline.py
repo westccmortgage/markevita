@@ -17,6 +17,13 @@ from .storage import R2, Keys
 
 STAGES = ["intake", "direction", "references", "keyframes", "video", "voice", "lipsync", "assemble", "qa", "deliver", "publish"]
 PAID_STAGES = {"direction", "references", "keyframes", "video", "voice", "lipsync"}
+
+
+def capped_video_route(cfg, episode: dict) -> tuple[str, ...]:
+    """Return the approved route without silently buying every fallback."""
+    route = tuple(getattr(cfg, "video_model_route", ()) or (cfg.fal_video_model,))
+    cap = int(episode.get("max_video_route_attempts") or len(route))
+    return route[:max(1, cap)]
 # Defined in package.py so validation and production cannot drift apart.
 LEAD_IN = pkgmod.LEAD_IN
 GAP = pkgmod.GAP
@@ -602,7 +609,7 @@ class Pipeline:
                           + (f"Speak these lines exactly once with synchronized lips; all other people remain silent: {dialogue}" if dialogue else "Nobody speaks."))
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
-            route = tuple(getattr(self.cfg, "video_model_route", ()) or (self.cfg.fal_video_model,))
+            route = capped_video_route(self.cfg, self.episode)
             if len(route) > 1:
                 refusals = []
                 for route_index, endpoint in enumerate(route):

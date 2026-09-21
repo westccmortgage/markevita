@@ -69,7 +69,9 @@ def _spec(series_id: str, episode_id: str) -> dict:
         "episode_id": episode_id,
         "text": text,
         "paragraphs": paragraphs,
-        "language": series.get("language") or "en-US",
+        "language": ((episode.get("brief") or {}).get("narration_language")
+                     or episode.get("language")
+                     or series.get("language") or "en-US"),
         "voice_env": voice.get("voice_env") or "ELEVENLABS_VOICE_ID_NARRATOR",
         "model_id": voice.get("model_id") or "eleven_v3",
     }

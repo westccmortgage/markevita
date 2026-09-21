@@ -156,6 +156,15 @@ def test_configuration_locks_the_ordered_episode_route(monkeypatch):
     assert cfg.fal_video_model == GROK
 
 
+def test_episode_can_limit_automatic_route_without_losing_fallback_order():
+    from serial.pipeline import capped_video_route
+    from types import SimpleNamespace
+    cfg = SimpleNamespace(video_model_route=(GROK, SEEDANCE, KLING, FULL),
+                          fal_video_model=GROK)
+    assert capped_video_route(cfg, {"max_video_route_attempts": 2}) == (GROK, SEEDANCE)
+    assert capped_video_route(cfg, {}) == (GROK, SEEDANCE, KLING, FULL)
+
+
 def test_a_series_set_to_an_unknown_model_does_not_start(monkeypatch):
     from app import live_jobs
     from app.config import settings

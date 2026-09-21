@@ -230,6 +230,9 @@ def build_brief(series_id: str, episode: dict) -> dict:
     route = episode.get("video_route") or (episode.get("brief") or {}).get("video_route")
     if route:
         brief["video_route"] = list(route)
+    route_attempts = (episode.get("brief") or {}).get("max_video_route_attempts")
+    if route_attempts:
+        brief["max_video_route_attempts"] = int(route_attempts)
     return brief
 
 

@@ -18,6 +18,8 @@
 
 Never automatically repeat a failed model. Preserve the same canonical character and location references on every fallback.
 
+Automatic production is capped at two video attempts per scene: Grok, then Seedance only after a real QC failure. Kling and Veo remain ordered fallbacks, but require targeted human approval after review. Keyframes receive one attempt; approved references are reused. Music generation, provider audio and narrator lip-sync calls are disabled.
+
 ## Editorial lock
 
 Use close details of eyes, paws, birds, water, fire, hands and foliage to bridge time and geography. Camera movement must be slow and motivated. Carry motion, gaze and natural sound across cuts. Trim unstable opening and closing frames. Inspect every cut and the final second frame by frame; reject identity, age, anatomy and geometry drift.

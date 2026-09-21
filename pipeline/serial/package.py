@@ -419,6 +419,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
         "language": pkg.series["language"], "aspect_ratio": fmt["aspect_ratio"], "width": fmt["width"], "height": fmt["height"],
         "captions": fmt.get("captions", "srt"), "music": fmt.get("music", "off"), "total_seconds": total, "brief_sha256": ep["_sha256"], "bible_version": pkg.bible_version,
         "video_route": list(ep.get("video_route") or []),
+        "max_video_route_attempts": int(ep.get("max_video_route_attempts") or 0),
         "limits": L, "scenes": norm, "ledger": ledger, "warnings": warns, "cliffhanger": ch,
         "end_state": {"knowledge": {k: sorted(v) for k, v in knowledge.items()}, "relationships": relstate, "props": prop_state},
     }

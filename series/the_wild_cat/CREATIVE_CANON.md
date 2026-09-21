@@ -100,3 +100,9 @@ Keep a continuous, natural sound environment across edits: forest air, leaves, b
 Generated clips are source material, not finished scenes. The final edit must use only the strongest portion of each take, remove unstable opening and closing frames, reject any frame where a character's identity or age changes, and use natural detail shots or close-ups to bridge time and geography. Do not assemble an episode as a sequence of untouched equal-length clips.
 
 Before delivery, inspect every cut and the final second frame by frame. The Hunter and the Wild Cat must remain canonical through the last visible frame.
+
+## Episode 3 locked production treatment
+
+Episode 3 uses one continuous Russian fairy-tale narration track, with no English speech and no music. Natural ambience crosses every edit. Generated video is source material: select 3–6 second fragments, add motivated close details, and reject unstable heads, tails, identity drift and excessive motion.
+
+Video QC routing is ordered: Grok Imagine 1.5, Seedance 2.0, Kling 3 Pro, then Veo 3.1 Quality. After one failed QC attempt, advance to the next engine without automatically repeating the failed model, always preserving the same canonical references.

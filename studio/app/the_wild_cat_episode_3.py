@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 from datetime import datetime, timezone
+
 from .store import store
 
 SERIES_ID = "the_wild_cat"
@@ -13,6 +14,7 @@ VIDEO_ROUTE = [
     "fal-ai/kling-video/v3/pro/image-to-video",
     "fal-ai/veo3.1/image-to-video",
 ]
+
 NARRATION = [
     "Утром охотник нашёл возле своей сумки первый ответный дар.",
     "Так дикая кошка сказала ему то, чего не могла сказать словами.",
@@ -30,6 +32,7 @@ NARRATION = [
     "Однако далеко не ушла: сердце уже держало её крепче любой клетки.",
     "И впервые ей захотелось не просто идти за ним, а чтобы однажды он сам выбрал идти рядом с ней.",
 ]
+
 ACTIONS = [
     "At dawn the Hunter finds the rabbit beside his pack; the Wildcat watches from cover.",
     "Close details: his hand pauses above the gift; her eyes hold his response.",
@@ -48,8 +51,10 @@ ACTIONS = [
     "At dusk she rejoins the parallel trail; he slows, leaving room beside him.",
 ]
 
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 def _scene(number: int, action: str, narration: str) -> dict:
     locations = ["camp_clearing", "spring_forest", "mossy_trail", "creek_crossing"]
@@ -70,7 +75,9 @@ def _scene(number: int, action: str, narration: str) -> dict:
         "relationship_changes": [], "is_cliffhanger": number == 15,
     }
 
+
 SCENES = [_scene(i + 1, ACTIONS[i], NARRATION[i]) for i in range(15)]
+
 
 def seed_if_missing() -> bool:
     """Insert the locked draft only; never approve, enqueue, generate or publish."""
@@ -93,7 +100,9 @@ def seed_if_missing() -> bool:
         "logline": "Gratitude becomes attachment, and the Wildcat reveals her first quiet jealousy.",
         "language": "ru-RU", "narration_language": "ru-RU",
         "video_route": VIDEO_ROUTE,
+        "max_video_route_attempts": 2,
         "video_qc_fallback_policy": "After the first failed video QC attempt, advance to the next engine; never repeat the same failed engine automatically; preserve canonical references.",
+        "tool_policy": "One keyframe attempt. Reuse all approved references. Automatically try at most Grok then Seedance per scene. Kling and Veo require targeted human approval after review. No music generation, provider audio, repeated same-model attempts, or lipsync provider call for narrator voice-over.",
         "reference_policy": "Reuse the locked Episode 1/2 Hunter and enhanced Wildcat canonical reference packs; do not recreate successful references.",
         "audio_policy": "One continuous Russian narrator track; no English; no music; provider audio disabled; continuous natural ambience.",
         "editorial_plan": editorial,

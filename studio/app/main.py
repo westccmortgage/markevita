@@ -143,6 +143,9 @@ async def seed_bundled_wildcat() -> None:
                 print("[studio] aligned The Wild Cat / s01e02 continuity (draft, no spend)", flush=True)
             if align_seeded_draft_with_delivered_checkpoint():
                 print("[studio] aligned The Wild Cat / s01e02 with Episode 1 checkpoint (draft, no spend)", flush=True)
+            from .the_wild_cat_episode_3 import seed_if_missing as seed_episode_3
+            if seed_episode_3():
+                print("[studio] prepared The Wild Cat / s01e03 (draft, no spend)", flush=True)
         except Exception as exc:                        # never block the server from starting
             print(f"[studio] could not seed The Wild Cat: {type(exc).__name__}", flush=True)
 

@@ -271,23 +271,37 @@ def approve_references_and_resume_if_authorized() -> str:
     if not paused:
         return ""
     from . import live_jobs
-    from serial.package import SeriesPackage
+    try:
+        from serial.package import SeriesPackage
 
-    package = SeriesPackage(live_jobs.materialize(SERIES_ID))
-    bible_version = package.reference_version
-    approval = store.get("approvals", {
-        "series_id": SERIES_ID,
-        "episode_id": EPISODE_ID,
-        "subject_type": REFERENCE_RESUME_APPROVAL_TYPE,
-        "subject_id": bible_version,
-    })
-    if not approval or approval.get("decision") != "approved":
+        package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+        bible_version = package.reference_version
+        approval = store.get("approvals", {
+            "series_id": SERIES_ID,
+            "episode_id": EPISODE_ID,
+            "subject_type": REFERENCE_RESUME_APPROVAL_TYPE,
+            "subject_id": bible_version,
+        })
+        if not approval or approval.get("decision") != "approved":
+            return ""
+        actor = approval.get("actor") or "approved producer"
+        live_jobs.approve_references(
+            SERIES_ID,
+            actor,
+            "Automated QC passed the five new camp-clearing dawn views; 41 approved assets were reused.",
+        )
+        resumed = live_jobs.continue_after_reference_approval(SERIES_ID, actor)
+        return (resumed or {}).get("id", "")
+    except Exception as exc:
+        store.insert("generation_history", {
+            "series_id": SERIES_ID,
+            "episode_id": EPISODE_ID,
+            "event": "episode.reference_approval_resume_failed",
+            "entity_type": "job",
+            "entity_id": paused[0]["id"],
+            "actor": "startup",
+            "detail": {"error_type": type(exc).__name__, "error": str(exc)[:1000],
+                       "new_paid_work_started": False},
+            "created_at": _now(),
+        })
         return ""
-    actor = approval.get("actor") or "approved producer"
-    live_jobs.approve_references(
-        SERIES_ID,
-        actor,
-        "Automated QC passed the five new camp-clearing dawn views; 41 approved assets were reused.",
-    )
-    resumed = live_jobs.continue_after_reference_approval(SERIES_ID, actor)
-    return (resumed or {}).get("id", "")

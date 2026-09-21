@@ -532,10 +532,16 @@ class Pipeline:
             prompt = (f"Reference legend: {'; '.join(legend)}. Keep every referenced person's face, hair, body, wardrobe and jewelry exactly as in their references. "
                       f"Location: {loc['description']} Lighting: {light}. Shot: {s.get('shot_type','')}, {s.get('lens') or ''}. "
                       f"One cinematic film still, the first frame of the shot: {s['keyframe_prompt']} "
-                      f"{self.episode['aspect_ratio']} composition with clean caption-safe bands top and bottom. {style} "
+                      f"Full-bleed {self.episode['aspect_ratio']} composition; keep important action away from "
+                      f"the extreme edges, with no borders, mattes, letterbox bars or blank bands. {style} "
                       f"Avoid: {s.get('negative','')}, {neg_extra}, {prompts.NEGATIVE_IMAGE}.")
             hint, ok, path, tid = "", None, None, None
             base = self._attempt_base(f"{self.episode_id}_{s['scene_id']}_kf_", self._redo("keyframes", s["scene_id"]))
+            if base:
+                previous = self.state.data["takes"].get(
+                    self._take_id(s["scene_id"], "kf", base - 1), {})
+                previous_qc = previous.get("qa") or {}
+                hint = previous_qc.get("fix_hint") or "; ".join(previous_qc.get("issues") or [])
             refused, softened = None, None
             for attempt in range(base, base + self.regen + 1):
                 tid = self._take_id(s["scene_id"], "kf", attempt)

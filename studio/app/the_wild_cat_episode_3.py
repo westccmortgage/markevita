@@ -11,6 +11,7 @@ MARKER_EVENT = "series.episode_3_prepared.complete"
 LAUNCH_APPROVAL_TYPE = "episode_launch"
 PREFLIGHT_RETRY_APPROVAL_TYPE = "episode_preflight_retry"
 REFERENCE_RESUME_APPROVAL_TYPE = "episode_reference_resume"
+SCENE_RETRY_APPROVAL_TYPE = "scene_regeneration"
 VIDEO_ROUTE = [
     "xai/grok-imagine-video/v1.5/image-to-video",
     "bytedance/seedance-2.0/image-to-video",
@@ -309,3 +310,64 @@ def approve_references_and_resume_if_authorized() -> str:
             "created_at": _now(),
         })
         return ""
+
+
+def retry_failed_scene_if_authorized() -> str:
+    """Run one producer-approved scene retry from the existing checkpoint.
+
+    The approval identifies the scene.  A job carrying that scene in its
+    immutable ``force`` list is the receipt, so a restart cannot launch it a
+    second time.  All other saved scene work is reused.
+    """
+    from .config import settings
+
+    if not settings.allow_paid:
+        return ""
+    approvals = [row for row in store.list("approvals", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+        "subject_type": SCENE_RETRY_APPROVAL_TYPE,
+    }) if row.get("decision") == "approved"]
+    if not approvals:
+        return ""
+    approval = approvals[-1]
+    scene_id = approval.get("subject_id") or ""
+    if not (scene_id.startswith("sc") and scene_id[2:].isdigit()):
+        return ""
+    jobs = store.list("production_jobs", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+    }, order="created_at", desc=True)
+    if any(scene_id in (job.get("force") or []) for job in jobs):
+        return ""
+    failed = next((job for job in jobs if job.get("state") == "failed"), None)
+    if not failed or scene_id not in (failed.get("error") or ""):
+        return ""
+
+    from . import live_jobs, runner
+    try:
+        from serial.package import SeriesPackage
+
+        package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+        digest = live_jobs.package_digest(package, EPISODE_ID)
+        job = runner.jobs.start(
+            SERIES_ID, EPISODE_ID, list(failed.get("stages") or runner.DEFAULT_STAGES),
+            approval.get("actor") or "approved producer", [scene_id],
+            approved_digest=digest, approve_live=True,
+            audio_mode=(failed.get("progress") or {}).get("audio_mode") or "voices",
+        )
+    except Exception as exc:
+        store.insert("generation_history", {
+            "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+            "event": "episode.scene_retry_launch_failed", "entity_type": "scene",
+            "entity_id": scene_id, "actor": "startup",
+            "detail": {"error_type": type(exc).__name__, "error": str(exc)[:1000],
+                       "new_paid_work_started": False}, "created_at": _now(),
+        })
+        return ""
+    store.insert("generation_history", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+        "event": "episode.scene_retry_started", "entity_type": "job",
+        "entity_id": job["id"], "actor": approval.get("actor") or "approved producer",
+        "detail": {"scene_id": scene_id, "preserve_other_takes": True,
+                   "publish": False}, "created_at": _now(),
+    })
+    return job["id"]

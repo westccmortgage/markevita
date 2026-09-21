@@ -478,8 +478,19 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
         raise PermissionError('Review the script and budget, then approve live production in the form.')
     if 'publish' in stages:
         raise PermissionError('Publishing is a separate action and is not available here.')
+    force = list(dict.fromkeys(force or []))
     if force:
-        raise ValueError('Forced live regeneration is not available in this release. Existing takes are retained.')
+        # A live retry is deliberately narrower than the CLI's general
+        # ``--force`` switch.  It is allowed only for individual scenes which
+        # have a recorded producer approval.  This keeps a single bad frame
+        # from turning a resume into a regeneration of the episode or stage.
+        invalid = [item for item in force if not (item.startswith('sc') and item[2:].isdigit())]
+        approved_scenes = {row['subject_id'] for row in runner.store.list('approvals', {
+            'series_id': series_id, 'episode_id': episode_id,
+            'subject_type': 'scene_regeneration'}) if row.get('decision') == 'approved'}
+        unauthorized = [item for item in force if item not in approved_scenes]
+        if invalid or unauthorized:
+            raise PermissionError('Live regeneration requires a recorded approval for each individual scene.')
     if not runner.store.list('scenes', {'series_id': series_id, 'episode_id': episode_id}):
         raise ValueError('This episode has no script yet. Describe what should happen and let the '
                          'studio write it first; there is nothing to produce until then.')
@@ -514,7 +525,7 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
             'series_id': series_id, 'episode_id': episode_id, 'stages': stages, 'mode': 'live',
             'state': 'queued', 'requested_by': actor,
             'idempotency_key': f'live:{series_id}:{episode_id}:{lease.owner}',
-            'force': [], 'progress': {'audio_mode': audio_mode, 'input_digest': actual_digest,
+            'force': force, 'progress': {'audio_mode': audio_mode, 'input_digest': actual_digest,
                                       'approved_budget': pkg.limits(cfg)['budget'],
                                       'done': [], 'total': len(stages)},
             'created_at': now(), 'log': 'Fetching the work already saved for this episode.'})
@@ -649,7 +660,8 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         update(log='\n'.join(lines[-200:]))
     try:
         update(state='running', started_at=now())
-        pipeline = Pipeline(cfg, pkg, episode_id, cp.root.parent)
+        pipeline = Pipeline(cfg, pkg, episode_id, cp.root.parent,
+                            force=set(job.get('force') or []))
         pipeline.state.on_save = cp.save
         pipeline.sstate.on_save = cp.save
         pipeline.state.data.update(live_input_digest=progress['input_digest'],

@@ -662,6 +662,12 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         update(state='running', started_at=now())
         pipeline = Pipeline(cfg, pkg, episode_id, cp.root.parent,
                             force=set(job.get('force') or []))
+        # A scene retry is a one-shot instruction.  Once its replacement
+        # keyframe is present, a process restart must resume the remaining
+        # stages rather than regenerate that scene yet again.
+        for scene_id in list(pipeline.force):
+            if scene_id.startswith('sc') and pipeline.state.scene(scene_id).get('keyframe'):
+                pipeline.force.discard(scene_id)
         pipeline.state.on_save = cp.save
         pipeline.sstate.on_save = cp.save
         pipeline.state.data.update(live_input_digest=progress['input_digest'],

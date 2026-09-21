@@ -644,9 +644,10 @@ class Pipeline:
                     self.log(f"video: {s['scene_id']} {endpoint} QC {qc.get('score')} {'OK' if kept else 'FAIL'} {qc.get('issues') or ''}")
                     if kept:
                         ok = (path, tid); break
-                    if near:
-                        self.log(f"video: {s['scene_id']} принято как достаточно близкое ({score})")
-                        ok = (path, tid); st["video_close"] = score; break
+                    # A routed video QC failure always advances to the next
+                    # engine.  The close-enough shortcut is useful for a
+                    # single-model workflow, but here it silently defeated the
+                    # explicit Grok -> Seedance fallback contract.
                     hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
                 if not ok and len(refusals) == len(route):
                     held = media.hold_from_still(Path(st["keyframe"]), s["duration"],

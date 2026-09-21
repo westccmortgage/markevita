@@ -9,6 +9,7 @@ SERIES_ID = "the_wild_cat"
 EPISODE_ID = "s01e03"
 MARKER_EVENT = "series.episode_3_prepared.complete"
 LAUNCH_APPROVAL_TYPE = "episode_launch"
+PREFLIGHT_RETRY_APPROVAL_TYPE = "episode_preflight_retry"
 VIDEO_ROUTE = [
     "xai/grok-imagine-video/v1.5/image-to-video",
     "bytedance/seedance-2.0/image-to-video",
@@ -62,9 +63,13 @@ def _scene(number: int, action: str, narration: str) -> dict:
     lenses = ["50mm", "85mm", "35mm", "85mm", "50mm",
               "50mm", "50mm", "85mm", "35mm", "85mm",
               "50mm", "85mm", "50mm", "85mm", "35mm"]
+    lighting = ["dawn", "dawn", "dawn", "dawn", "default",
+                "default", "default", "default", "default", "default",
+                "default", "default", "default", "default", "dusk"]
     return {
         "scene_id": f"sc{number:02d}", "sequence": number, "duration_seconds": 8,
-        "location": locations[min((number - 1) // 4, 3)], "lighting_state": "natural",
+        "location": locations[min((number - 1) // 4, 3)],
+        "lighting_state": lighting[number - 1],
         "characters_in_frame": ["hunter", "wildcat"],
         "wardrobe": {"hunter": "w_forest", "wildcat": "natural"},
         "action": action,
@@ -110,9 +115,9 @@ def seed_if_missing() -> bool:
         "reference_policy": "Reuse the locked Episode 1/2 Hunter and enhanced Wildcat canonical reference packs; do not recreate successful references.",
         "audio_policy": "One continuous Russian narrator track; no English; no music; provider audio disabled; continuous natural ambience.",
         "editorial_plan": editorial,
-        "opening_state": {"relationships": {"hunter_wildcat_bond": "chosen_companionship"}},
+        "opening_state": {"relationships": {"hunter_wildcat_bond": "first_trust"}},
         "scenes": SCENES,
-        "cliffhanger": {"scene_id": "sc15", "hook": "He slows and leaves an open place beside him; she considers whether he chose her too.", "resolves_in": "s01e04"},
+        "cliffhanger": {"scene_id": "sc15", "hook": "He slows and leaves an open place beside him; she considers whether he chose her too."},
     }
     cap = float((series.get("production_limits") or {}).get("maximum_episode_budget_usd") or 100)
     store.upsert("episodes", {
@@ -149,13 +154,13 @@ def seed_if_missing() -> bool:
 
 
 def launch_if_approved() -> str:
-    """Start one reviewed live job, and never retry it automatically.
+    """Start once, with one explicitly approved zero-spend preflight retry.
 
     The approval is stored separately from the normal live-production receipt
     so startup can calculate the current package digest itself.  The existence
-    of any Episode 3 job is the permanent idempotency guard: a failed or paused
-    run must be inspected and resumed deliberately, never replaced by a fresh
-    paid run after a deploy.
+    A retry is allowed only when there is exactly one failed job, it completed
+    no stage, and Episode 3 still shows zero spend.  Any later failure requires
+    inspection; a deploy cannot create another attempt.
     """
     from .config import settings
 
@@ -169,8 +174,24 @@ def launch_if_approved() -> str:
     })
     if not approval or approval.get("decision") != "approved":
         return ""
-    if store.list("production_jobs", {"series_id": SERIES_ID, "episode_id": EPISODE_ID}):
-        return ""
+    jobs = store.list("production_jobs", {"series_id": SERIES_ID, "episode_id": EPISODE_ID},
+                      order="created_at", desc=True)
+    retry = False
+    if jobs:
+        retry_approval = store.get("approvals", {
+            "series_id": SERIES_ID,
+            "episode_id": EPISODE_ID,
+            "subject_type": PREFLIGHT_RETRY_APPROVAL_TYPE,
+            "subject_id": jobs[0]["id"],
+        })
+        episode = store.get("episodes", {"series_id": SERIES_ID,
+                                         "episode_id": EPISODE_ID}) or {}
+        done = (jobs[0].get("progress") or {}).get("done") or []
+        retry = (len(jobs) == 1 and jobs[0].get("state") == "failed" and not done
+                 and float(episode.get("spent_usd") or 0) == 0
+                 and retry_approval and retry_approval.get("decision") == "approved")
+        if not retry:
+            return ""
 
     from . import live_jobs, runner
 
@@ -192,16 +213,20 @@ def launch_if_approved() -> str:
         })
         return ""
     try:
-        job = runner.jobs.start(
-            SERIES_ID,
-            EPISODE_ID,
-            runner.DEFAULT_STAGES,
-            approval.get("actor") or "approved producer",
-            [],
-            approved_digest=digest,
-            approve_live=True,
-            audio_mode="voices",
-        )
+        production_approval = dict(approved_digest=digest, approve_live=True,
+                                   audio_mode="voices")
+        if retry:
+            job = runner.jobs.resume(
+                SERIES_ID, EPISODE_ID,
+                approval.get("actor") or "approved producer",
+                **production_approval,
+            )
+        else:
+            job = runner.jobs.start(
+                SERIES_ID, EPISODE_ID, runner.DEFAULT_STAGES,
+                approval.get("actor") or "approved producer", [],
+                **production_approval,
+            )
     except Exception as exc:
         store.insert("generation_history", {
             "series_id": SERIES_ID,
@@ -218,12 +243,14 @@ def launch_if_approved() -> str:
     store.insert("generation_history", {
         "series_id": SERIES_ID,
         "episode_id": EPISODE_ID,
-        "event": "episode.production_started_from_recorded_approval",
+        "event": ("episode.production_resumed_after_zero_spend_preflight"
+                  if retry else "episode.production_started_from_recorded_approval"),
         "entity_type": "job",
         "entity_id": job["id"],
         "actor": approval.get("actor") or "approved producer",
         "detail": {"audio_mode": "voices", "publish": False,
-                   "automatic_video_route_attempts": 2},
+                   "automatic_video_route_attempts": 2,
+                   "retry_after_zero_spend_preflight": retry},
         "created_at": _now(),
     })
     return job["id"]

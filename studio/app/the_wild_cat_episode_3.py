@@ -10,6 +10,7 @@ EPISODE_ID = "s01e03"
 MARKER_EVENT = "series.episode_3_prepared.complete"
 LAUNCH_APPROVAL_TYPE = "episode_launch"
 PREFLIGHT_RETRY_APPROVAL_TYPE = "episode_preflight_retry"
+REFERENCE_RESUME_APPROVAL_TYPE = "episode_reference_resume"
 VIDEO_ROUTE = [
     "xai/grok-imagine-video/v1.5/image-to-video",
     "bytedance/seedance-2.0/image-to-video",
@@ -254,3 +255,39 @@ def launch_if_approved() -> str:
         "created_at": _now(),
     })
     return job["id"]
+
+
+def approve_references_and_resume_if_authorized() -> str:
+    """Approve the QC-passed delta pack once and continue its paused job."""
+    from .config import settings
+
+    if not settings.allow_paid:
+        return ""
+    paused = [job for job in store.list(
+        "production_jobs", {"series_id": SERIES_ID, "episode_id": EPISODE_ID,
+                            "mode": "live", "state": "paused"},
+        order="created_at", desc=True,
+    ) if (job.get("progress") or {}).get("waiting_for") == "reference_approval"]
+    if not paused:
+        return ""
+    from . import live_jobs
+    from serial.package import SeriesPackage
+
+    package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+    bible_version = package.reference_version
+    approval = store.get("approvals", {
+        "series_id": SERIES_ID,
+        "episode_id": EPISODE_ID,
+        "subject_type": REFERENCE_RESUME_APPROVAL_TYPE,
+        "subject_id": bible_version,
+    })
+    if not approval or approval.get("decision") != "approved":
+        return ""
+    actor = approval.get("actor") or "approved producer"
+    live_jobs.approve_references(
+        SERIES_ID,
+        actor,
+        "Automated QC passed the five new camp-clearing dawn views; 41 approved assets were reused.",
+    )
+    resumed = live_jobs.continue_after_reference_approval(SERIES_ID, actor)
+    return (resumed or {}).get("id", "")

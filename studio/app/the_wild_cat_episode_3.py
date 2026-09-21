@@ -276,6 +276,10 @@ def approve_references_and_resume_if_authorized() -> str:
 
         package = SeriesPackage(live_jobs.materialize(SERIES_ID))
         bible_version = package.reference_version
+        if any(row.get("decision") == "approved" for row in store.list("approvals", {
+                "series_id": SERIES_ID, "episode_id": "", "subject_type": "references",
+                "subject_id": bible_version})):
+            return ""
         approval = store.get("approvals", {
             "series_id": SERIES_ID,
             "episode_id": EPISODE_ID,

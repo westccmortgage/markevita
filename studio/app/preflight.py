@@ -99,7 +99,12 @@ def problems(cfg, stages, pkg, episode_id=None):
             continue
         if type(amount) not in (int, float) or not math.isfinite(amount) or amount < 0:
             errors.append(f'PRICE_{name.upper()}: enter a finite, non-negative price.')
-    budget = pkg.limits(cfg, episode_id)['budget']
+    # Older package adapters accept only the config. When no episode was
+    # requested, keep that contract; the current SeriesPackage also treats the
+    # one-argument form as the series default. Pass the episode only when the
+    # caller actually supplied one.
+    budget = (pkg.limits(cfg, episode_id) if episode_id is not None
+              else pkg.limits(cfg))['budget']
     if not math.isfinite(budget) or budget <= 0:
         errors.append('Episode budget: enter a finite amount greater than zero.')
     return errors

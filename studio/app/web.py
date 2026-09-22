@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, authoring, integrations, narration_tracks, runner, scripts as scriptmod
+from . import auth, authoring, core_v2, integrations, narration_tracks, runner, scripts as scriptmod
 from . import live_jobs
 from . import i18n
 from .preview_web import _check_form, _csrf_token
@@ -983,7 +983,27 @@ def _episode_context(request: Request, series_id: str, episode_id: str) -> dict:
                   validation=runner.validate_series(series_id),
                   history=store.list("generation_history",
                                      {"series_id": series_id, "episode_id": episode_id},
-                                     order="created_at", desc=True, limit=25))
+                                     order="created_at", desc=True, limit=25),
+                  core_shadow=core_v2.latest_shadow_report(series_id, episode_id))
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/core-v2/shadow")
+def run_core_v2_shadow(request: Request, series_id: str, episode_id: str,
+                       csrf_token: str = Form("")):
+    """Run the no-spend Core V2 evaluator from the episode screen."""
+    admin = require_admin(request)
+    _check_form(request, admin, csrf_token)
+    try:
+        report = core_v2.run_shadow_analysis(series_id, episode_id, actor=admin["email"])
+    except ValueError as exc:
+        return _redirect(f"/series/{series_id}/episodes/{episode_id}/studio", err=str(exc))
+    summary = report["summary"]
+    return _redirect(
+        f"/series/{series_id}/episodes/{episode_id}/studio",
+        ok=(f"Core V2 shadow analysis: {summary['ready']} ready, "
+            f"{summary['repair']} need repair, "
+            f"{summary['insufficient_evidence']} need evidence."),
+    )
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/settings")

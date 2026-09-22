@@ -37,6 +37,45 @@
   <div class="stat"><div class="k">{{ _("Masters") }}</div><div class="v">{{ runtime.masters|length }}</div></div>
 </div>
 
+<!-- ── Measured Decision Core V2 ─────────────────────────────────────── -->
+<div class="card" id="core-v2">
+  <div class="page-head" style="margin-bottom:10px">
+    <div>
+      <h2 style="margin-bottom:4px">{{ _("Measured Decision Core V2") }}</h2>
+      <p class="hint">{{ _("Shadow Mode examines the saved script, takes, QC evidence and spend. It cannot call a provider, approve a retry, change a take or publish.") }}</p>
+    </div>
+    <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/core-v2/shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">{{ _("Run Shadow Analysis") }}</button>
+    </form>
+  </div>
+  {% if core_shadow %}
+    {% set cs = core_shadow.summary %}
+    <div class="grid g4">
+      <div class="stat"><div class="k">{{ _("Ready") }}</div><div class="v">{{ cs.ready }}</div></div>
+      <div class="stat"><div class="k">{{ _("Repair") }}</div><div class="v">{{ cs.repair }}</div></div>
+      <div class="stat"><div class="k">{{ _("Need evidence") }}</div><div class="v">{{ cs.insufficient_evidence }}</div></div>
+      <div class="stat"><div class="k">{{ _("Projected repair") }}</div><div class="v">{{ cs.projected_repair_usd|money }}</div></div>
+    </div>
+    {% if core_shadow.decisions %}
+      <details style="margin-top:12px">
+        <summary>{{ _("Scene decisions") }} · {{ core_shadow.created_at|time }}</summary>
+        {% for decision in core_shadow.decisions %}
+          <div class="scene-card">
+            <b>{{ decision.scene_id }}</b> · <code>{{ decision.recommended_action }}</code>
+            <span class="pill {{ 'ok' if decision.verdict == 'ready' else 'bad' }}">{{ decision.verdict }}</span>
+            <p class="hint">{{ decision.reason }}</p>
+            {% if decision.evidence.qc_score is not none %}<span class="hint">QC {{ decision.evidence.qc_score }}</span>{% endif %}
+            {% if decision.evidence.issues %}<div class="mono small">{{ decision.evidence.issues|join('; ') }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </details>
+    {% endif %}
+  {% else %}
+    <p class="hint">{{ _("No Shadow Mode report has been recorded for this episode yet.") }}</p>
+  {% endif %}
+</div>
+
 <!-- ── production control ─────────────────────────────────────────────── -->
 <div class="card">
   <h2>{{ _("Production") }}</h2>

@@ -871,5 +871,17 @@
   "Narration is being generated. This page refreshes to show the download.": "Озвучка создаётся. Страница обновится и покажет ссылку для скачивания.",
   "Narration generation stopped without an automatic retry:": "Создание озвучки остановилось без автоматической повторной попытки:",
   "Approve one ElevenLabs narration call using the current script and assigned narrator voice.": "Разрешить один запрос ElevenLabs для озвучки текущего сценария назначенным голосом рассказчика.",
-  "Generate narration track only": "Создать только дорожку рассказчика"
+  "Generate narration track only": "Создать только дорожку рассказчика",
+  "Measured Decision Core V2": "Measured Decision Core V2",
+  "Shadow Mode examines the saved script, takes, QC evidence and spend. It cannot call a provider, approve a retry, change a take or publish.": "Shadow Mode анализирует сохранённый сценарий, дубли, результаты QC и расходы. Он не может запускать провайдера, утверждать повтор, менять выбранный дубль или публиковать.",
+  "Run Shadow Analysis": "Запустить Shadow-анализ",
+  "Ready": "Готово",
+  "Repair": "Нужно исправить",
+  "Need evidence": "Недостаточно данных",
+  "Projected repair": "Прогноз исправления",
+  "Scene decisions": "Решения по сценам",
+  "No Shadow Mode report has been recorded for this episode yet.": "Для этого эпизода ещё нет отчёта Shadow Mode.",
+  "This episode budget (USD)": "Бюджет этого эпизода (USD)",
+  "Applies only to this episode. Spending from other episodes is not counted.": "Применяется только к этому эпизоду. Расходы других эпизодов не учитываются.",
+  "Default budget for new episodes (USD)": "Стандартный бюджет новых эпизодов (USD)"
 }

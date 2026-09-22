@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from . import integrations, runner, scripts as scriptmod
+from . import core_v2, integrations, runner, scripts as scriptmod
 from .config import settings
 from .deps import require_admin
 from .ingest import history
@@ -78,7 +78,24 @@ def get_episode(series_id: str, episode_id: str, a: dict = Depends(admin)):
         "jobs": runner.jobs.jobs_for(series_id, episode_id, limit=20),
         "takes": store.list("takes", {"series_id": series_id, "episode_id": episode_id}, order="take_id"),
         "costs": store.list("costs", {"series_id": series_id, "episode_id": episode_id}),
+        "core_v2_shadow": core_v2.latest_shadow_report(series_id, episode_id),
     }
+
+
+@router.get("/series/{series_id}/episodes/{episode_id}/core-v2/shadow")
+def get_core_v2_shadow(series_id: str, episode_id: str, a: dict = Depends(admin)):
+    """Return the latest no-spend decision report, if one exists."""
+    return {"report": core_v2.latest_shadow_report(series_id, episode_id)}
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/core-v2/shadow")
+def run_core_v2_shadow(series_id: str, episode_id: str, a: dict = Depends(admin)):
+    """Analyze saved evidence only; never starts or approves production."""
+    try:
+        return {"report": core_v2.run_shadow_analysis(
+            series_id, episode_id, actor=a["email"])}
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/script")

@@ -1,0 +1,106 @@
+"""Measured Decision Core V2 starts in evidence-only Shadow Mode."""
+from __future__ import annotations
+
+from app import core_v2
+from app.store.local import LocalDriver
+
+
+def _seed(tmp_path, monkeypatch):
+    store = LocalDriver(tmp_path / "store")
+    monkeypatch.setattr(core_v2, "store", store)
+    store.insert("series", {"id": "wild", "title": "Wild"})
+    store.insert("episodes", {
+        "series_id": "wild", "episode_id": "s01e04", "season_id": "s01",
+        "number": 4, "title": "Road", "status": "failed_qa",
+        "brief": {"video_routing": {"mode": "manual_after_qc", "scenes": {
+            "sc01": {"mode": "motion_still"},
+            "sc02": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
+            "sc03": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
+            "sc04": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
+        }}},
+        "opening_state": {}, "cliffhanger": {}, "budget_usd": 35,
+        "spent_usd": 10.39,
+    })
+    for i, (action, lens) in enumerate((
+        ("They leave the trees.", "35mm"),
+        ("The hunter walks through the gorge.", "35mm"),
+        ("The wildcat holds an intelligent gaze.", "85mm"),
+        ("The wildcat runs up the ridge.", "50mm"),
+    ), 1):
+        store.insert("scenes", {
+            "series_id": "wild", "episode_id": "s01e04", "scene_id": f"sc{i:02d}",
+            "sequence": i, "duration_seconds": 6, "location": "ridge",
+            "characters_in_frame": [], "wardrobe": {}, "action": action,
+            "dialogue": [], "lens": lens,
+        })
+    store.insert("takes", {
+        "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc02",
+        "take_id": "live:s01e04_sc02_vid_00", "stage": "vid", "endpoint": "veo",
+        "actual_usd": 1.1, "selected": True,
+        "qc": {"pass": True, "score": 7, "issues": ["minor blur"]},
+    })
+    store.insert("takes", {
+        "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc03",
+        "take_id": "live:s01e04_sc03_vid_00", "stage": "vid", "endpoint": "veo",
+        "actual_usd": 1.2, "selected": True,
+        "qc": {"pass": False, "score": 5,
+               "issues": ["wildcat face and tail anatomy drift"]},
+    })
+    store.insert("takes", {
+        "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc04",
+        "take_id": "live:s01e04_sc04_vid_00", "stage": "vid", "endpoint": "veo",
+        "actual_usd": 1.3, "selected": True,
+        "qc": {"pass": False, "score": 5,
+               "issues": ["camera smear and body scale drift"]},
+    })
+    return store
+
+
+def test_shadow_mode_makes_scene_decisions_without_production_changes(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04", actor="owner@example.test")
+
+    assert report["core"] == "measured-decision-core-v2"
+    assert report["mode"] == "shadow"
+    assert report["summary"]["ready"] == 2
+    assert report["summary"]["repair"] == 2
+    assert report["summary"]["projected_repair_usd"] == 1.3
+    decisions = {row["scene_id"]: row for row in report["decisions"]}
+    assert decisions["sc01"]["recommended_action"] == "keep_motion_still"
+    assert decisions["sc02"]["recommended_action"] == "accept_existing_take"
+    assert decisions["sc03"]["recommended_action"] == "convert_to_motion_still"
+    assert decisions["sc04"]["recommended_action"] == "simplify_action_then_retry"
+    assert decisions["sc04"]["evidence"]["next_provider"] == "kling"
+    assert report["guardrails"] == {
+        "paid_calls": False,
+        "take_selection_changes": False,
+        "automatic_approvals": False,
+        "publication": False,
+    }
+    assert len(store.list("takes")) == 3
+    assert len(store.list("approvals")) == 0
+
+
+def test_shadow_report_is_idempotent_for_the_same_evidence(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+
+    first = core_v2.run_shadow_analysis("wild", "s01e04")
+    second = core_v2.run_shadow_analysis("wild", "s01e04")
+
+    assert first["input_digest"] == second["input_digest"]
+    assert second["reused"] is True
+    assert len(store.list("generation_history", {"event": core_v2.EVENT})) == 1
+
+
+def test_new_qc_evidence_creates_a_new_shadow_report(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    first = core_v2.run_shadow_analysis("wild", "s01e04")
+    store.update("takes", {"series_id": "wild", "take_id": "live:s01e04_sc04_vid_00"},
+                 {"qc": {"pass": True, "score": 8, "issues": []}})
+
+    second = core_v2.run_shadow_analysis("wild", "s01e04")
+
+    assert first["input_digest"] != second["input_digest"]
+    assert second["summary"]["ready"] == 3
+    assert len(store.list("generation_history", {"event": core_v2.EVENT})) == 2

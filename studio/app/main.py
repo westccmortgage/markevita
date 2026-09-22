@@ -223,6 +223,8 @@ async def healthz():
         "clip_preview_available": True,
         "episode_live_available": True,
         "episode_duration_configurable": True,
+        "measured_decision_core_v2": True,
+        "core_v2_mode": "shadow",
         "ui_languages": ["en", "ru"],
         "asset_download_recovery": True,
         "web_push_available": True,

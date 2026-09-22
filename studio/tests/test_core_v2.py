@@ -157,7 +157,7 @@ def test_supervised_repair_records_exact_tokens_and_starts_narrow_job(tmp_path, 
     assert result["job"]["id"] == "repair-job"
     assert result["force"] == ["motion_still:sc03", "video_retry:sc04:r0"]
     args, kwargs = calls[0]
-    assert args[2] == ["video", "voice", "lipsync", "assemble", "qa", "deliver"]
+    assert args[2] == ["video"]
     assert args[4] == result["force"]
     assert kwargs == {"approved_digest": "package-digest", "approve_live": True,
                       "audio_mode": "voices"}

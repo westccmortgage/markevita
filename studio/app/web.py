@@ -1027,8 +1027,8 @@ def run_core_v2_supervised(request: Request, series_id: str, episode_id: str,
     job = result["job"]
     return _redirect(
         f"/jobs/{job['id']}",
-        ok=("Core V2 supervised repair started. Only the reviewed scenes are included; "
-            "automatic provider fallback and publication remain disabled."),
+        ok=("Core V2 video-only repair started. Only the reviewed scenes are included; "
+            "voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled."),
     )
 
 

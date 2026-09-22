@@ -128,7 +128,11 @@ def _ingest_takes(series_id: str, episode_id: str, state: dict) -> int:
             "duration_seconds": t.get("duration_seconds"),
             "estimated_usd": float(t.get("estimated_cost") or 0.0),
             "actual_usd": float(t.get("actual_cost") or 0.0),
-            "qc": t.get("qc") or {},
+            # Image takes historically used ``qc`` while video takes use
+            # ``qa``. Dropping the latter made passed video look unreviewed in
+            # the database even though the immutable runtime and job log held
+            # the verdict.
+            "qc": t.get("qc") or t.get("qa") or {},
             "selected": t.get("status") == "succeeded",
             "forced": bool(t.get("forced_by_operator")),
             "created_at": t.get("created_at") or _now(),

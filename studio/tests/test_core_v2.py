@@ -104,3 +104,20 @@ def test_new_qc_evidence_creates_a_new_shadow_report(tmp_path, monkeypatch):
     assert first["input_digest"] != second["input_digest"]
     assert second["summary"]["ready"] == 3
     assert len(store.list("generation_history", {"event": core_v2.EVENT})) == 2
+
+
+def test_old_video_qc_is_recovered_from_the_immutable_job_log(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    store.update("takes", {"series_id": "wild", "take_id": "live:s01e04_sc02_vid_00"},
+                 {"qc": {}})
+    store.insert("production_jobs", {
+        "series_id": "wild", "episode_id": "s01e04", "state": "failed",
+        "mode": "live", "idempotency_key": "legacy-run", "created_at": "2026-09-22T00:00:00Z",
+        "log": "[00:01:00] video: sc02 veo QC 7 OK ['minor blur']",
+    })
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+
+    decision = next(row for row in report["decisions"] if row["scene_id"] == "sc02")
+    assert decision["verdict"] == "ready"
+    assert decision["evidence"]["qc_score"] == 7

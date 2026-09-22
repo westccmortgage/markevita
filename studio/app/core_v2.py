@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -18,6 +19,10 @@ from .store import store
 CORE = "measured-decision-core-v2"
 POLICY_VERSION = "studio-shadow-1"
 EVENT = "core_v2.shadow_analysis_completed"
+QC_LOG_LINE = re.compile(
+    r"video:\s+(sc\d+)\b.*?\bQC\s+([0-9]+(?:\.[0-9]+)?)\s+(OK|FAIL)\s*(.*)$",
+    re.MULTILINE,
+)
 
 IDENTITY_WORDS = (
     "anatom", "identity", "species", "domestic", "tabby", "dog-like",
@@ -100,6 +105,28 @@ def _best_take(takes: list[dict]) -> dict | None:
         ),
         reverse=True,
     )[0]
+
+
+def _qc_from_job_logs(jobs: list[dict]) -> dict[str, dict]:
+    """Recover old video QC that was logged but not projected into ``takes``.
+
+    Earlier ingestion looked only for ``take.qc`` while the video stage writes
+    ``take.qa``. The complete verdict still exists in the immutable job log,
+    so Shadow Mode can evaluate old episodes without regenerating anything.
+    New ingestion writes the field correctly; this is a compatibility bridge.
+    """
+    recovered: dict[str, dict] = {}
+    for job in sorted(jobs, key=lambda row: row.get("created_at") or ""):
+        for match in QC_LOG_LINE.finditer(job.get("log") or ""):
+            scene_id, score, verdict, issues = match.groups()
+            recovered[scene_id] = {
+                "pass": verdict == "OK",
+                "score": _number(score),
+                "issues": [issues.strip()] if issues.strip() else [],
+                "fix_hint": "",
+                "evidence_source": "production_job_log",
+            }
+    return recovered
 
 
 def _scene_decision(scene: dict, takes: list[dict], brief: dict) -> dict:
@@ -201,7 +228,10 @@ def _snapshot(series_id: str, episode_id: str) -> dict:
     takes = store.list("takes", {"series_id": series_id, "episode_id": episode_id},
                        order="created_at")
     costs = store.list("costs", {"series_id": series_id, "episode_id": episode_id})
-    return {"episode": episode, "scenes": scenes, "takes": takes, "costs": costs}
+    jobs = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
+                      order="created_at")
+    return {"episode": episode, "scenes": scenes, "takes": takes, "costs": costs,
+            "log_qc": _qc_from_job_logs(jobs)}
 
 
 def _digest(snapshot: dict) -> str:
@@ -216,6 +246,7 @@ def _digest(snapshot: dict) -> str:
         "takes": [{key: take.get(key) for key in
                    ("take_id", "scene_id", "stage", "endpoint", "actual_usd", "qc", "selected")}
                   for take in snapshot["takes"]],
+        "legacy_log_qc": snapshot.get("log_qc") or {},
     }
     raw = json.dumps(relevant, ensure_ascii=False, sort_keys=True, default=str)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -240,7 +271,11 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
     by_scene: dict[str, list[dict]] = {}
     for take in snapshot["takes"]:
         if (take.get("stage") or "").startswith("vid"):
-            by_scene.setdefault(take.get("scene_id") or "", []).append(take)
+            candidate = dict(take)
+            scene_id = candidate.get("scene_id") or ""
+            if not candidate.get("qc") and scene_id in snapshot["log_qc"]:
+                candidate["qc"] = snapshot["log_qc"][scene_id]
+            by_scene.setdefault(scene_id, []).append(candidate)
     decisions = [_scene_decision(scene, by_scene.get(scene["scene_id"], []), brief)
                  for scene in snapshot["scenes"]]
     ready = sum(decision["verdict"] == "ready" for decision in decisions)

@@ -615,6 +615,21 @@ class Pipeline:
             st = self.state.scene(s["scene_id"])
             if st.get("video") and not self._redo("video", s["scene_id"]):
                 continue
+            routing = self.episode.get("video_routing") or {}
+            scene_routes = routing.get("scenes") or {}
+            plan = scene_routes.get(s.get("source_scene_id") or s["scene_id"], {})
+            manual_route = routing.get("mode") == "manual_after_qc"
+            if plan.get("mode") == "motion_still":
+                path = media.slow_push_from_still(
+                    Path(st["keyframe"]), s["duration"],
+                    self.work / "video" / f"{s['scene_id']}_motion_still.mp4",
+                    self.episode["width"], self.episode["height"],
+                    motion=plan.get("motion") or "push_in")
+                st.update(video=str(path), video_take=None, video_motion_still=True,
+                          status="video_ok")
+                self.log(f"video: {s['scene_id']} editorial motion-still; no paid video provider")
+                self.state.save()
+                continue
             refs, _ = self._scene_refs(s, None)
             speaks = bool(s.get("lipsync_speaker"))
             prompt = (f"{s['video_prompt']} Camera: {s.get('camera_motion','locked tripod')}, {s.get('lens') or ''}. "
@@ -629,20 +644,29 @@ class Pipeline:
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
             route_start = video_fallback_index(self.force, s["scene_id"])
-            full_route = tuple(getattr(self.cfg, "video_model_route", ()) or
-                               (self.cfg.fal_video_model,))
+            configured_route = tuple(getattr(self.cfg, "video_model_route", ()) or
+                                     (self.cfg.fal_video_model,))
+            primary = plan.get("primary") or configured_route[0]
+            planned_route = tuple(dict.fromkeys(
+                [primary] + list(plan.get("fallbacks") or configured_route[1:])))
+            full_route = planned_route
             if route_start is None:
-                indexed_route = list(enumerate(capped_video_route(self.cfg, self.episode)))
+                if manual_route:
+                    indexed_route = [(0, full_route[0])]
+                else:
+                    cap = int(self.episode.get("max_video_route_attempts") or len(full_route))
+                    indexed_route = list(enumerate(full_route[:max(1, cap)]))
             else:
                 if route_start >= len(full_route):
                     raise ValueError(f"Invalid video fallback route index for {s['scene_id']}: {route_start}")
-                indexed_route = list(enumerate(full_route))[route_start:]
+                indexed_route = ([list(enumerate(full_route))[route_start]] if manual_route
+                                 else list(enumerate(full_route))[route_start:])
                 previous = self.state.take(self._take_id(s["scene_id"], f"vid_r{route_start - 1}", 0)) if route_start else None
                 if previous:
                     prior_qc = previous.get("qa") or {}
                     hint = prior_qc.get("fix_hint") or "; ".join(prior_qc.get("issues") or [])
             route = tuple(endpoint for _, endpoint in indexed_route)
-            if route_start is not None or len(route) > 1:
+            if manual_route or route_start is not None or len(route) > 1:
                 refusals = []
                 for route_index, endpoint in indexed_route:
                     tid = self._take_id(s["scene_id"], f"vid_r{route_index}", 0)
@@ -657,7 +681,10 @@ class Pipeline:
                         if not self._decided_refusal(exc):
                             raise
                         refusals.append(str(exc))
-                        self.log(f"video: {s['scene_id']} {endpoint} refused; advancing to next route engine")
+                        if manual_route:
+                            self.log(f"video: {s['scene_id']} {endpoint} refused; manual review required before another paid engine")
+                        else:
+                            self.log(f"video: {s['scene_id']} {endpoint} refused; advancing to next route engine")
                         continue
                     take.update(scene_id=s["scene_id"], attempt=route_index,
                                 route_index=route_index, route_endpoint=endpoint,
@@ -684,6 +711,15 @@ class Pipeline:
                     # explicit Grok -> Seedance fallback contract.
                     hint = qc.get("fix_hint") or "; ".join(qc.get("issues", []))
                 if not ok and len(refusals) == len(route):
+                    if manual_route:
+                        st["status"] = "failed_qa"
+                        st["video_manual_review"] = {
+                            "failed_route_index": indexed_route[-1][0],
+                            "next_route_index": (indexed_route[-1][0] + 1
+                                                 if indexed_route[-1][0] + 1 < len(full_route) else None),
+                            "reason": "provider_refusal",
+                        }
+                        failed.append(s["scene_id"]); self.state.save(); continue
                     held = media.hold_from_still(Path(st["keyframe"]), s["duration"],
                                                  self.work / "video" / f"{s['scene_id']}_hold.mp4",
                                                  self.episode["width"], self.episode["height"])
@@ -694,6 +730,15 @@ class Pipeline:
                 if not ok and self._weak_is_allowed(s["scene_id"]):
                     ok = (path, tid); st["video_weak"] = True
                 if not ok:
+                    if manual_route:
+                        last_index = indexed_route[-1][0]
+                        st["video_manual_review"] = {
+                            "failed_route_index": last_index,
+                            "next_route_index": last_index + 1 if last_index + 1 < len(full_route) else None,
+                            "reason": "qc_failed",
+                            "fix_hint": hint,
+                        }
+                        self.log(f"video: {s['scene_id']} stopped after one paid engine; next engine needs explicit scene approval")
                     st["status"] = "failed_qa"; failed.append(s["scene_id"]); self.state.save(); continue
                 st["video"], st["video_take"], st["status"] = str(ok[0]), ok[1], "video_ok"
                 self.state.save(); continue

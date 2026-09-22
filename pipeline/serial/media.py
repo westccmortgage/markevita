@@ -142,6 +142,34 @@ def hold_from_still(still: Path, seconds: float, dest: Path, w: int, h: int, fps
     return dest
 
 
+def slow_push_from_still(still: Path, seconds: float, dest: Path, w: int, h: int,
+                         fps: int = 24, motion: str = "push_in") -> Path:
+    """Turn an approved keyframe into a restrained editorial insert for free.
+
+    A detail, reaction, or establishing shot does not need a generative-video
+    request merely to stay on screen for four seconds.  A two-to-four percent
+    optical move preserves the exact face and anatomy in the approved frame,
+    costs no provider call, and gives the editor a clean bridge.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    frames = max(1, int(round(float(seconds) * fps)))
+    if motion == "locked":
+        return hold_from_still(still, seconds, dest, w, h, fps)
+    step = 0.04 / frames
+    zoom = (f"min(zoom+{step:.8f},1.04)" if motion != "pull_out"
+            else f"max(zoom-{step:.8f},1.0)")
+    start = "1.0" if motion != "pull_out" else "1.04"
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+          f"crop={w}:{h},zoompan=z='if(eq(on,0),{start},{zoom})':"
+          f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={w}x{h}:fps={fps},"
+          "format=yuv420p")
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-i", str(still),
+          "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+          "-t", f"{float(seconds):.3f}", "-vf", vf, "-c:v", "libx264", "-preset", "medium",
+          "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-shortest", str(dest)])
+    return dest
+
+
 def score_track(segments: list[dict], dest: Path) -> Path:
     """One music track for the whole episode, cut to the scenes under it.
 

@@ -91,7 +91,7 @@ def spoken_words_removed(checksums, scenes, episode_id):
 # belongs with the wording and can be replaced while preserving every image
 # and video take.  It is included only in the full comparison below so a
 # language-only edit still drops and regenerates the voice work.
-BRIEF_STRUCTURE = ('aspect_ratio', 'width', 'height')
+BRIEF_STRUCTURE = ('aspect_ratio', 'width', 'height', 'video_routing')
 
 
 def shape_parts(checksums, brief, scenes, episode_id, with_words=True):

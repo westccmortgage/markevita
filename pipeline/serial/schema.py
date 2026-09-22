@@ -141,6 +141,37 @@ EPISODE = {
             "fal-ai/kling-video/v3/pro/image-to-video",
         ]}, "minItems": 1, "uniqueItems": True},
         "max_video_route_attempts": {"type": "integer", "minimum": 1, "maximum": 4},
+        "video_routing": {
+            "type": "object",
+            "properties": {
+                "mode": {"enum": ["automatic", "manual_after_qc"]},
+                "scenes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "required": ["mode"],
+                        "properties": {
+                            "mode": {"enum": ["video", "motion_still"]},
+                            "primary": {"enum": [
+                                "fal-ai/veo3.1/fast/image-to-video",
+                                "fal-ai/veo3.1/image-to-video",
+                                "xai/grok-imagine-video/v1.5/image-to-video",
+                                "bytedance/seedance-2.0/image-to-video",
+                                "fal-ai/kling-video/v3/pro/image-to-video",
+                            ]},
+                            "fallbacks": {"type": "array", "items": {"enum": [
+                                "fal-ai/veo3.1/fast/image-to-video",
+                                "fal-ai/veo3.1/image-to-video",
+                                "xai/grok-imagine-video/v1.5/image-to-video",
+                                "bytedance/seedance-2.0/image-to-video",
+                                "fal-ai/kling-video/v3/pro/image-to-video",
+                            ]}, "uniqueItems": True},
+                            "motion": _str,
+                        },
+                    },
+                },
+            },
+        },
         "opening_state": {"type": "object",
                           "properties": {"knowledge": {"type": "object", "additionalProperties": {"type": "array", "items": _id}},   # {secret_id: [char_ids]}
                                          "relationships": {"type": "object", "additionalProperties": _str}}},                       # {rel_id: state}

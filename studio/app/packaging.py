@@ -235,6 +235,9 @@ def build_brief(series_id: str, episode: dict) -> dict:
     route_attempts = (episode.get("brief") or {}).get("max_video_route_attempts")
     if route_attempts:
         brief["max_video_route_attempts"] = int(route_attempts)
+    routing = (episode.get("brief") or {}).get("video_routing")
+    if routing:
+        brief["video_routing"] = routing
     return brief
 
 
@@ -374,6 +377,12 @@ def materialize(series_id: str, clean: bool = False) -> Path:
         if not scenes:
             continue  # brief not written yet; the engine reports it as missing
         _write(root / "episodes" / ep["episode_id"] / "brief.json", build_brief(series_id, ep))
+        production_prompts = (ep.get("brief") or {}).get("production_prompts")
+        prompts_path = root / "episodes" / ep["episode_id"] / "production_prompts.json"
+        if production_prompts:
+            _write(prompts_path, production_prompts)
+        elif prompts_path.exists():
+            prompts_path.unlink()
 
     (root / "assets").mkdir(exist_ok=True)
     _fetch_music_beds(series, root)

@@ -429,6 +429,7 @@ def validate_episode(pkg: SeriesPackage, ep: dict, prev_end_state: dict | None, 
         "captions": fmt.get("captions", "srt"), "music": fmt.get("music", "off"), "total_seconds": total, "brief_sha256": ep["_sha256"], "bible_version": pkg.bible_version,
         "video_route": list(ep.get("video_route") or []),
         "max_video_route_attempts": int(ep.get("max_video_route_attempts") or 0),
+        "video_routing": ep.get("video_routing") or {},
         "limits": L, "scenes": norm, "ledger": ledger, "warnings": warns, "cliffhanger": ch,
         "end_state": {"knowledge": {k: sorted(v) for k, v in knowledge.items()}, "relationships": relstate, "props": prop_state},
     }
@@ -452,7 +453,23 @@ def attach_prompts(norm: dict, pp: dict | None) -> list[str]:
 def estimate_first_pass(norm: dict, pkg: SeriesPackage, cfg, refs_needed: bool) -> dict:
     from . import costs
     L = norm["limits"]
-    vid = sum(costs.video_cost(s["duration"], cfg.video_generate_audio, cfg.video_resolution, cfg.fal_video_model) for s in norm["scenes"])
+    routing = norm.get("video_routing") or {}
+    scene_routes = routing.get("scenes") or {}
+    vid = 0.0
+    video_plan = []
+    for s in norm["scenes"]:
+        scene_key = s.get("source_scene_id") or s.get("scene_id") or ""
+        plan = scene_routes.get(scene_key, {})
+        if plan.get("mode") == "motion_still":
+            video_plan.append({"scene_id": scene_key, "mode": "motion_still",
+                               "provider": None, "estimated_cost": 0.0})
+            continue
+        endpoint = plan.get("primary") or cfg.fal_video_model
+        amount = costs.video_cost(s["duration"], cfg.video_generate_audio,
+                                  cfg.video_resolution, endpoint)
+        vid += amount
+        video_plan.append({"scene_id": scene_key, "mode": "video",
+                           "provider": endpoint, "estimated_cost": round(amount, 3)})
     kf = len(norm["scenes"]) * costs.image_cost(False, cfg.image_resolution)
     refs = 0.0
     if refs_needed:
@@ -464,5 +481,7 @@ def estimate_first_pass(norm: dict, pkg: SeriesPackage, cfg, refs_needed: bool) 
                 + len(pkg.props) * costs.image_cost(False, cfg.image_resolution))
     ls = sum(costs.lipsync_cost(s["duration"], cfg.lipsync_variant) for s in norm["scenes"] if s.get("lipsync_speaker"))
     llm = (len(norm["scenes"]) * 3 + 2) * costs.PRICE["anthropic_per_call_estimate"]
-    return {"video": round(vid, 2), "keyframes": round(kf, 2), "references": round(refs, 2), "lipsync": round(ls, 2), "llm": round(llm, 2),
+    return {"video": round(vid, 2), "video_plan": video_plan,
+            "paid_fallbacks": "manual" if routing.get("mode") == "manual_after_qc" else "automatic",
+            "keyframes": round(kf, 2), "references": round(refs, 2), "lipsync": round(ls, 2), "llm": round(llm, 2),
             "total_first_pass": round(vid + kf + refs + ls + llm, 2), "budget_cap": L["budget"]}

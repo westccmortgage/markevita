@@ -24,7 +24,22 @@
     {% endif %}
     {% if progress.budget %}
       <dt>{{ _("Spent on this episode") }}</dt>
-      <dd>${{ progress.spent }} {{ _("of") }} ${{ progress.budget }}</dd>
+      <dd>${{ progress.spent }} {{ _("of") }} ${{ progress.budget }}
+        {% if progress.ledger %}
+        {# One number was shown as spend and it was not one number: it added
+           estimates for calls that never settled to amounts that had. #}
+        <br><span class="small muted">
+          {{ _("Settled calls") }}: ${{ progress.ledger.internal_actual }} ({{ progress.ledger.calls }})
+          {%- if progress.ledger.estimates_only %} ·
+          {{ _("estimated only, not charged here") }}: ${{ progress.ledger.estimates_only }}{% endif %}
+          {%- if progress.ledger.superseded_rows %} ·
+          {{ _("superseded rows discarded") }}: {{ progress.ledger.superseded_rows }}{% endif %}
+          {%- if not progress.ledger.agrees %} ·
+          <strong>{{ _("does not match the engine's own total") }}: ${{ progress.ledger.engine_recorded }}</strong>{% endif %}
+        </span>
+        <br><span class="small muted">{{ _("None of this is confirmed by the provider: fal returns no price, so every amount is this studio's own estimate at the published rate. The provider's billing page is the only confirmed figure.") }}</span>
+        {% endif %}
+      </dd>
     {% endif %}
     {% if progress.retries and progress.retries.attempts %}
       <dt>{{ _("If the check marks a shot down") }}</dt>

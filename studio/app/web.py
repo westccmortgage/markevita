@@ -984,7 +984,8 @@ def _episode_context(request: Request, series_id: str, episode_id: str) -> dict:
                   history=store.list("generation_history",
                                      {"series_id": series_id, "episode_id": episode_id},
                                      order="created_at", desc=True, limit=25),
-                  core_shadow=core_v2.latest_shadow_report(series_id, episode_id))
+                  core_shadow=core_v2.latest_shadow_report(series_id, episode_id),
+                  finishing=_finishing_plan_or_none(series_id, episode_id))
 
 
 @router.post("/series/{series_id}/episodes/{episode_id}/core-v2/shadow")
@@ -1029,6 +1030,43 @@ def run_core_v2_supervised(request: Request, series_id: str, episode_id: str,
         f"/jobs/{job['id']}",
         ok=("Core V2 video-only repair started. Only the reviewed scenes are included; "
             "voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled."),
+    )
+
+
+def _finishing_plan_or_none(series_id: str, episode_id: str):
+    """Read-only, and never a reason the page fails to open."""
+    try:
+        return core_v2.finishing_plan(series_id, episode_id)
+    except Exception:                                              # noqa: BLE001
+        return None
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/core-v2/finishing")
+def approve_core_v2_finishing(request: Request, series_id: str, episode_id: str,
+                              input_digest: str = Form(...),
+                              max_incremental_usd: float = Form(...),
+                              approve: str = Form(""), csrf_token: str = Form("")):
+    """Start finishing, and only on a confirmation given for finishing.
+
+    The repair approval cannot reach this: it was shown and priced as video
+    work. Publication is not included here and needs its own decision.
+    """
+    admin = require_admin(request)
+    _check_form(request, admin, csrf_token)
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
+    if approve != "yes":
+        return _redirect(back, err="Confirm the finishing plan before starting it.")
+    try:
+        result = core_v2.approve_finishing(
+            series_id, episode_id, actor=admin["email"],
+            input_digest=input_digest, max_incremental_usd=max_incremental_usd,
+        )
+    except (ValueError, PermissionError) as exc:
+        return _redirect(back, err=str(exc))
+    return _redirect(
+        f"/jobs/{result['job']['id']}",
+        ok=("Finishing started: " + ", ".join(result["stages"]) + ". No new video is generated, "
+            "automatic provider fallback stays disabled, and publication is not included."),
     )
 
 

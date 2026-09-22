@@ -79,13 +79,73 @@ def _count_pack(series_id: str) -> tuple[int, int]:
     return len([k for k in needed if k in made]), len(needed)
 
 
+# fal returns no price in its response, so the engine records its own estimate
+# at the provider's published rate and says so on every take. Nothing inside
+# this studio is a provider-confirmed charge; only the provider's own billing
+# is. Saying "actual" without saying that is how an estimate becomes a bill.
+PROVIDER_PRICE_NOTE = ("fal does not return a price, so every amount here is this studio's own "
+                       "estimate at the provider's published rate. The provider's billing page "
+                       "is the only confirmed figure.")
+
+
+def _live_rows(series_id: str, episode_id: str) -> list[dict]:
+    return [r for r in every("costs", {"series_id": series_id, "episode_id": episode_id})
+            if str(r.get("stage") or "").startswith("live/")]
+
+
+def ledger(series_id: str, episode_id: str) -> dict:
+    """One provable breakdown of what this episode has cost, by kind.
+
+    A single number was shown as spend and it was not one number: it summed
+    each row's actual OR, where there was no actual, its estimate — so an
+    amount nobody had been charged was added to the amount they had. The two
+    screens then disagreed with each other and with the engine's own ledger,
+    and there was no way to tell which was the bill.
+
+    A take settles once. A second row for the same take is a re-ingest of the
+    same request, so the later row stands and the earlier one is counted as
+    discarded rather than added.
+    """
+    by_take: dict[str, dict] = {}
+    superseded, superseded_usd = 0, 0.0
+    for row in _live_rows(series_id, episode_id):
+        key = str(row.get("take_id") or f"row:{row.get('id')}")
+        if key in by_take:
+            superseded += 1
+            superseded_usd += float(by_take[key].get("actual_usd") or 0.0)
+        by_take[key] = row
+    kept = list(by_take.values())
+    internal_actual = round(sum(float(r.get("actual_usd") or 0.0) for r in kept), 2)
+    # An estimate on a row that never settled to an amount is not spend. It is
+    # what a call was expected to cost, or what an interrupted one may have
+    # cost without our being told.
+    estimates_only = round(sum(float(r.get("estimated_usd") or 0.0) for r in kept
+                               if not float(r.get("actual_usd") or 0.0)), 2)
+    episode = store.get("episodes", {"series_id": series_id, "episode_id": episode_id}) or {}
+    recorded = round(float(episode.get("spent_usd") or 0.0), 2)
+    return {
+        # The provider confirms nothing back to us, so this stays empty rather
+        # than being filled with our own arithmetic.
+        "provider_confirmed": None,
+        "internal_actual": internal_actual,
+        "engine_recorded": recorded,
+        "agrees": abs(internal_actual - recorded) < 0.01,
+        "estimates_only": estimates_only,
+        "unverified": internal_actual,
+        "superseded_rows": superseded,
+        "superseded_usd": round(superseded_usd, 2),
+        "calls": len(kept),
+        "note": PROVIDER_PRICE_NOTE,
+    }
+
+
 def spend(series_id: str, episode_id: str) -> float:
-    """What this episode has actually been charged for, live only."""
-    total = 0.0
-    for row in every("costs", {"series_id": series_id, "episode_id": episode_id}):
-        if str(row.get("stage") or "").startswith("live/"):
-            total += float(row.get("actual_usd") or row.get("estimated_usd") or 0.0)
-    return round(total, 2)
+    """What this episode's settled calls add up to, live only.
+
+    Only amounts that settled. An estimate on a call that never settled is
+    reported by ledger() under its own name and is not added here.
+    """
+    return ledger(series_id, episode_id)["internal_actual"]
 
 
 def budget(series_id: str, episode_id: str) -> float:
@@ -140,9 +200,10 @@ def report(series_id: str, episode_id: str, job: dict | None = None) -> dict:
     """Everything a screen needs about a run in flight. Never raises."""
     out: dict = {"made": 0, "needed": 0, "left": 0, "spent": 0.0, "budget": 0.0,
                  "redone": 0, "minutes_left": None, "cost_left": None,
-                 "retries": retry_policy()}
+                 "ledger": None, "retries": retry_policy()}
     try:
-        out["spent"] = spend(series_id, episode_id)
+        out["ledger"] = ledger(series_id, episode_id)
+        out["spent"] = out["ledger"]["internal_actual"]
     except Exception:                                              # noqa: BLE001
         pass
     try:

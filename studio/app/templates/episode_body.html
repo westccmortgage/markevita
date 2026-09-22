@@ -87,6 +87,58 @@
   {% endif %}
 </div>
 
+{# Finishing is separate work with separate money. The repair receipt was
+   shown and priced as video, so it cannot pay for any of this. #}
+{% if finishing %}
+<div class="card">
+  <h2>{{ _("Finishing plan") }}</h2>
+  {% if finishing.blocked %}
+    <p class="hint">{{ _("Video repair is not complete yet, so finishing cannot be planned or started.") }}</p>
+  {% else %}
+  <p>{{ _("Nothing below has been started and no provider has been called. This is what finishing would run.") }}</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>{{ _("Stage") }}</th><th>{{ _("Needed") }}</th><th>{{ _("Cost") }}</th>
+      <th>{{ _("Provider") }}</th><th>{{ _("Reuses") }}</th><th>{{ _("If it fails") }}</th></tr></thead>
+    <tbody>{% for stage in finishing.stages %}
+      <tr>
+        <td class="mono small">{{ stage.stage }}</td>
+        <td>{% if stage.needed %}{{ _("yes") }}{% else %}<span class="hint">{{ _("already done") }}</span>{% endif %}</td>
+        <td>{% if not stage.paid %}{{ _("free") }}
+            {%- elif stage.cost_known %}≈ ${{ stage.estimated_usd }}
+            {%- else %}<strong>{{ _("unknown") }}</strong>{% endif %}
+          {% if stage.cost_note %}<br><span class="small muted">{{ stage.cost_note }}</span>{% endif %}</td>
+        <td class="mono small">{{ stage.provider }}</td>
+        <td class="small">{{ stage.reuses }}</td>
+        <td class="small">{{ stage.on_failure }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <dl class="kv">
+    <dt>{{ _("Paid stages") }}</dt>
+    <dd>{{ finishing.paid_stages | join(", ") or _("none") }}</dd>
+    <dt>{{ _("Maximum additional amount") }}</dt>
+    <dd>${{ finishing.projected_finishing_usd }}
+      {% if finishing.cost_unknown_stages %}
+      <br><span class="small muted">{{ _("This ceiling does not cover") }}:
+        {{ finishing.cost_unknown_stages | join(", ") }}</span>{% endif %}</dd>
+    <dt>{{ _("Will not be run") }}</dt>
+    <dd class="mono small">{{ finishing.not_run | join(", ") }}</dd>
+    <dt>{{ _("Publication") }}</dt>
+    <dd>{{ _("Not included. It is never part of a finishing approval and needs its own decision.") }}</dd>
+  </dl>
+  <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/core-v2/finishing" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="input_digest" value="{{ finishing.input_digest }}">
+    <input type="hidden" name="max_incremental_usd" value="{{ finishing.projected_finishing_usd }}">
+    <label class="checks"><input type="checkbox" name="approve" value="yes" required>
+      {{ _("I approve moving this episode to finishing, up to the additional amount above. No new video is generated, no automatic provider fallback is used, and publication is not included.") }}
+    </label>
+    <button class="btn-primary" type="submit" style="margin-top:10px">{{ _("Approve and start finishing") }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- ── production control ─────────────────────────────────────────────── -->
 <div class="card">
   <h2>{{ _("Production") }}</h2>

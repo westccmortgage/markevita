@@ -476,3 +476,200 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
         "created_at": timestamp,
     })
     return {"job": job, "report": report, "force": force, "reused": False}
+
+
+# ── finishing preflight ────────────────────────────────────────────────────
+#
+# Video repair and finishing are different pieces of work with different
+# money attached, and the authorization for one must never carry the other.
+# This computes what finishing would cost and what it would reuse. It calls
+# no provider, writes no take and starts nothing.
+
+FINISHING_APPROVAL = "core_v2_finishing_plan"
+FINISHING_EVENT = "core_v2.finishing_plan_computed"
+FINISHING_STAGES = ("voice", "lipsync", "assemble", "qa", "deliver")
+FINISHING_POLICY = "studio-finishing-1"
+
+
+def _latest_job(series_id: str, episode_id: str) -> dict:
+    rows = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
+                      order="created_at", desc=True, limit=1)
+    return rows[0] if rows else {}
+
+
+def _finished_stages(series_id: str, episode_id: str) -> set[str]:
+    """Stages the runner has recorded as done on the most recent job."""
+    progress = (_latest_job(series_id, episode_id).get("progress") or {})
+    return {str(stage) for stage in (progress.get("done") or [])}
+
+
+def _spoken_scenes(scenes: list[dict], stills: set[str]) -> list[dict]:
+    """Scenes with a line to say. A held frame has no lips to sync."""
+    return [s for s in scenes
+            if (s.get("dialogue") or []) and str(s.get("scene_id")) not in stills]
+
+
+def finishing_plan(series_id: str, episode_id: str) -> dict:
+    """What finishing would run, cost and reuse — without running any of it.
+
+    Read-only by construction: it reads the store and the published price
+    list, and touches no provider. The repair authorization cannot pay for
+    any of this; finishing carries its own digest, its own ceiling and its
+    own confirmation, and publication is not part of either.
+    """
+    from serial import costs as costmod
+    from serial.config import Config
+    from .config import PIPELINE_DIR
+    from . import progress as progressmod
+
+    snapshot = _snapshot(series_id, episode_id)
+    scenes, stills = snapshot["scenes"], set(snapshot["completed_motion_stills"])
+    cfg = Config.load(PIPELINE_DIR, live=True)
+    done = _finished_stages(series_id, episode_id)
+
+    characters = sum(len(str(line.get("text") or ""))
+                     for scene in scenes for line in (scene.get("dialogue") or []))
+    voice_rate = float(costmod.PRICE.get("elevenlabs_per_1k_chars_estimate") or 0.0)
+    spoken = _spoken_scenes(scenes, stills)
+    lipsync_seconds = sum(float(s.get("duration_seconds") or 0) for s in spoken)
+
+    stages = [
+        # Speech is paid for whatever the price list says. The published
+        # per-character rate is not in it, so the amount is unknown rather
+        # than nothing: showing it as free would put a real charge inside a
+        # ceiling that never allowed for it.
+        {"stage": "voice", "needed": "voice" not in done and bool(characters),
+         "paid": True, "provider": "ElevenLabs",
+         "estimated_usd": round(characters / 1000.0 * voice_rate, 2) if voice_rate > 0 else None,
+         "cost_known": voice_rate > 0,
+         "cost_note": None if voice_rate > 0 else
+             ("PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE is not set, so this amount is unknown. "
+              "It is charged against the ElevenLabs plan, not against this ceiling."),
+         "reuses": "Speech already recorded for a line that has not changed.",
+         "on_failure": "The line is left unvoiced and the episode stops before lipsync; nothing recorded is discarded.",
+         "resumable": True, "unit": f"{characters} characters"},
+        {"stage": "lipsync", "needed": "lipsync" not in done and bool(spoken),
+         "paid": True, "provider": cfg.fal_lipsync_model,
+         "estimated_usd": round(costmod.lipsync_cost(lipsync_seconds, cfg.lipsync_variant), 2),
+         "reuses": "The clip and the speech for each scene; held frames are skipped entirely.",
+         "on_failure": "That scene keeps its unsynced clip and the episode stops; the clip is not regenerated.",
+         "resumable": True, "unit": f"{len(spoken)} scene(s), {lipsync_seconds:.0f}s"},
+        {"stage": "assemble", "needed": "assemble" not in done,
+         "paid": False, "provider": "local ffmpeg",
+         "estimated_usd": 0.0,
+         "reuses": "Every finished scene, the subtitle cues and any music bed already in the package.",
+         "on_failure": "No master is written and the previous one is left untouched.",
+         "resumable": True, "unit": f"{len(scenes)} scene(s)"},
+        {"stage": "qa", "needed": "qa" not in done,
+         "paid": False, "provider": "local ffprobe",
+         "estimated_usd": 0.0,
+         "reuses": "The assembled master; nothing is generated to check it.",
+         "on_failure": "The report names each failed check and the master is kept for review.",
+         "resumable": True, "unit": "13 checks"},
+        {"stage": "deliver", "needed": "deliver" not in done,
+         "paid": False, "provider": "Cloudflare R2",
+         "estimated_usd": 0.0,
+         "reuses": "The master and its QA report as they stand.",
+         "on_failure": "Nothing is published; the master stays where it is and delivery can be retried.",
+         "resumable": True, "unit": "1 master"},
+    ]
+    for stage in stages:
+        stage["needs_confirmation"] = True
+        stage.setdefault("cost_known", True)
+        stage.setdefault("cost_note", None)
+
+    total = round(sum(s["estimated_usd"] for s in stages
+                      if s["needed"] and s["cost_known"]), 2)
+    unknown = [s["stage"] for s in stages if s["needed"] and not s["cost_known"]]
+    ledger = progressmod.ledger(series_id, episode_id)
+    budget = progressmod.budget(series_id, episode_id)
+    plan = {
+        "core": CORE, "policy": FINISHING_POLICY,
+        "series_id": series_id, "episode_id": episode_id,
+        "input_digest": _digest(snapshot),
+        "stages": stages,
+        "paid_stages": [s["stage"] for s in stages if s["needed"] and s["paid"]],
+        "free_stages": [s["stage"] for s in stages if s["needed"] and not s["paid"]],
+        "skipped_stages": [s["stage"] for s in stages if not s["needed"]],
+        "projected_finishing_usd": total,
+        # Named rather than folded into the total, because a number that
+        # quietly omits a charge is worse than one that says what it omits.
+        "cost_unknown_stages": unknown,
+        "spent_usd": ledger["internal_actual"],
+        "budget_usd": budget,
+        "remaining_budget_usd": round(max(0.0, budget - ledger["internal_actual"]), 2),
+        # Publication is not a finishing stage and no finishing approval
+        # covers it. It is listed so the screen can say so out loud.
+        "publication": {"stage": "publish", "included": False, "enabled": False,
+                        "needs_separate_confirmation": True,
+                        "note": "Publication is never part of a finishing approval."},
+        "automatic_fallback": False,
+        "repair_authorization_applies": False,
+        "not_run": ["video", "keyframes", "references", "publish"],
+        "computed_at": _now(),
+    }
+    plan["video_repair_complete"] = "video" in done
+    plan["blocked"] = not plan["video_repair_complete"]
+    return plan
+
+
+def approve_finishing(series_id: str, episode_id: str, *, actor: str,
+                      input_digest: str, max_incremental_usd: float) -> dict:
+    """Record a separate human approval and run only the finishing stages.
+
+    Deliberately not reachable from the repair receipt. The repair plan was
+    priced and approved as video work; carrying that authorization into voice
+    and lipsync would spend money against a ceiling nobody was shown. So this
+    takes its own digest, its own ceiling and its own confirmation, and it
+    never includes publication.
+    """
+    from . import live_jobs, runner
+    from .packaging import materialize
+    from serial.package import SeriesPackage
+
+    plan = finishing_plan(series_id, episode_id)
+    if plan["input_digest"] != input_digest:
+        raise ValueError("The episode changed since this plan was shown. Reload it and review again.")
+    if plan["blocked"]:
+        raise ValueError("Video repair is not complete, so finishing cannot start yet.")
+    running = [s["stage"] for s in plan["stages"] if s["needed"]]
+    if not running:
+        raise ValueError("Every finishing stage is already done for this episode.")
+    projected = _number(plan["projected_finishing_usd"])
+    cap = _number(max_incremental_usd, -1)
+    if cap < projected or projected < 0:
+        raise ValueError(f"Approve at least the projected finishing estimate of ${projected:.2f}.")
+    if projected > _number(plan["remaining_budget_usd"]):
+        raise ValueError("The projected finishing estimate exceeds the remaining episode budget.")
+
+    timestamp = _now()
+    approval = store.insert("approvals", {
+        "series_id": series_id, "episode_id": episode_id,
+        "subject_type": FINISHING_APPROVAL, "subject_id": input_digest,
+        "decision": "approved", "actor": actor,
+        "note": (f"Core V2 finishing; stages {', '.join(running)}; maximum incremental "
+                 f"estimate ${cap:.2f}; no video regeneration; no fallback; no publication."),
+        "created_at": timestamp,
+    })
+    package = SeriesPackage(materialize(series_id))
+    digest = live_jobs.package_digest(package, episode_id)
+    previous = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
+                          order="created_at", desc=True, limit=1)
+    audio_mode = (((previous[0].get("progress") or {}).get("audio_mode"))
+                  if previous else None) or "voices"
+    # Never "publish", and never "video": an approval for finishing must not
+    # be able to buy another clip.
+    job = runner.jobs.start(series_id, episode_id, list(FINISHING_STAGES), actor, [],
+                            approved_digest=digest, approve_live=True, audio_mode=audio_mode)
+    store.insert("generation_history", {
+        "series_id": series_id, "episode_id": episode_id,
+        "entity_type": "job", "entity_id": job["id"],
+        "event": FINISHING_EVENT, "actor": actor,
+        "detail": {"plan_digest": input_digest, "approval_id": approval.get("id"),
+                   "stages": running, "projected_finishing_usd": projected,
+                   "max_incremental_usd": cap, "cost_unknown_stages": plan["cost_unknown_stages"],
+                   "publication": False, "automatic_fallback": False,
+                   "video_regeneration": False},
+        "created_at": timestamp,
+    })
+    return {"job": job, "plan": plan, "stages": running}

@@ -109,6 +109,17 @@ def explain(error: str) -> str:
     return ""
 
 
+def _repair_token(item: str) -> bool:
+    """A one-shot authorization to regenerate one scene, in any of its forms.
+
+    Resume must not carry these: each was approved against one reviewed plan,
+    and the approval that admits it is never retired.
+    """
+    text = str(item)
+    return (text.startswith("video_retry:") or text.startswith("motion_still:")
+            or text.startswith("video:") or (text.startswith("sc") and text[2:].isdigit()))
+
+
 class _Control:
     def __init__(self):
         self.pause = threading.Event()
@@ -238,7 +249,14 @@ class JobManager:
 
     def resume(self, series_id: str, episode_id: str, requested_by: str = "", **approval) -> dict:
         """Resume production. Completed stages are skipped by the engine and
-        finished takes are reused, so this never repeats paid work."""
+        finished takes are reused, so this never repeats paid work.
+
+        A repair token is carried by the job it was approved for and by no
+        other. The approval rows are never retired, so carrying the previous
+        job's force list forward would let Resume re-buy scenes the producer
+        had since accepted by hand — quietly, and at full price, because
+        admission would still find the approval and allow it.
+        """
         paused = None
         for job in store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
                               order="created_at", desc=True):
@@ -246,7 +264,7 @@ class JobManager:
                 paused = job
                 break
         stages = list(paused.get("stages") or DEFAULT_STAGES) if paused else DEFAULT_STAGES
-        force = list(paused.get("force") or []) if paused else []
+        force = [item for item in (paused.get("force") or []) if not _repair_token(item)] if paused else []
         return self.start(series_id, episode_id, stages, requested_by, force, **approval)
 
     # ── worker ─────────────────────────────────────────────────────────────

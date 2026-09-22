@@ -208,3 +208,40 @@ def test_live_admission_accepts_only_recorded_core_repair_tokens(tmp_path, monke
     with pytest.raises(RuntimeError, match="force tokens validated"):
         live_jobs.start(object(), "wild", "s01e04", ["video"],
                         "owner@example.test", force, "digest", True, "voices")
+
+
+def test_two_same_engine_failures_stop_paid_retries(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    store.insert("takes", {
+        "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc04",
+        "take_id": "live:s01e04_sc04_vid_r0_01", "stage": "vid", "endpoint": "veo",
+        "actual_usd": 1.3, "selected": True,
+        "qc": {"pass": False, "score": 4,
+               "issues": ["camera smear and wildcat anatomy drift again"]},
+    })
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+    decision = next(row for row in report["decisions"] if row["scene_id"] == "sc04")
+
+    assert decision["recommended_action"] == "convert_to_motion_still"
+    assert decision["estimated_incremental_usd"] == 0
+    assert decision["evidence"]["same_engine_stop"] is True
+    assert decision["evidence"]["failed_attempts"] == 2
+    assert "Stop buying" in decision["reason"]
+
+
+def test_completed_supervised_motion_still_is_ready_even_if_original_route_was_video(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    store.insert("production_jobs", {
+        "series_id": "wild", "episode_id": "s01e04", "state": "failed",
+        "mode": "live", "idempotency_key": "supervised", "created_at": "2026-09-22T10:00:00Z",
+        "force": ["motion_still:sc04"],
+        "log": "video: sc04 editorial motion-still; no paid video provider",
+    })
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+    decision = next(row for row in report["decisions"] if row["scene_id"] == "sc04")
+
+    assert decision["verdict"] == "ready"
+    assert decision["recommended_action"] == "keep_motion_still"
+    assert decision["evidence"]["evidence_source"] == "production_job_log"

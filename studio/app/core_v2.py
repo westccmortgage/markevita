@@ -26,6 +26,10 @@ QC_LOG_LINE = re.compile(
     r"video:\s+(sc\d+)\b.*?\bQC\s+([0-9]+(?:\.[0-9]+)?)\s+(OK|FAIL)\s*(.*)$",
     re.MULTILINE,
 )
+MOTION_STILL_LOG_LINE = re.compile(
+    r"video:\s+(sc\d+)\s+editorial motion-still; no paid video provider",
+    re.MULTILINE,
+)
 
 IDENTITY_WORDS = (
     "anatom", "identity", "species", "domestic", "tabby", "dog-like",
@@ -132,16 +136,22 @@ def _qc_from_job_logs(jobs: list[dict]) -> dict[str, dict]:
     return recovered
 
 
-def _scene_decision(scene: dict, takes: list[dict], brief: dict) -> dict:
+def _scene_decision(scene: dict, takes: list[dict], brief: dict,
+                    completed_motion_stills: set[str] | None = None) -> dict:
     scene_id = scene["scene_id"]
     route = _route_for(brief, scene_id)
-    if route.get("mode") == "motion_still":
+    supervised_motion_still = scene_id in (completed_motion_stills or set())
+    if route.get("mode") == "motion_still" or supervised_motion_still:
         return {
             "scene_id": scene_id,
             "verdict": "ready",
             "recommended_action": "keep_motion_still",
-            "reason": "The approved production plan already uses a zero-cost editorial motion-still.",
-            "evidence": {"routing_mode": "motion_still", "qc_score": None, "issues": []},
+            "reason": ("The supervised repair already replaced this failed clip with a zero-cost "
+                       "editorial motion-still." if supervised_motion_still else
+                       "The approved production plan already uses a zero-cost editorial motion-still."),
+            "evidence": {"routing_mode": "motion_still", "qc_score": None, "issues": [],
+                         "evidence_source": ("production_job_log" if supervised_motion_still
+                                             else "episode_plan")},
             "risk": "low",
             "confidence": 0.99,
             "estimated_incremental_usd": 0.0,
@@ -188,11 +198,28 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict) -> dict:
             "requires_human": False,
         }
 
+    failed_takes = []
+    for candidate in takes:
+        candidate_qc = candidate.get("qc") or {}
+        candidate_score = _number(candidate_qc.get("score"), -1)
+        if not bool(candidate_qc.get("pass")) and candidate_score < 7:
+            failed_takes.append(candidate)
+    provider_failures: dict[str, int] = {}
+    for candidate in failed_takes:
+        provider = candidate.get("endpoint") or candidate.get("provider") or "unknown"
+        provider_failures[provider] = provider_failures.get(provider, 0) + 1
+    repeated_same_engine = max(provider_failures.values(), default=0) >= 2
+
     categories = _categories(f"{issues_text}; {fix_hint}")
     action_text = (scene.get("action") or "").lower()
     static_friendly = (str(scene.get("lens") or "").lower() == "85mm"
                        or any(word in action_text for word in STATIC_BEATS))
-    if "identity_anatomy" in categories and static_friendly:
+    if repeated_same_engine:
+        action = "convert_to_motion_still"
+        reason = ("Two paid attempts on the same engine failed visual QC. Stop buying the same "
+                  "failure pattern and preserve the story beat as a controlled editorial motion-still.")
+        incremental = 0.0
+    elif "identity_anatomy" in categories and static_friendly:
         action = "convert_to_motion_still"
         reason = ("Identity or anatomy is unstable in a beat that can retain its story meaning "
                   "as a controlled editorial motion-still.")
@@ -213,7 +240,9 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict) -> dict:
         "recommended_action": action,
         "reason": reason,
         "evidence": {**evidence, "categories": categories,
-                     "next_provider": _next_provider(route, take.get("endpoint") or "")},
+                     "next_provider": _next_provider(route, take.get("endpoint") or ""),
+                     "failed_attempts": len(failed_takes),
+                     "same_engine_stop": repeated_same_engine},
         "risk": "high" if score < 6 or "identity_anatomy" in categories else "medium",
         "confidence": 0.9 if categories != ["unclassified_visual_qc"] else 0.68,
         "estimated_incremental_usd": round(incremental, 4),
@@ -233,8 +262,14 @@ def _snapshot(series_id: str, episode_id: str) -> dict:
     costs = store.list("costs", {"series_id": series_id, "episode_id": episode_id})
     jobs = store.list("production_jobs", {"series_id": series_id, "episode_id": episode_id},
                       order="created_at")
+    completed_motion_stills = {
+        match.group(1)
+        for job in jobs
+        for match in MOTION_STILL_LOG_LINE.finditer(job.get("log") or "")
+    }
     return {"episode": episode, "scenes": scenes, "takes": takes, "costs": costs,
-            "log_qc": _qc_from_job_logs(jobs)}
+            "log_qc": _qc_from_job_logs(jobs),
+            "completed_motion_stills": completed_motion_stills}
 
 
 def _digest(snapshot: dict) -> str:
@@ -250,6 +285,7 @@ def _digest(snapshot: dict) -> str:
                    ("take_id", "scene_id", "stage", "endpoint", "actual_usd", "qc", "selected")}
                   for take in snapshot["takes"]],
         "legacy_log_qc": snapshot.get("log_qc") or {},
+        "completed_motion_stills": sorted(snapshot.get("completed_motion_stills") or []),
     }
     raw = json.dumps(relevant, ensure_ascii=False, sort_keys=True, default=str)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -279,7 +315,8 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
             if not candidate.get("qc") and scene_id in snapshot["log_qc"]:
                 candidate["qc"] = snapshot["log_qc"][scene_id]
             by_scene.setdefault(scene_id, []).append(candidate)
-    decisions = [_scene_decision(scene, by_scene.get(scene["scene_id"], []), brief)
+    decisions = [_scene_decision(scene, by_scene.get(scene["scene_id"], []), brief,
+                                 snapshot.get("completed_motion_stills"))
                  for scene in snapshot["scenes"]]
     ready = sum(decision["verdict"] == "ready" for decision in decisions)
     repair = sum(decision["verdict"] == "repair" for decision in decisions)

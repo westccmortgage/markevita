@@ -10,6 +10,7 @@ SERIES_ID = "the_wild_cat"
 EPISODE_ID = "s01e04"
 MARKER_EVENT = "series.episode_4_prepared.complete"
 LAUNCH_APPROVAL_TYPE = "episode_launch"
+REFERENCE_RESUME_APPROVAL_TYPE = "reference_resume"
 VEO_FAST = "fal-ai/veo3.1/fast/image-to-video"
 KLING = "fal-ai/kling-video/v3/pro/image-to-video"
 GROK = "xai/grok-imagine-video/v1.5/image-to-video"
@@ -328,3 +329,40 @@ def launch_if_approved() -> str:
         "created_at": _now(),
     })
     return job["id"]
+
+
+def approve_references_and_resume_if_authorized() -> str:
+    """Approve the visually reviewed delta pack and continue its paused job."""
+    from .config import settings
+
+    if not settings.allow_paid:
+        return ""
+    paused = [job for job in store.list(
+        "production_jobs", {"series_id": SERIES_ID, "episode_id": EPISODE_ID,
+                            "mode": "live", "state": "paused"},
+        order="created_at", desc=True,
+    ) if (job.get("progress") or {}).get("waiting_for") == "reference_approval"]
+    if not paused:
+        return ""
+    from . import live_jobs
+    from serial.package import SeriesPackage
+
+    package = SeriesPackage(live_jobs.materialize(SERIES_ID))
+    bible_version = package.reference_version
+    if any(row.get("decision") == "approved" for row in store.list("approvals", {
+            "series_id": SERIES_ID, "episode_id": "", "subject_type": "references",
+            "subject_id": bible_version})):
+        return ""
+    approval = store.get("approvals", {
+        "series_id": SERIES_ID, "episode_id": EPISODE_ID,
+        "subject_type": REFERENCE_RESUME_APPROVAL_TYPE, "subject_id": bible_version,
+    })
+    if not approval or approval.get("decision") != "approved":
+        return ""
+    actor = approval.get("actor") or "Anatoliy Kanevsky"
+    live_jobs.approve_references(
+        SERIES_ID, actor,
+        "Reviewed all 20 new location views. Four distinct sets accepted; noncanonical figures "
+        "in environment plates are explicitly excluded by the production prompt.")
+    resumed = live_jobs.continue_after_reference_approval(SERIES_ID, actor)
+    return (resumed or {}).get("id", "")

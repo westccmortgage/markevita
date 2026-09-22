@@ -77,9 +77,9 @@
         <input type="hidden" name="input_digest" value="{{ core_shadow.input_digest }}">
         <input type="hidden" name="max_incremental_usd" value="{{ cs.projected_repair_usd }}">
         <label class="checks"><input type="checkbox" name="approve" value="yes" required>
-          {{ _("I approve this exact scene repair plan up to the projected incremental amount. No automatic provider fallback and no publication.") }}
+          {{ _("I approve this exact video-only scene repair plan up to the projected incremental amount. Voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled.") }}
         </label>
-        <button class="btn-primary" type="submit" style="margin-top:10px">{{ _("Approve and start supervised repair") }}</button>
+        <button class="btn-primary" type="submit" style="margin-top:10px">{{ _("Approve and start video-only repair") }}</button>
       </form>
     {% endif %}
   {% else %}

@@ -885,5 +885,6 @@
   "Approve and start supervised repair": "Утвердить и запустить контролируемое исправление",
   "This episode budget (USD)": "Бюджет этого эпизода (USD)",
   "Applies only to this episode. Spending from other episodes is not counted.": "Применяется только к этому эпизоду. Расходы других эпизодов не учитываются.",
-  "Default budget for new episodes (USD)": "Стандартный бюджет новых эпизодов (USD)"
+  "Default budget for new episodes (USD)": "Стандартный бюджет новых эпизодов (USD)",
+  "I approve this exact video-only scene repair plan up to the projected incremental amount. Voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled.": "Я подтверждаю именно этот план ремонта только видеосцен в пределах прогнозируемой дополнительной суммы. Озвучивание, синхронизация губ, монтаж, доставка, автоматический переход к другому провайдеру и публикация остаются отключёнными."
 }

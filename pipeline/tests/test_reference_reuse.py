@@ -66,6 +66,17 @@ def new_episode(source):
     series["seasons"][0]["episodes"].append("s01e01_v2")
     series["language"] = "ru-RU"
     write(source / "series.json", series)
+
+    # This is an edited version of the existing episode, not an empty slot.
+    # Give Pipeline the script and prompts that the recovery tests intend to
+    # exercise; otherwise construction stops before reference reuse is reached.
+    brief = json.loads((source / "episodes" / "s01e01" / "brief.json").read_text())
+    brief.update(episode_id="s01e01_v2", title="Fixture One V2")
+    write(source / "episodes" / "s01e01_v2" / "brief.json", brief)
+    prompts_path = source / "episodes" / "s01e01" / "production_prompts.json"
+    if prompts_path.exists():
+        write(source / "episodes" / "s01e01_v2" / "production_prompts.json",
+              json.loads(prompts_path.read_text()))
     return SeriesPackage(source)
 
 
@@ -250,7 +261,7 @@ def test_a_half_built_pack_is_not_called_finished(previous, monkeypatch):
     could get past it.
     """
     source, root, old, refs, _ = previous
-    pkg = SeriesPackage(source)
+    pkg = new_episode(source)
     pipeline = Pipeline(Config.load(HERE.parent, live=False), pkg, "s01e01_v2", root.parent)
     pipeline.state.mark_stage("references")
     pipeline.sstate.data.update(bible_version=pkg.reference_version, references=refs)

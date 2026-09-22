@@ -448,7 +448,9 @@ class Pipeline:
                 png = rdir / "locations" / lid / "seed.png"; png.parent.mkdir(parents=True, exist_ok=True)
                 Image.open(seeds[0]).convert("RGB").save(png); seeds = [png]
             light = (l.get("lighting_states") or {}).get("default", "")
-            desc = f"{l['name']}: {l['description']} Lighting: {light}. Empty of people. {style}"
+            desc = (f"{l['name']}: {l['description']} Lighting: {light}. "
+                    "An empty environment plate: no people, animals, characters, silhouettes or tracks. "
+                    f"{style}")
             key, tmpl = prompts.LOCATION_PACK[0]
             if key not in pack or self._redo("references", lid):
                 self.log(f"references: {lid} wide ({'from seed' if seeds else 'text-to-image pro'})")
@@ -517,7 +519,10 @@ class Pipeline:
         for k in lkeys:
             if k in lpack:
                 refs.append((f"{lname} {k}", Path(lpack[k]["path"])))
-        legend.append(f"images {start}-{len(refs)} = the location {lname.upper()}: keep geometry and lighting")
+        legend.append(
+            f"images {start}-{len(refs)} = the location {lname.upper()}: keep only geometry and lighting; "
+            "any person or animal accidentally visible in a location reference is a noncanonical artifact "
+            "and must be removed, never copied")
         for pid in {p["prop_id"] for p in (s.get("props") or [])}:
             if pid in R["props"]:
                 refs.append((f"prop {pid}", Path(R["props"][pid]["path"]))); legend.append(f"image {len(refs)} = prop {pid.replace('_',' ')}")

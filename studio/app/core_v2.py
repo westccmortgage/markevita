@@ -461,7 +461,7 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
                   if previous else None) or "voices"
     job = runner.jobs.start(
         series_id, episode_id,
-        ["video", "voice", "lipsync", "assemble", "qa", "deliver"],
+        ["video"],
         actor, force,
         approved_digest=digest, approve_live=True, audio_mode=audio_mode,
     )

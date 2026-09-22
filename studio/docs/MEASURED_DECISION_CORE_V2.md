@@ -13,6 +13,20 @@ Shadow Mode has no execution authority:
 - no approvals;
 - no publication.
 
+The Studio also exposes a separate **Supervised Repair** transition. It is not
+part of Shadow Mode and cannot run without a producer confirmation bound to the
+latest report digest and its displayed incremental estimate. The transition:
+
+- records one auditable approval token for every affected scene;
+- retries a failed moving shot only on the same reviewed provider;
+- converts an approved static-friendly failure to a local motion-still without
+  contacting a media provider;
+- preserves all scenes marked ready;
+- disables automatic provider fallback and never includes publication.
+
+Each same-provider retry receives a new immutable take id. Repeating the same
+confirmation reuses the existing repair job instead of buying another attempt.
+
 The report is content-addressed. Re-running it against unchanged evidence
 returns the prior result instead of adding duplicate decisions.
 
@@ -29,3 +43,7 @@ Episode 4 of *The Wild Cat* is the first calibration case. A Shadow report can
 be run from its Studio screen or from:
 
 `POST /api/series/the_wild_cat/episodes/s01e04/core-v2/shadow`
+
+After reviewing that report, its exact plan can be approved with:
+
+`POST /api/series/the_wild_cat/episodes/s01e04/core-v2/supervised`

@@ -1006,6 +1006,32 @@ def run_core_v2_shadow(request: Request, series_id: str, episode_id: str,
     )
 
 
+@router.post("/series/{series_id}/episodes/{episode_id}/core-v2/supervised")
+def run_core_v2_supervised(request: Request, series_id: str, episode_id: str,
+                           input_digest: str = Form(""),
+                           max_incremental_usd: float = Form(0),
+                           approve: str = Form(""), csrf_token: str = Form("")):
+    """Start only the exact human-approved repair plan from the latest report."""
+    admin = require_admin(request)
+    _check_form(request, admin, csrf_token)
+    back = f"/series/{series_id}/episodes/{episode_id}/studio"
+    if approve != "yes":
+        return _redirect(back, err="Confirm the exact Core V2 repair plan before starting it.")
+    try:
+        result = core_v2.approve_supervised_repair(
+            series_id, episode_id, actor=admin["email"],
+            input_digest=input_digest, max_incremental_usd=max_incremental_usd,
+        )
+    except (ValueError, PermissionError) as exc:
+        return _redirect(back, err=str(exc))
+    job = result["job"]
+    return _redirect(
+        f"/jobs/{job['id']}",
+        ok=("Core V2 supervised repair started. Only the reviewed scenes are included; "
+            "automatic provider fallback and publication remain disabled."),
+    )
+
+
 @router.post("/series/{series_id}/episodes/{episode_id}/settings")
 def episode_settings(request: Request, series_id: str, episode_id: str,
                      title: str = Form(""), logline: str = Form(""), number: str = Form("1"),

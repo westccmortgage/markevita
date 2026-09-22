@@ -490,17 +490,33 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
                     parts[1].startswith('sc') and parts[1][2:].isdigit() and
                     parts[2].startswith('r') and parts[2][1:].isdigit() and
                     0 <= int(parts[2][1:]) <= 3)
+        def video_retry_token(item):
+            parts = item.split(':')
+            return (len(parts) == 3 and parts[0] == 'video_retry' and
+                    parts[1].startswith('sc') and parts[1][2:].isdigit() and
+                    parts[2].startswith('r') and parts[2][1:].isdigit() and
+                    0 <= int(parts[2][1:]) <= 3)
+        def motion_still_token(item):
+            parts = item.split(':')
+            return (len(parts) == 2 and parts[0] == 'motion_still' and
+                    parts[1].startswith('sc') and parts[1][2:].isdigit())
         scene_items = [item for item in force if item.startswith('sc') and item[2:].isdigit()]
         video_items = [item for item in force if video_token(item)]
-        invalid = [item for item in force if item not in scene_items and item not in video_items]
+        core_items = [item for item in force if video_retry_token(item) or motion_still_token(item)]
+        invalid = [item for item in force
+                   if item not in scene_items and item not in video_items and item not in core_items]
         approved_scenes = {row['subject_id'] for row in runner.store.list('approvals', {
             'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'scene_regeneration'}) if row.get('decision') == 'approved'}
         approved_videos = {row['subject_id'] for row in runner.store.list('approvals', {
             'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'video_fallback'}) if row.get('decision') == 'approved'}
+        approved_core = {row['subject_id'] for row in runner.store.list('approvals', {
+            'series_id': series_id, 'episode_id': episode_id,
+            'subject_type': 'core_v2_repair_token'}) if row.get('decision') == 'approved'}
         unauthorized = ([item for item in scene_items if item not in approved_scenes] +
-                        [item for item in video_items if item not in approved_videos])
+                        [item for item in video_items if item not in approved_videos] +
+                        [item for item in core_items if item not in approved_core])
         if invalid or unauthorized:
             raise PermissionError('Live regeneration requires a recorded approval for each individual scene.')
     if not runner.store.list('scenes', {'series_id': series_id, 'episode_id': episode_id}):
@@ -679,6 +695,10 @@ def run(manager, job, control, cfg, pkg, cp, lease):
         # stages rather than regenerate that scene yet again.
         for scene_id in list(pipeline.force):
             if scene_id.startswith('sc') and pipeline.state.scene(scene_id).get('keyframe'):
+                pipeline.force.discard(scene_id)
+            parts = scene_id.split(':')
+            if (len(parts) >= 2 and parts[0] in ('video_retry', 'motion_still')
+                    and pipeline.state.scene(parts[1]).get('video')):
                 pipeline.force.discard(scene_id)
         pipeline.state.on_save = cp.save
         pipeline.sstate.on_save = cp.save

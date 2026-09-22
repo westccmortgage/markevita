@@ -33,6 +33,26 @@ def video_fallback_index(force: set[str], scene_id: str) -> int | None:
         if item.startswith(prefix) and item[len(prefix):].isdigit():
             return int(item[len(prefix):])
     return None
+
+
+def video_retry_index(force: set[str], scene_id: str) -> int | None:
+    """Return the approved same-engine retry in ``video_retry:scNN:rK``.
+
+    A fallback token advances to another engine.  A retry token deliberately
+    stays on the named route index but creates a new immutable take.  Keeping
+    those two instructions distinct prevents a repair approval from silently
+    becoming permission to buy a different provider.
+    """
+    prefix = f"video_retry:{scene_id}:r"
+    for item in force:
+        if item.startswith(prefix) and item[len(prefix):].isdigit():
+            return int(item[len(prefix):])
+    return None
+
+
+def motion_still_requested(force: set[str], scene_id: str) -> bool:
+    """Whether a reviewed repair plan replaced this failed clip with editing."""
+    return f"motion_still:{scene_id}" in force
 # Defined in package.py so validation and production cannot drift apart.
 LEAD_IN = pkgmod.LEAD_IN
 GAP = pkgmod.GAP
@@ -624,7 +644,8 @@ class Pipeline:
             scene_routes = routing.get("scenes") or {}
             plan = scene_routes.get(s.get("source_scene_id") or s["scene_id"], {})
             manual_route = routing.get("mode") == "manual_after_qc"
-            if plan.get("mode") == "motion_still":
+            supervised_motion_still = motion_still_requested(self.force, s["scene_id"])
+            if plan.get("mode") == "motion_still" or supervised_motion_still:
                 path = media.slow_push_from_still(
                     Path(st["keyframe"]), s["duration"],
                     self.work / "video" / f"{s['scene_id']}_motion_still.mp4",
@@ -632,6 +653,8 @@ class Pipeline:
                     motion=plan.get("motion") or "push_in")
                 st.update(video=str(path), video_take=None, video_motion_still=True,
                           status="video_ok")
+                if supervised_motion_still:
+                    st["video_core_v2_override"] = True
                 self.log(f"video: {s['scene_id']} editorial motion-still; no paid video provider")
                 self.state.save()
                 continue
@@ -649,6 +672,11 @@ class Pipeline:
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
             route_start = video_fallback_index(self.force, s["scene_id"])
+            retry_route = video_retry_index(self.force, s["scene_id"])
+            if retry_route is not None:
+                if route_start is not None:
+                    raise ValueError(f"Conflicting video repair instructions for {s['scene_id']}")
+                route_start = retry_route
             configured_route = tuple(getattr(self.cfg, "video_model_route", ()) or
                                      (self.cfg.fal_video_model,))
             primary = plan.get("primary") or configured_route[0]
@@ -666,21 +694,40 @@ class Pipeline:
                     raise ValueError(f"Invalid video fallback route index for {s['scene_id']}: {route_start}")
                 indexed_route = ([list(enumerate(full_route))[route_start]] if manual_route
                                  else list(enumerate(full_route))[route_start:])
-                previous = self.state.take(self._take_id(s["scene_id"], f"vid_r{route_start - 1}", 0)) if route_start else None
+                previous = None
+                if retry_route is not None:
+                    prefix = f"{self.episode_id}_{s['scene_id']}_vid_r{route_start}_"
+                    prior_attempts = sorted(
+                        take_id for take_id in self.state.data["takes"]
+                        if take_id.startswith(prefix)
+                    )
+                    if prior_attempts:
+                        previous = self.state.take(prior_attempts[-1])
+                elif route_start:
+                    previous = self.state.take(
+                        self._take_id(s["scene_id"], f"vid_r{route_start - 1}", 0))
                 if previous:
                     prior_qc = previous.get("qa") or {}
                     hint = prior_qc.get("fix_hint") or "; ".join(prior_qc.get("issues") or [])
+            if retry_route is not None:
+                prompt += (" Core V2 supervised correction: perform one minimal, readable action only; "
+                           "keep the camera locked or nearly locked; add no secondary action; preserve exact "
+                           "character identity, anatomy, scale, wardrobe and props throughout.")
             route = tuple(endpoint for _, endpoint in indexed_route)
             if manual_route or route_start is not None or len(route) > 1:
                 refusals = []
                 for route_index, endpoint in indexed_route:
-                    tid = self._take_id(s["scene_id"], f"vid_r{route_index}", 0)
+                    attempt = self._attempt_base(
+                        f"{self.episode_id}_{s['scene_id']}_vid_r{route_index}_",
+                        retry_route is not None,
+                    )
+                    tid = self._take_id(s["scene_id"], f"vid_r{route_index}", attempt)
                     self.log(f"video: {s['scene_id']} {s['duration']}s route {route_index + 1}/{len(full_route)}: {endpoint}")
                     try:
                         path, take = providers.gen_video(
                             self.fal, tid, Path(st["keyframe"]),
                             prompt + (f" Correction from prior QC: {hint}" if hint else ""), negative,
-                            s["duration"], self.work / "video" / f"{s['scene_id']}_r{route_index}.mp4",
+                            s["duration"], self.work / "video" / f"{s['scene_id']}_r{route_index}_a{attempt}.mp4",
                             self.episode["aspect_ratio"], f"video {s['scene_id']}", endpoint=endpoint)
                     except Exception as exc:
                         if not self._decided_refusal(exc):
@@ -691,7 +738,7 @@ class Pipeline:
                         else:
                             self.log(f"video: {s['scene_id']} {endpoint} refused; advancing to next route engine")
                         continue
-                    take.update(scene_id=s["scene_id"], attempt=route_index,
+                    take.update(scene_id=s["scene_id"], attempt=attempt,
                                 route_index=route_index, route_endpoint=endpoint,
                                 parent_take=st.get("keyframe_take"),
                                 forced_by_operator=route_start is not None,

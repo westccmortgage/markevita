@@ -98,6 +98,22 @@ def run_core_v2_shadow(series_id: str, episode_id: str, a: dict = Depends(admin)
         raise HTTPException(404, str(exc)) from exc
 
 
+@router.post("/series/{series_id}/episodes/{episode_id}/core-v2/supervised")
+def run_core_v2_supervised(series_id: str, episode_id: str,
+                           payload: dict = Body(default={}), a: dict = Depends(admin)):
+    """Execute an explicitly approved, report-bound repair plan."""
+    if payload.get("approved") is not True:
+        raise HTTPException(400, "explicit approval is required")
+    try:
+        return core_v2.approve_supervised_repair(
+            series_id, episode_id, actor=a["email"],
+            input_digest=str(payload.get("input_digest") or ""),
+            max_incremental_usd=float(payload.get("max_incremental_usd") or 0),
+        )
+    except (TypeError, ValueError, PermissionError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @router.post("/series/{series_id}/episodes/{episode_id}/script")
 def put_script(series_id: str, episode_id: str, payload: dict = Body(...), a: dict = Depends(admin)):
     try:

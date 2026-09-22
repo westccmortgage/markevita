@@ -187,6 +187,17 @@ def test_explicit_fallback_index_can_select_the_already_paid_final_route():
     assert video_fallback_index(force, "sc12") == 1
 
 
+def test_core_repair_tokens_keep_same_engine_and_name_free_editorial_replacement():
+    from serial.pipeline import motion_still_requested, video_retry_index
+    force = {"video_retry:sc02:r0", "video_retry:sc10:r0", "motion_still:sc12"}
+
+    assert video_retry_index(force, "sc02") == 0
+    assert video_retry_index(force, "sc10") == 0
+    assert video_retry_index(force, "sc12") is None
+    assert motion_still_requested(force, "sc12") is True
+    assert motion_still_requested(force, "sc04") is False
+
+
 def test_a_series_set_to_an_unknown_model_does_not_start(monkeypatch):
     from app import live_jobs
     from app.config import settings

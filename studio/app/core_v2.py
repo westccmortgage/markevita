@@ -19,6 +19,9 @@ from .store import store
 CORE = "measured-decision-core-v2"
 POLICY_VERSION = "studio-shadow-1"
 EVENT = "core_v2.shadow_analysis_completed"
+SUPERVISED_EVENT = "core_v2.supervised_repair_started"
+SUPERVISED_APPROVAL = "core_v2_repair_plan"
+RETRY_ACTIONS = {"simplify_action_then_retry"}
 QC_LOG_LINE = re.compile(
     r"video:\s+(sc\d+)\b.*?\bQC\s+([0-9]+(?:\.[0-9]+)?)\s+(OK|FAIL)\s*(.*)$",
     re.MULTILINE,
@@ -323,3 +326,116 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
         "created_at": report["created_at"],
     })
     return report
+
+
+def supervised_force(report: dict, brief: dict) -> list[str]:
+    """Translate a reviewed report into narrow, auditable production tokens."""
+    force: list[str] = []
+    unsupported: list[str] = []
+    for decision in report.get("decisions") or []:
+        scene_id = decision.get("scene_id") or ""
+        action = decision.get("recommended_action") or ""
+        if action in ("accept_existing_take", "keep_motion_still"):
+            continue
+        if action == "convert_to_motion_still":
+            force.append(f"motion_still:{scene_id}")
+            continue
+        if action in RETRY_ACTIONS:
+            route = _route_for(brief, scene_id)
+            providers = [route.get("primary"), *(route.get("fallbacks") or [])]
+            providers = [provider for provider in providers if provider]
+            used = (decision.get("evidence") or {}).get("provider")
+            route_index = providers.index(used) if used in providers else 0
+            force.append(f"video_retry:{scene_id}:r{route_index}")
+            continue
+        if decision.get("verdict") != "ready":
+            unsupported.append(f"{scene_id}:{action}")
+    if unsupported:
+        raise ValueError("Core V2 cannot safely execute these recommendations yet: " +
+                         ", ".join(unsupported))
+    return force
+
+
+def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
+                              input_digest: str, max_incremental_usd: float) -> dict:
+    """Record human approval and start only the exact reviewed repair plan.
+
+    This is intentionally separate from Shadow Mode.  It creates a receipt for
+    the report digest, never enables publication, never advances to a fallback
+    engine, and gives the live runner only scene-scoped one-shot tokens.
+    """
+    from . import live_jobs, runner
+    from .packaging import materialize
+    from serial.package import SeriesPackage
+
+    report = latest_shadow_report(series_id, episode_id)
+    if not report or report.get("input_digest") != input_digest:
+        raise ValueError("The Core V2 report changed. Run Shadow Analysis again and review it.")
+    summary = report.get("summary") or {}
+    if int(summary.get("insufficient_evidence") or 0):
+        raise ValueError("The repair plan needs more evidence before it can run.")
+    projected = _number(summary.get("projected_repair_usd"))
+    cap = _number(max_incremental_usd, -1)
+    if cap < projected or projected < 0:
+        raise ValueError(f"Approve at least the reviewed repair estimate of ${projected:.2f}.")
+    if projected > _number(summary.get("remaining_budget_usd")):
+        raise ValueError("The reviewed repair estimate exceeds the remaining episode budget.")
+
+    episode = store.get("episodes", {"series_id": series_id, "episode_id": episode_id}) or {}
+    force = supervised_force(report, episode.get("brief") or {})
+    if not force:
+        raise ValueError("The current Core V2 report has no repair work to start.")
+    existing = next((job for job in store.list(
+        "production_jobs", {"series_id": series_id, "episode_id": episode_id},
+        order="created_at", desc=True,
+    ) if set(job.get("force") or []) == set(force)), None)
+    if existing:
+        return {"job": existing, "report": report, "force": force, "reused": True}
+
+    timestamp = _now()
+    approval = store.insert("approvals", {
+        "series_id": series_id,
+        "episode_id": episode_id,
+        "subject_type": SUPERVISED_APPROVAL,
+        "subject_id": input_digest,
+        "decision": "approved",
+        "actor": actor,
+        "note": (f"Core V2 supervised repair; maximum incremental estimate ${cap:.2f}; "
+                 "same-engine retries only; no fallback; no publication."),
+        "created_at": timestamp,
+    })
+    for token in force:
+        store.insert("approvals", {
+            "series_id": series_id,
+            "episode_id": episode_id,
+            "subject_type": "core_v2_repair_token",
+            "subject_id": token,
+            "decision": "approved",
+            "actor": actor,
+            "note": f"Bound to Core V2 report {input_digest}; one-shot repair token.",
+            "created_at": timestamp,
+        })
+    package = SeriesPackage(materialize(series_id))
+    digest = live_jobs.package_digest(package, episode_id)
+    previous = store.list("production_jobs", {
+        "series_id": series_id, "episode_id": episode_id,
+    }, order="created_at", desc=True, limit=1)
+    audio_mode = (((previous[0].get("progress") or {}).get("audio_mode"))
+                  if previous else None) or "voices"
+    job = runner.jobs.start(
+        series_id, episode_id,
+        ["video", "voice", "lipsync", "assemble", "qa", "deliver"],
+        actor, force,
+        approved_digest=digest, approve_live=True, audio_mode=audio_mode,
+    )
+    store.insert("generation_history", {
+        "series_id": series_id, "episode_id": episode_id,
+        "entity_type": "job", "entity_id": job["id"],
+        "event": SUPERVISED_EVENT, "actor": actor,
+        "detail": {"report_digest": input_digest, "approval_id": approval.get("id"),
+                   "force": force, "projected_repair_usd": projected,
+                   "max_incremental_usd": cap, "publication": False,
+                   "automatic_fallback": False},
+        "created_at": timestamp,
+    })
+    return {"job": job, "report": report, "force": force, "reused": False}

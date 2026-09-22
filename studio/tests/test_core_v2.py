@@ -121,3 +121,90 @@ def test_old_video_qc_is_recovered_from_the_immutable_job_log(tmp_path, monkeypa
     decision = next(row for row in report["decisions"] if row["scene_id"] == "sc02")
     assert decision["verdict"] == "ready"
     assert decision["evidence"]["qc_score"] == 7
+
+
+def test_supervised_plan_uses_same_engine_retry_and_free_motion_still(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    report = core_v2.run_shadow_analysis("wild", "s01e04", actor="owner@example.test")
+
+    force = core_v2.supervised_force(
+        report,
+        store.get("episodes", {"series_id": "wild", "episode_id": "s01e04"})["brief"],
+    )
+
+    assert force == ["motion_still:sc03", "video_retry:sc04:r0"]
+    assert not any(token.startswith("video:sc04:r1") for token in force)
+
+
+def test_supervised_repair_records_exact_tokens_and_starts_narrow_job(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    report = core_v2.run_shadow_analysis("wild", "s01e04", actor="owner@example.test")
+    from app import live_jobs, packaging, runner
+    from serial import package as serial_package
+
+    calls = []
+    monkeypatch.setattr(packaging, "materialize", lambda series_id: tmp_path / series_id)
+    monkeypatch.setattr(serial_package, "SeriesPackage", lambda path: object())
+    monkeypatch.setattr(live_jobs, "package_digest", lambda package, episode_id: "package-digest")
+    monkeypatch.setattr(runner.jobs, "start", lambda *args, **kwargs:
+                        calls.append((args, kwargs)) or {"id": "repair-job"})
+
+    result = core_v2.approve_supervised_repair(
+        "wild", "s01e04", actor="owner@example.test",
+        input_digest=report["input_digest"], max_incremental_usd=1.3,
+    )
+
+    assert result["job"]["id"] == "repair-job"
+    assert result["force"] == ["motion_still:sc03", "video_retry:sc04:r0"]
+    args, kwargs = calls[0]
+    assert args[2] == ["video", "voice", "lipsync", "assemble", "qa", "deliver"]
+    assert args[4] == result["force"]
+    assert kwargs == {"approved_digest": "package-digest", "approve_live": True,
+                      "audio_mode": "voices"}
+    token_rows = store.list("approvals", {"subject_type": "core_v2_repair_token"})
+    assert {row["subject_id"] for row in token_rows} == set(result["force"])
+    event = store.list("generation_history", {"event": core_v2.SUPERVISED_EVENT})[0]
+    assert event["detail"]["automatic_fallback"] is False
+    assert event["detail"]["publication"] is False
+
+
+def test_supervised_repair_rejects_stale_or_underfunded_confirmation(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+
+    import pytest
+    with pytest.raises(ValueError, match="report changed"):
+        core_v2.approve_supervised_repair(
+            "wild", "s01e04", actor="owner@example.test",
+            input_digest="stale", max_incremental_usd=1.3,
+        )
+    with pytest.raises(ValueError, match="Approve at least"):
+        core_v2.approve_supervised_repair(
+            "wild", "s01e04", actor="owner@example.test",
+            input_digest=report["input_digest"], max_incremental_usd=1.29,
+        )
+
+
+def test_live_admission_accepts_only_recorded_core_repair_tokens(tmp_path, monkeypatch):
+    store = _seed(tmp_path, monkeypatch)
+    from app import live_jobs, runner
+    import pytest
+
+    monkeypatch.setattr(runner, "store", store)
+    marker = RuntimeError("force tokens validated")
+    monkeypatch.setattr(live_jobs, "materialize", lambda series_id: (_ for _ in ()).throw(marker))
+    force = ["video_retry:sc04:r0", "motion_still:sc03"]
+
+    with pytest.raises(PermissionError, match="recorded approval"):
+        live_jobs.start(object(), "wild", "s01e04", ["video"],
+                        "owner@example.test", force, "digest", True, "voices")
+
+    for token in force:
+        store.insert("approvals", {
+            "series_id": "wild", "episode_id": "s01e04",
+            "subject_type": "core_v2_repair_token", "subject_id": token,
+            "decision": "approved", "actor": "owner@example.test", "note": "test",
+        })
+    with pytest.raises(RuntimeError, match="force tokens validated"):
+        live_jobs.start(object(), "wild", "s01e04", ["video"],
+                        "owner@example.test", force, "digest", True, "voices")

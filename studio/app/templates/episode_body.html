@@ -71,6 +71,17 @@
         {% endfor %}
       </details>
     {% endif %}
+    {% if cs.repair and not cs.insufficient_evidence %}
+      <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/core-v2/supervised" style="margin-top:14px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="input_digest" value="{{ core_shadow.input_digest }}">
+        <input type="hidden" name="max_incremental_usd" value="{{ cs.projected_repair_usd }}">
+        <label class="checks"><input type="checkbox" name="approve" value="yes" required>
+          {{ _("I approve this exact scene repair plan up to the projected incremental amount. No automatic provider fallback and no publication.") }}
+        </label>
+        <button class="btn-primary" type="submit" style="margin-top:10px">{{ _("Approve and start supervised repair") }}</button>
+      </form>
+    {% endif %}
   {% else %}
     <p class="hint">{{ _("No Shadow Mode report has been recorded for this episode yet.") }}</p>
   {% endif %}

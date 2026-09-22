@@ -881,6 +881,8 @@
   "Projected repair": "Прогноз исправления",
   "Scene decisions": "Решения по сценам",
   "No Shadow Mode report has been recorded for this episode yet.": "Для этого эпизода ещё нет отчёта Shadow Mode.",
+  "I approve this exact scene repair plan up to the projected incremental amount. No automatic provider fallback and no publication.": "Утверждаю этот точный план исправления сцен в пределах прогнозной дополнительной суммы. Без автоматического перехода к другому провайдеру и без публикации.",
+  "Approve and start supervised repair": "Утвердить и запустить контролируемое исправление",
   "This episode budget (USD)": "Бюджет этого эпизода (USD)",
   "Applies only to this episode. Spending from other episodes is not counted.": "Применяется только к этому эпизоду. Расходы других эпизодов не учитываются.",
   "Default budget for new episodes (USD)": "Стандартный бюджет новых эпизодов (USD)"

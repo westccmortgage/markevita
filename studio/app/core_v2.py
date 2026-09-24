@@ -1,10 +1,10 @@
 """Measured Decision Core V2 adapter for the Series Studio.
 
-Shadow mode is deliberately read-only with respect to production: it examines
-the episode contract, existing takes, QC evidence and spend, then records a
-decision report.  It never calls a media provider, changes a selected take or
-approves a retry.  This makes the first rollout useful without giving a new
-decision layer permission to spend money.
+Production Official analysis is deliberately read-only: it examines the full
+episode contract, existing takes, QC evidence, motion-still placeholders and
+spend, then records the exact dynamic-video repair plan. It never calls a
+media provider, changes a selected take or approves a retry. Final production
+is dynamic video through fal.ai; editorial motion-stills remain review aids.
 """
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ from typing import Any
 from .store import store
 
 CORE = "measured-decision-core-v2"
-POLICY_VERSION = "studio-shadow-1"
-EVENT = "core_v2.shadow_analysis_completed"
+POLICY_VERSION = "studio-production-official-1"
+EVENT = "core_v2.production_official_analysis_completed"
 SUPERVISED_EVENT = "core_v2.supervised_repair_started"
 SUPERVISED_APPROVAL = "core_v2_repair_plan"
-RETRY_ACTIONS = {"simplify_action_then_retry"}
+RETRY_ACTIONS = {"generate_dynamic_video", "switch_engine_then_retry"}
 QC_LOG_LINE = re.compile(
     r"video:\s+(sc\d+)\b.*?\bQC\s+([0-9]+(?:\.[0-9]+)?)\s+(OK|FAIL)\s*(.*)$",
     re.MULTILINE,
@@ -88,6 +88,27 @@ def _route_for(brief: dict, scene_id: str) -> dict:
     return dict((routing.get("scenes") or {}).get(scene_id) or {})
 
 
+def _providers_for(brief: dict, scene_id: str) -> list[str]:
+    """Return the route in the same order the production runner will use."""
+    route = _route_for(brief, scene_id)
+    configured = list(brief.get("video_route") or [])
+    primary = route.get("primary") or (configured[0] if configured else None)
+    return list(dict.fromkeys(
+        provider for provider in [primary, *(route.get("fallbacks") or []), *configured]
+        if provider
+    ))
+
+
+def _video_estimate(scene: dict, provider: str | None) -> float:
+    if not provider:
+        return 0.0
+    from serial.costs import video_cost
+
+    return round(video_cost(
+        int(scene.get("duration_seconds") or 0), False, "1080p", provider,
+    ), 4)
+
+
 def _next_provider(route: dict, endpoint: str) -> str | None:
     providers = [route.get("primary"), *(route.get("fallbacks") or [])]
     providers = [item for item in providers if item]
@@ -140,26 +161,58 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict,
                     completed_motion_stills: set[str] | None = None) -> dict:
     scene_id = scene["scene_id"]
     route = _route_for(brief, scene_id)
+    providers = _providers_for(brief, scene_id)
     supervised_motion_still = scene_id in (completed_motion_stills or set())
+    take = _best_take(takes)
     if route.get("mode") == "motion_still" or supervised_motion_still:
+        used = ((take or {}).get("endpoint") or (take or {}).get("provider") or "")
+        target_index = providers.index(used) + 1 if used in providers else 0
+        target = providers[target_index] if target_index < len(providers) else None
+        if not target:
+            return {
+                "scene_id": scene_id, "verdict": "insufficient_evidence",
+                "recommended_action": "review_exhausted_dynamic_route",
+                "reason": "The motion-still cannot enter the master and no untried dynamic engine remains.",
+                "evidence": {"routing_mode": "motion_still", "provider": used,
+                             "dynamic_final_required": True},
+                "risk": "high", "confidence": 1.0,
+                "estimated_incremental_usd": 0.0, "requires_human": True,
+            }
         return {
             "scene_id": scene_id,
-            "verdict": "ready",
-            "recommended_action": "keep_motion_still",
-            "reason": ("The supervised repair already replaced this failed clip with a zero-cost "
-                       "editorial motion-still." if supervised_motion_still else
-                       "The approved production plan already uses a zero-cost editorial motion-still."),
+            "verdict": "repair",
+            "recommended_action": "generate_dynamic_video",
+            "reason": ("The current clip is an editorial motion-still. Production Official "
+                       "requires a full dynamic video beat; the still remains only as a visual reference."),
             "evidence": {"routing_mode": "motion_still", "qc_score": None, "issues": [],
                          "evidence_source": ("production_job_log" if supervised_motion_still
-                                             else "episode_plan")},
-            "risk": "low",
-            "confidence": 0.99,
-            "estimated_incremental_usd": 0.0,
-            "requires_human": False,
+                                             else "episode_plan"),
+                         "provider": used or None, "target_provider": target,
+                         "target_route_index": target_index,
+                         "dynamic_final_required": True},
+            "risk": "medium",
+            "confidence": 1.0,
+            "estimated_incremental_usd": _video_estimate(scene, target),
+            "requires_human": True,
         }
 
-    take = _best_take(takes)
     if not take:
+        target = providers[0] if providers else None
+        if target:
+            return {
+                "scene_id": scene_id,
+                "verdict": "repair",
+                "recommended_action": "generate_dynamic_video",
+                "reason": "No dynamic video take exists; generate the single approved story beat.",
+                "evidence": {"routing_mode": route.get("mode") or "video", "qc_score": None,
+                             "issues": ["missing dynamic video take"],
+                             "target_provider": target, "target_route_index": 0,
+                             "dynamic_final_required": True},
+                "risk": "medium",
+                "confidence": 1.0,
+                "estimated_incremental_usd": _video_estimate(scene, target),
+                "requires_human": True,
+            }
         return {
             "scene_id": scene_id,
             "verdict": "insufficient_evidence",
@@ -211,42 +264,42 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict,
     repeated_same_engine = max(provider_failures.values(), default=0) >= 2
 
     categories = _categories(f"{issues_text}; {fix_hint}")
-    action_text = (scene.get("action") or "").lower()
-    static_friendly = (str(scene.get("lens") or "").lower() == "85mm"
-                       or any(word in action_text for word in STATIC_BEATS))
-    if repeated_same_engine:
-        action = "convert_to_motion_still"
-        reason = ("Two paid attempts on the same engine failed visual QC. Stop buying the same "
-                  "failure pattern and preserve the story beat as a controlled editorial motion-still.")
-        incremental = 0.0
-    elif "identity_anatomy" in categories and static_friendly:
-        action = "convert_to_motion_still"
-        reason = ("Identity or anatomy is unstable in a beat that can retain its story meaning "
-                  "as a controlled editorial motion-still.")
-        incremental = 0.0
-    elif "continuity_props" in categories and "identity_anatomy" not in categories:
-        action = "recompose_keyframe_then_retry"
-        reason = ("The failure is concentrated in props or location continuity; lock those in a "
-                  "new first frame before buying another animation.")
-        incremental = _number(take.get("actual_usd") or take.get("estimated_usd"))
-    else:
-        action = "simplify_action_then_retry"
-        reason = ("The shot combines identity or camera instability with motion. Reduce it to one "
-                  "controlled action before any approved retry.")
-        incremental = _number(take.get("actual_usd") or take.get("estimated_usd"))
+    used = take.get("endpoint") or take.get("provider") or ""
+    target_index = providers.index(used) + 1 if used in providers else 0
+    while target_index < len(providers) and providers[target_index] == used:
+        target_index += 1
+    target = providers[target_index] if target_index < len(providers) else None
+    if not target:
+        return {
+            "scene_id": scene_id,
+            "verdict": "insufficient_evidence",
+            "recommended_action": "review_exhausted_dynamic_route",
+            "reason": "The failed provider cannot be repeated and no untried dynamic engine remains.",
+            "evidence": {**evidence, "categories": categories,
+                         "failed_attempts": len(failed_takes),
+                         "same_engine_stop": repeated_same_engine,
+                         "dynamic_final_required": True},
+            "risk": "high", "confidence": 1.0,
+            "estimated_incremental_usd": 0.0, "requires_human": True,
+        }
+    reason = ("The existing dynamic take failed visual QC. Simplify the beat to one motivated "
+              "action and switch to the next approved fal.ai video engine; do not buy the same "
+              "engine again and do not substitute a motion-still.")
     return {
         "scene_id": scene_id,
         "verdict": "repair",
-        "recommended_action": action,
+        "recommended_action": "switch_engine_then_retry",
         "reason": reason,
         "evidence": {**evidence, "categories": categories,
-                     "next_provider": _next_provider(route, take.get("endpoint") or ""),
+                     "next_provider": target, "target_provider": target,
+                     "target_route_index": target_index,
                      "failed_attempts": len(failed_takes),
-                     "same_engine_stop": repeated_same_engine},
+                     "same_engine_stop": repeated_same_engine,
+                     "dynamic_final_required": True},
         "risk": "high" if score < 6 or "identity_anatomy" in categories else "medium",
         "confidence": 0.9 if categories != ["unclassified_visual_qc"] else 0.68,
-        "estimated_incremental_usd": round(incremental, 4),
-        # Shadow mode never authorizes spending or a creative substitution.
+        "estimated_incremental_usd": _video_estimate(scene, target),
+        # Analysis never authorizes spending or a creative substitution.
         "requires_human": True,
     }
 
@@ -299,7 +352,7 @@ def latest_shadow_report(series_id: str, episode_id: str) -> dict | None:
 
 
 def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") -> dict:
-    """Create an idempotent, no-spend Core V2 decision report."""
+    """Create an idempotent, no-spend Production Official decision report."""
     snapshot = _snapshot(series_id, episode_id)
     digest = _digest(snapshot)
     previous = latest_shadow_report(series_id, episode_id)
@@ -327,7 +380,7 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
     report = {
         "core": CORE,
         "policy_version": POLICY_VERSION,
-        "mode": "shadow",
+        "mode": "production_official_preview",
         "series_id": series_id,
         "episode_id": episode_id,
         "input_digest": digest,
@@ -341,6 +394,9 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
             "budget_usd": round(budget, 4),
             "remaining_budget_usd": round(max(0.0, budget - spent), 4),
             "projected_repair_usd": projected,
+            "dynamic_ready": ready,
+            "dynamic_repair": repair,
+            "motion_stills_allowed_in_master": 0,
             "ready_for_supervised_mode": repair == 0 and missing == 0,
         },
         "decisions": decisions,
@@ -348,6 +404,10 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
             "paid_calls": False,
             "take_selection_changes": False,
             "automatic_approvals": False,
+            "dynamic_video_only": True,
+            "motion_stills_in_master": False,
+            "provider_gateway": "fal.ai",
+            "repeat_failed_engine": False,
             "publication": False,
         },
         "reused": False,
@@ -372,18 +432,12 @@ def supervised_force(report: dict, brief: dict) -> list[str]:
     for decision in report.get("decisions") or []:
         scene_id = decision.get("scene_id") or ""
         action = decision.get("recommended_action") or ""
-        if action in ("accept_existing_take", "keep_motion_still"):
-            continue
-        if action == "convert_to_motion_still":
-            force.append(f"motion_still:{scene_id}")
+        if action == "accept_existing_take":
             continue
         if action in RETRY_ACTIONS:
-            route = _route_for(brief, scene_id)
-            providers = [route.get("primary"), *(route.get("fallbacks") or [])]
-            providers = [provider for provider in providers if provider]
-            used = (decision.get("evidence") or {}).get("provider")
-            route_index = providers.index(used) if used in providers else 0
-            force.append(f"video_retry:{scene_id}:r{route_index}")
+            evidence = decision.get("evidence") or {}
+            route_index = int(evidence.get("target_route_index") or 0)
+            force.append(f"video:{scene_id}:r{route_index}")
             continue
         if decision.get("verdict") != "ready":
             unsupported.append(f"{scene_id}:{action}")
@@ -397,9 +451,9 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
                               input_digest: str, max_incremental_usd: float) -> dict:
     """Record human approval and start only the exact reviewed repair plan.
 
-    This is intentionally separate from Shadow Mode.  It creates a receipt for
-    the report digest, never enables publication, never advances to a fallback
-    engine, and gives the live runner only scene-scoped one-shot tokens.
+    This is intentionally separate from read-only analysis. It creates a
+    receipt for the report digest, never enables publication, and gives the
+    live runner only the reviewed scene/provider one-shot tokens.
     """
     from . import live_jobs, runner
     from .packaging import materialize
@@ -407,7 +461,7 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
 
     report = latest_shadow_report(series_id, episode_id)
     if not report or report.get("input_digest") != input_digest:
-        raise ValueError("The Core V2 report changed. Run Shadow Analysis again and review it.")
+        raise ValueError("The Core V2 report changed. Run Production Official analysis again and review it.")
     summary = report.get("summary") or {}
     if int(summary.get("insufficient_evidence") or 0):
         raise ValueError("The repair plan needs more evidence before it can run.")
@@ -438,7 +492,7 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
         "decision": "approved",
         "actor": actor,
         "note": (f"Core V2 supervised repair; maximum incremental estimate ${cap:.2f}; "
-                 "same-engine retries only; no fallback; no publication."),
+                 "reviewed dynamic provider switch only; no motion-stills; no publication."),
         "created_at": timestamp,
     })
     for token in force:
@@ -472,7 +526,8 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
         "detail": {"report_digest": input_digest, "approval_id": approval.get("id"),
                    "force": force, "projected_repair_usd": projected,
                    "max_incremental_usd": cap, "publication": False,
-                   "automatic_fallback": False},
+                   "automatic_fallback": False, "dynamic_video_only": True,
+                   "motion_stills_in_master": False},
         "created_at": timestamp,
     })
     return {"job": job, "report": report, "force": force, "reused": False}

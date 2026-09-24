@@ -912,6 +912,8 @@ def test_the_studio_carries_itself_on_through_a_bad_minute(monkeypatch):
     assert carry('failed', 'fal.ai HTTP 403: User is locked. Reason: TOP_UP.')
     assert carry('failed', 'InternalServerError. Production stopped.')
     assert carry('failed', 'RemoteProtocolError. Production stopped.')
+    assert carry('failed', 'CalledProcessError. Production stopped.')
+    assert carry('failed', 'MediaCommandError: ffmpeg exit 1.')
     assert carry('interrupted', 'Worker stopped; saved provider requests will be reused.')
 
     # A failure that decided something is never asked again: it would change

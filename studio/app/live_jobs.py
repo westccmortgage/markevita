@@ -314,7 +314,7 @@ TRANSIENT = ('User is locked', 'TOP_UP', 'HTTP 403', 'HTTP 429', 'HTTP 500',
              'Overloaded', 'RemoteProtocolError', 'ReadError', 'WriteError',
              'ConnectError', 'Timeout', 'TimeoutError', 'ConnectionError',
              'Worker stopped', 'lease', 'produced no output', 'APIStatusError',
-             'APIConnectionError')
+             'APIConnectionError', 'CalledProcessError', 'MediaCommandError')
 
 # Attempts since the run last made something. A fault that reproduces stops
 # being retried; a run that is getting work done is never given up on, because

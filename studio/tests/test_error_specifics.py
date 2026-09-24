@@ -145,3 +145,11 @@ def test_an_unrecognised_failure_still_names_itself():
     source = inspect.getsource(live_jobs.run)
     assert "f'{type(exc).__name__}: {advice}' if advice else (" in source
     assert "f'{type(exc).__name__}. Production stopped." in source
+
+
+def test_ffmpeg_failure_keeps_its_safe_scene_diagnostic():
+    """The original Episode 4 failure showed only CalledProcessError."""
+    import inspect
+    from app import live_jobs
+    source = inspect.getsource(live_jobs.run)
+    assert "MediaCommandError" in source

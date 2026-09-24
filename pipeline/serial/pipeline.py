@@ -1112,7 +1112,9 @@ class Pipeline:
         norm, cues, spans, t = [], [], [], 0.0
         for s in self.scenes:
             st = self.state.scene(s["scene_id"])
-            dst = media.normalize_clip(Path(st["final"]), self.work / "norm" / f"{s['scene_id']}.mp4", w, h)
+            self.log(f"assemble: normalize {s['scene_id']}")
+            dst = media.normalize_clip(Path(st["final"]), self.work / "norm" / f"{s['scene_id']}.mp4",
+                                       w, h, scene_id=s["scene_id"])
             d = media.duration(dst)
             for c in (st.get("voice") or {}).get("cues", []):
                 cues.append({"start": round(t + c["start"], 3), "end": round(min(t + c["end"], t + d - 0.05), 3), "text": c["text"]})

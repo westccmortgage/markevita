@@ -3,13 +3,54 @@
 import json
 import math
 import re
+import signal
 import subprocess
 import tempfile
 from pathlib import Path
 
 
-def _run(cmd: list[str]) -> str:
-    p = subprocess.run(cmd, check=True, capture_output=True, text=True)
+class MediaCommandError(subprocess.CalledProcessError):
+    """An ffmpeg failure that is safe and useful on the production page.
+
+    ``CalledProcessError`` normally prints the entire command but not the
+    captured stderr.  The former contains internal paths; the latter contains
+    the only explanation of what ffmpeg could not do.  Keep the exception a
+    ``CalledProcessError`` for existing callers while exposing one bounded,
+    sanitised diagnostic instead.
+    """
+
+    def __init__(self, error: subprocess.CalledProcessError, context: str = ""):
+        super().__init__(error.returncode, error.cmd, output=error.output,
+                         stderr=error.stderr)
+        self.context = context
+
+    @staticmethod
+    def _detail(stderr: str | bytes | None) -> str:
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        detail = re.sub(r"https?://\S+", "[private URL]", stderr or "")
+        detail = re.sub(r"\s+", " ", detail).strip()
+        return detail[-800:]
+
+    def __str__(self) -> str:
+        where = f" for {self.context}" if self.context else ""
+        detail = self._detail(self.stderr)
+        if self.returncode < 0:
+            try:
+                reason = signal.Signals(-self.returncode).name
+            except ValueError:
+                reason = f"signal {-self.returncode}"
+            detail = detail or f"process was terminated by {reason}; the worker may have run out of memory"
+        elif not detail:
+            detail = "ffmpeg returned no diagnostic; check worker memory and free disk space"
+        return f"Media processing failed{where} (ffmpeg exit {self.returncode}): {detail}"
+
+
+def _run(cmd: list[str], *, context: str = "") -> str:
+    try:
+        p = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as error:
+        raise MediaCommandError(error, context) from error
     return p.stderr
 
 
@@ -97,14 +138,34 @@ def mix_audio_into(video: Path, extra_audio: Path, dest: Path, extra_db: float =
 
 # ---------- assembly ----------
 
-def normalize_clip(src: Path, dest: Path, w: int, h: int, fps: int = 24) -> Path:
+def normalize_clip(src: Path, dest: Path, w: int, h: int, fps: int = 24,
+                   scene_id: str = "") -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     vf = f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,fps={fps},format=yuv420p"
+    has_audio = probe(src)["has_audio"]
+    # A provider file may contain thumbnails, timecode, subtitles, or several
+    # audio tracks.  Select the exact streams the episode needs rather than
+    # leaving ffmpeg's automatic stream choice to change from one provider to
+    # the next.  One encoder thread also keeps a 1080x1920 clip inside the
+    # memory available to the production worker; CRF still controls quality.
+    with tempfile.NamedTemporaryFile(prefix=".normalize-", suffix=dest.suffix,
+                                     dir=dest.parent, delete=False) as f:
+        pending = Path(f.name)
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src)]
-    if not probe(src)["has_audio"]:
-        cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000", "-shortest"]
-    cmd += ["-vf", vf, "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", str(dest)]
-    _run(cmd)
+    if has_audio:
+        cmd += ["-map", "0:v:0", "-map", "0:a:0"]
+    else:
+        cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+                "-map", "0:v:0", "-map", "1:a:0", "-shortest"]
+    cmd += ["-sn", "-dn", "-map_metadata", "-1", "-vf", vf,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-threads", "1",
+            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+            "-movflags", "+faststart", str(pending)]
+    try:
+        _run(cmd, context=f"scene {scene_id}" if scene_id else "clip normalization")
+        pending.replace(dest)
+    finally:
+        pending.unlink(missing_ok=True)
     return dest
 
 

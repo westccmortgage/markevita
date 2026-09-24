@@ -645,7 +645,11 @@ class Pipeline:
             plan = scene_routes.get(s.get("source_scene_id") or s["scene_id"], {})
             manual_route = routing.get("mode") == "manual_after_qc"
             supervised_motion_still = motion_still_requested(self.force, s["scene_id"])
-            if plan.get("mode") == "motion_still" or supervised_motion_still:
+            route_start = video_fallback_index(self.force, s["scene_id"])
+            retry_route = video_retry_index(self.force, s["scene_id"])
+            approved_dynamic_video = route_start is not None or retry_route is not None
+            if ((plan.get("mode") == "motion_still" and not approved_dynamic_video)
+                    or supervised_motion_still):
                 path = media.slow_push_from_still(
                     Path(st["keyframe"]), s["duration"],
                     self.work / "video" / f"{s['scene_id']}_motion_still.mp4",
@@ -671,8 +675,6 @@ class Pipeline:
                           + (f"Speak these lines exactly once with synchronized lips; all other people remain silent: {dialogue}" if dialogue else "Nobody speaks."))
             negative = ", ".join(x for x in (s.get("negative", ""), neg_extra) if x)
             hint, ok, path, tid = "", None, None, None
-            route_start = video_fallback_index(self.force, s["scene_id"])
-            retry_route = video_retry_index(self.force, s["scene_id"])
             if retry_route is not None:
                 if route_start is not None:
                     raise ValueError(f"Conflicting video repair instructions for {s['scene_id']}")
@@ -681,7 +683,7 @@ class Pipeline:
                                      (self.cfg.fal_video_model,))
             primary = plan.get("primary") or configured_route[0]
             planned_route = tuple(dict.fromkeys(
-                [primary] + list(plan.get("fallbacks") or configured_route[1:])))
+                [primary] + list(plan.get("fallbacks") or []) + list(configured_route)))
             full_route = planned_route
             if route_start is None:
                 if manual_route:

@@ -516,7 +516,8 @@ def start(manager, series_id, episode_id, stages, actor, force, digest, approved
             'series_id': series_id, 'episode_id': episode_id,
             'subject_type': 'core_v2_repair_token'}) if row.get('decision') == 'approved'}
         unauthorized = ([item for item in scene_items if item not in approved_scenes] +
-                        [item for item in video_items if item not in approved_videos] +
+                        [item for item in video_items
+                         if item not in approved_videos and item not in approved_core] +
                         [item for item in core_items if item not in approved_core])
         if invalid or unauthorized:
             raise PermissionError('Live regeneration requires a recorded approval for each individual scene.')

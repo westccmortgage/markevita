@@ -42,11 +42,11 @@
   <div class="page-head" style="margin-bottom:10px">
     <div>
       <h2 style="margin-bottom:4px">{{ _("Measured Decision Core V2") }}</h2>
-      <p class="hint">{{ _("Shadow Mode examines the saved script, takes, QC evidence and spend. It cannot call a provider, approve a retry, change a take or publish.") }}</p>
+      <p class="hint">{{ _("Production Official analyzes the complete episode, keeps only QC-approved dynamic takes, and replaces every motion-still with video through fal.ai. Analysis itself cannot call a provider, approve spend, change a take or publish.") }}</p>
     </div>
     <form method="post" action="{{ base }}/series/{{ s.id }}/episodes/{{ ep.episode_id }}/core-v2/shadow">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit">{{ _("Run Shadow Analysis") }}</button>
+      <button type="submit">{{ _("Build Production Official plan") }}</button>
     </form>
   </div>
   {% if core_shadow %}
@@ -66,6 +66,10 @@
             <span class="pill {{ 'ok' if decision.verdict == 'ready' else 'bad' }}">{{ decision.verdict }}</span>
             <p class="hint">{{ decision.reason }}</p>
             {% if decision.evidence.qc_score is not none %}<span class="hint">QC {{ decision.evidence.qc_score }}</span>{% endif %}
+            {% if decision.evidence.target_provider %}
+              <div class="small"><strong>{{ _("Provider") }}:</strong> <code>{{ decision.evidence.target_provider }}</code>
+                · <strong>{{ _("Estimate") }}:</strong> {{ decision.estimated_incremental_usd|money }}</div>
+            {% endif %}
             {% if decision.evidence.issues %}<div class="mono small">{{ decision.evidence.issues|join('; ') }}</div>{% endif %}
           </div>
         {% endfor %}
@@ -77,13 +81,13 @@
         <input type="hidden" name="input_digest" value="{{ core_shadow.input_digest }}">
         <input type="hidden" name="max_incremental_usd" value="{{ cs.projected_repair_usd }}">
         <label class="checks"><input type="checkbox" name="approve" value="yes" required>
-          {{ _("I approve this exact video-only scene repair plan up to the projected incremental amount. Voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled.") }}
+          {{ _("I approve this exact dynamic-video repair plan and its listed fal.ai engine choices up to the projected incremental amount. Motion-stills, voice, lipsync, assembly, delivery, automatic fallback and publication remain disabled.") }}
         </label>
         <button class="btn-primary" type="submit" style="margin-top:10px">{{ _("Approve and start video-only repair") }}</button>
       </form>
     {% endif %}
   {% else %}
-    <p class="hint">{{ _("No Shadow Mode report has been recorded for this episode yet.") }}</p>
+    <p class="hint">{{ _("No Production Official plan has been recorded for this episode yet.") }}</p>
   {% endif %}
 </div>
 

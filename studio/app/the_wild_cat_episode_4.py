@@ -159,17 +159,17 @@ SCENES = [_scene(i) for i in range(1, 13)]
 VIDEO_ROUTING = {
     "mode": "manual_after_qc",
     "scenes": {
-        "sc01": {"mode": "motion_still", "motion": "push_in"},
+        "sc01": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
         "sc02": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
-        "sc03": {"mode": "motion_still", "motion": "push_in"},
+        "sc03": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
         "sc04": {"mode": "video", "primary": KLING, "fallbacks": [VEO_FAST]},
         "sc05": {"mode": "video", "primary": KLING, "fallbacks": [VEO_FAST]},
         "sc06": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
         "sc07": {"mode": "video", "primary": KLING, "fallbacks": [VEO_FAST]},
         "sc08": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
-        "sc09": {"mode": "motion_still", "motion": "push_in"},
+        "sc09": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
         "sc10": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
-        "sc11": {"mode": "motion_still", "motion": "push_in"},
+        "sc11": {"mode": "video", "primary": VEO_FAST, "fallbacks": [KLING]},
         "sc12": {"mode": "video", "primary": KLING, "fallbacks": [VEO_FAST]},
     },
 }
@@ -213,7 +213,7 @@ def _brief() -> dict:
         "max_video_route_attempts": 1,
         "video_routing": VIDEO_ROUTING,
         "video_qc_fallback_policy": "Manual after QC. One paid provider per scene run; no automatic fallback. A different engine requires a recorded scene-specific approval after reviewing the failed take.",
-        "tool_policy": "Reuse approved Hunter and Wildcat references. Generate only new location references. One keyframe attempt. Eight paid video scenes and four free editorial motion-stills. No music, provider speech, automatic video fallback, repeated same-model attempt or publication.",
+        "tool_policy": "Reuse approved Hunter and Wildcat references. Generate only new location references. One keyframe attempt. All twelve final scenes are dynamic video generated through fal.ai; editorial motion-stills are review placeholders only and cannot enter the master. No music, provider speech, automatic video fallback, repeated same-model attempt or publication.",
         "reference_policy": "Keep every unchanged canonical character reference. Add only the four new location packs, then review the delta before video.",
         "audio_policy": "One continuous Russian narrator track; no English speech and no music; preserve natural river, wind and footstep ambience in assembly.",
         "editorial_plan": {
@@ -289,8 +289,8 @@ def seed_if_missing() -> bool:
         "series_id": SERIES_ID, "episode_id": EPISODE_ID, "event": MARKER_EVENT,
         "entity_type": "episode", "entity_id": EPISODE_ID, "actor": "seed",
         "detail": {"title": brief["title"], "duration_seconds": 76,
-                   "budget_usd": 35.0, "paid_video_scenes": 8,
-                   "motion_still_scenes": 4, "automatic_fallbacks": False,
+                   "budget_usd": 35.0, "paid_video_scenes": 12,
+                   "motion_still_scenes": 0, "automatic_fallbacks": False,
                    "note": "Prepared only; paid launch requires the recorded episode authorization."},
         "created_at": timestamp,
     })
@@ -324,7 +324,7 @@ def launch_if_approved() -> str:
         "event": "episode.production_started_from_recorded_approval",
         "entity_type": "job", "entity_id": job["id"], "actor": actor,
         "detail": {"budget_usd": 35.0, "publish": False,
-                   "paid_video_scenes": 8, "motion_still_scenes": 4,
+                   "paid_video_scenes": 12, "motion_still_scenes": 0,
                    "automatic_video_fallbacks": False},
         "created_at": _now(),
     })

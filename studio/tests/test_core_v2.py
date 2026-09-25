@@ -1,8 +1,11 @@
-"""Measured Decision Core V2 starts in evidence-only Shadow Mode."""
+"""Measured Decision Core V2 builds a no-spend dynamic Production Official plan."""
 from __future__ import annotations
 
 from app import core_v2
 from app.store.local import LocalDriver
+
+VEO = "fal-ai/veo3.1/fast/image-to-video"
+KLING = "fal-ai/kling-video/v3/pro/image-to-video"
 
 
 def _seed(tmp_path, monkeypatch):
@@ -12,11 +15,12 @@ def _seed(tmp_path, monkeypatch):
     store.insert("episodes", {
         "series_id": "wild", "episode_id": "s01e04", "season_id": "s01",
         "number": 4, "title": "Road", "status": "failed_qa",
-        "brief": {"video_routing": {"mode": "manual_after_qc", "scenes": {
+        "brief": {"video_route": [VEO, KLING],
+                  "video_routing": {"mode": "manual_after_qc", "scenes": {
             "sc01": {"mode": "motion_still"},
-            "sc02": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
-            "sc03": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
-            "sc04": {"mode": "video", "primary": "veo", "fallbacks": ["kling"]},
+            "sc02": {"mode": "video", "primary": VEO, "fallbacks": [KLING]},
+            "sc03": {"mode": "video", "primary": VEO, "fallbacks": [KLING]},
+            "sc04": {"mode": "video", "primary": VEO, "fallbacks": [KLING]},
         }}},
         "opening_state": {}, "cliffhanger": {}, "budget_usd": 35,
         "spent_usd": 10.39,
@@ -35,20 +39,20 @@ def _seed(tmp_path, monkeypatch):
         })
     store.insert("takes", {
         "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc02",
-        "take_id": "live:s01e04_sc02_vid_00", "stage": "vid", "endpoint": "veo",
+        "take_id": "live:s01e04_sc02_vid_00", "stage": "vid", "endpoint": VEO,
         "actual_usd": 1.1, "selected": True,
         "qc": {"pass": True, "score": 7, "issues": ["minor blur"]},
     })
     store.insert("takes", {
         "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc03",
-        "take_id": "live:s01e04_sc03_vid_00", "stage": "vid", "endpoint": "veo",
+        "take_id": "live:s01e04_sc03_vid_00", "stage": "vid", "endpoint": VEO,
         "actual_usd": 1.2, "selected": True,
         "qc": {"pass": False, "score": 5,
                "issues": ["wildcat face and tail anatomy drift"]},
     })
     store.insert("takes", {
         "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc04",
-        "take_id": "live:s01e04_sc04_vid_00", "stage": "vid", "endpoint": "veo",
+        "take_id": "live:s01e04_sc04_vid_00", "stage": "vid", "endpoint": VEO,
         "actual_usd": 1.3, "selected": True,
         "qc": {"pass": False, "score": 5,
                "issues": ["camera smear and body scale drift"]},
@@ -56,26 +60,30 @@ def _seed(tmp_path, monkeypatch):
     return store
 
 
-def test_shadow_mode_makes_scene_decisions_without_production_changes(tmp_path, monkeypatch):
+def test_production_official_plans_dynamic_scenes_without_production_changes(tmp_path, monkeypatch):
     store = _seed(tmp_path, monkeypatch)
 
     report = core_v2.run_shadow_analysis("wild", "s01e04", actor="owner@example.test")
 
     assert report["core"] == "measured-decision-core-v2"
-    assert report["mode"] == "shadow"
-    assert report["summary"]["ready"] == 2
-    assert report["summary"]["repair"] == 2
-    assert report["summary"]["projected_repair_usd"] == 1.3
+    assert report["mode"] == "production_official_preview"
+    assert report["summary"]["ready"] == 1
+    assert report["summary"]["repair"] == 3
+    assert report["summary"]["projected_repair_usd"] == 1.944
     decisions = {row["scene_id"]: row for row in report["decisions"]}
-    assert decisions["sc01"]["recommended_action"] == "keep_motion_still"
+    assert decisions["sc01"]["recommended_action"] == "generate_dynamic_video"
     assert decisions["sc02"]["recommended_action"] == "accept_existing_take"
-    assert decisions["sc03"]["recommended_action"] == "convert_to_motion_still"
-    assert decisions["sc04"]["recommended_action"] == "simplify_action_then_retry"
-    assert decisions["sc04"]["evidence"]["next_provider"] == "kling"
+    assert decisions["sc03"]["recommended_action"] == "switch_engine_then_retry"
+    assert decisions["sc04"]["recommended_action"] == "switch_engine_then_retry"
+    assert decisions["sc04"]["evidence"]["next_provider"] == KLING
     assert report["guardrails"] == {
         "paid_calls": False,
         "take_selection_changes": False,
         "automatic_approvals": False,
+        "dynamic_video_only": True,
+        "motion_stills_in_master": False,
+        "provider_gateway": "fal.ai",
+        "repeat_failed_engine": False,
         "publication": False,
     }
     assert len(store.list("takes")) == 3
@@ -102,7 +110,7 @@ def test_new_qc_evidence_creates_a_new_shadow_report(tmp_path, monkeypatch):
     second = core_v2.run_shadow_analysis("wild", "s01e04")
 
     assert first["input_digest"] != second["input_digest"]
-    assert second["summary"]["ready"] == 3
+    assert second["summary"]["ready"] == 2
     assert len(store.list("generation_history", {"event": core_v2.EVENT})) == 2
 
 
@@ -123,7 +131,7 @@ def test_old_video_qc_is_recovered_from_the_immutable_job_log(tmp_path, monkeypa
     assert decision["evidence"]["qc_score"] == 7
 
 
-def test_supervised_plan_uses_same_engine_retry_and_free_motion_still(tmp_path, monkeypatch):
+def test_supervised_plan_replaces_stills_and_switches_failed_engines(tmp_path, monkeypatch):
     store = _seed(tmp_path, monkeypatch)
     report = core_v2.run_shadow_analysis("wild", "s01e04", actor="owner@example.test")
 
@@ -132,8 +140,9 @@ def test_supervised_plan_uses_same_engine_retry_and_free_motion_still(tmp_path, 
         store.get("episodes", {"series_id": "wild", "episode_id": "s01e04"})["brief"],
     )
 
-    assert force == ["motion_still:sc03", "video_retry:sc04:r0"]
-    assert not any(token.startswith("video:sc04:r1") for token in force)
+    assert force == ["video:sc01:r0", "video:sc03:r1", "video:sc04:r1"]
+    assert not any(token.startswith("motion_still:") for token in force)
+    assert not any(token.startswith("video_retry:") for token in force)
 
 
 def test_supervised_repair_records_exact_tokens_and_starts_narrow_job(tmp_path, monkeypatch):
@@ -151,11 +160,11 @@ def test_supervised_repair_records_exact_tokens_and_starts_narrow_job(tmp_path, 
 
     result = core_v2.approve_supervised_repair(
         "wild", "s01e04", actor="owner@example.test",
-        input_digest=report["input_digest"], max_incremental_usd=1.3,
+        input_digest=report["input_digest"], max_incremental_usd=1.944,
     )
 
     assert result["job"]["id"] == "repair-job"
-    assert result["force"] == ["motion_still:sc03", "video_retry:sc04:r0"]
+    assert result["force"] == ["video:sc01:r0", "video:sc03:r1", "video:sc04:r1"]
     args, kwargs = calls[0]
     assert args[2] == ["video"]
     assert args[4] == result["force"]
@@ -176,12 +185,12 @@ def test_supervised_repair_rejects_stale_or_underfunded_confirmation(tmp_path, m
     with pytest.raises(ValueError, match="report changed"):
         core_v2.approve_supervised_repair(
             "wild", "s01e04", actor="owner@example.test",
-            input_digest="stale", max_incremental_usd=1.3,
+            input_digest="stale", max_incremental_usd=1.944,
         )
     with pytest.raises(ValueError, match="Approve at least"):
         core_v2.approve_supervised_repair(
             "wild", "s01e04", actor="owner@example.test",
-            input_digest=report["input_digest"], max_incremental_usd=1.29,
+            input_digest=report["input_digest"], max_incremental_usd=1.943,
         )
 
 
@@ -193,7 +202,7 @@ def test_live_admission_accepts_only_recorded_core_repair_tokens(tmp_path, monke
     monkeypatch.setattr(runner, "store", store)
     marker = RuntimeError("force tokens validated")
     monkeypatch.setattr(live_jobs, "materialize", lambda series_id: (_ for _ in ()).throw(marker))
-    force = ["video_retry:sc04:r0", "motion_still:sc03"]
+    force = ["video:sc01:r0", "video:sc03:r1", "video:sc04:r1"]
 
     with pytest.raises(PermissionError, match="recorded approval"):
         live_jobs.start(object(), "wild", "s01e04", ["video"],
@@ -210,11 +219,11 @@ def test_live_admission_accepts_only_recorded_core_repair_tokens(tmp_path, monke
                         "owner@example.test", force, "digest", True, "voices")
 
 
-def test_two_same_engine_failures_stop_paid_retries(tmp_path, monkeypatch):
+def test_two_same_engine_failures_switch_engine_instead_of_using_a_still(tmp_path, monkeypatch):
     store = _seed(tmp_path, monkeypatch)
     store.insert("takes", {
         "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc04",
-        "take_id": "live:s01e04_sc04_vid_r0_01", "stage": "vid", "endpoint": "veo",
+        "take_id": "live:s01e04_sc04_vid_r0_01", "stage": "vid", "endpoint": VEO,
         "actual_usd": 1.3, "selected": True,
         "qc": {"pass": False, "score": 4,
                "issues": ["camera smear and wildcat anatomy drift again"]},
@@ -223,14 +232,15 @@ def test_two_same_engine_failures_stop_paid_retries(tmp_path, monkeypatch):
     report = core_v2.run_shadow_analysis("wild", "s01e04")
     decision = next(row for row in report["decisions"] if row["scene_id"] == "sc04")
 
-    assert decision["recommended_action"] == "convert_to_motion_still"
-    assert decision["estimated_incremental_usd"] == 0
+    assert decision["recommended_action"] == "switch_engine_then_retry"
+    assert decision["estimated_incremental_usd"] == 0.672
     assert decision["evidence"]["same_engine_stop"] is True
     assert decision["evidence"]["failed_attempts"] == 2
-    assert "Stop buying" in decision["reason"]
+    assert decision["evidence"]["next_provider"] == KLING
+    assert "do not substitute a motion-still" in decision["reason"]
 
 
-def test_completed_supervised_motion_still_is_ready_even_if_original_route_was_video(tmp_path, monkeypatch):
+def test_completed_supervised_motion_still_must_be_replaced_by_dynamic_video(tmp_path, monkeypatch):
     store = _seed(tmp_path, monkeypatch)
     store.insert("production_jobs", {
         "series_id": "wild", "episode_id": "s01e04", "state": "failed",
@@ -242,6 +252,7 @@ def test_completed_supervised_motion_still_is_ready_even_if_original_route_was_v
     report = core_v2.run_shadow_analysis("wild", "s01e04")
     decision = next(row for row in report["decisions"] if row["scene_id"] == "sc04")
 
-    assert decision["verdict"] == "ready"
-    assert decision["recommended_action"] == "keep_motion_still"
+    assert decision["verdict"] == "repair"
+    assert decision["recommended_action"] == "generate_dynamic_video"
     assert decision["evidence"]["evidence_source"] == "production_job_log"
+    assert decision["evidence"]["target_provider"] == KLING

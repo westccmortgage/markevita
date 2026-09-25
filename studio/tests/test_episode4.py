@@ -31,7 +31,7 @@ def test_episode_four_is_a_valid_single_forest_scene_story():
     assert SCENES[9]["relationship_changes"][0]["state"] == "separated"
 
 
-def test_first_pass_prices_only_the_eight_selected_video_scenes():
+def test_first_pass_prices_all_twelve_dynamic_video_scenes():
     norm = {
         "scenes": [
             {"scene_id": s["scene_id"], "source_scene_id": s["scene_id"],
@@ -49,9 +49,9 @@ def test_first_pass_prices_only_the_eight_selected_video_scenes():
     estimate = estimate_first_pass(norm, package, cfg, refs_needed=False)
     paid = [item for item in estimate["video_plan"] if item["mode"] == "video"]
     stills = [item for item in estimate["video_plan"] if item["mode"] == "motion_still"]
-    assert len(paid) == 8 and len(stills) == 4
+    assert len(paid) == 12 and len(stills) == 0
     assert {item["provider"] for item in paid} == {VEO_FAST, KLING}
-    assert estimate["video"] == pytest.approx(5.54)
+    assert estimate["video"] == pytest.approx(7.94)
     assert estimate["paid_fallbacks"] == "manual"
     assert estimate["total_first_pass"] < estimate["budget_cap"]
 

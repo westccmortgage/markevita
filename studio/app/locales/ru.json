@@ -1,914 +1,155 @@
-{
-  "(now": "(сейчас",
-  ") are the ceiling.": ").",
-  ") saved": "), сохранена",
-  ") — regenerate and re-approve.": ") — обновите референсы и утвердите их снова.",
-  "). Mock production runs without them — they are required only for live generation.": "). Симуляция работает без них. Для реальной генерации нужны только провайдеры выбранных этапов.",
-  ". Approving records the decision; it does not publish. Instagram publishing is disabled in this build.": ". Оно фиксирует решение, но не публикует видео. Публикация в Instagram здесь отключена.",
-  ". Final provider billing has not been independently verified.": ". Итоговое списание провайдера отдельно не проверялось.",
-  ". It is never stored here.": ". Здесь он не сохраняется.",
-  ". With R2 configured the": ". При подключённом R2 этап",
-  "16:9 landscape": "16:9 — горизонтально",
-  "9:16 vertical": "9:16 — вертикально",
-  ": they verify that every required variable is present and not a placeholder, without contacting the provider. That guarantees zero provider traffic while the studio is in mock mode. Setting": ": проверяют наличие переменных и отсутствие заглушек. Это исключает обращения к провайдерам в режиме симуляции. Настройка",
-  "A character has no voice id in the environment. Check the Characters page for the variable name.": "У персонажа нет voice id в переменных окружения. Имя переменной указано на странице «Персонажи».",
-  "A paid call was interrupted before its answer was saved": "Платный вызов оборвался до сохранения ответа",
-  "A paid request was interrupted before its response was saved. Reconcile it with the provider before another attempt.": "Ответ на платный запрос не был сохранён. Перед новой попыткой нужно сверить результат с провайдером, чтобы избежать двойного списания.",
-  "A plain script with its own headings works too.": "Обычный сценарий со своими заголовками тоже подойдёт.",
-  "A provider submission needs reconciliation; do not force or repeat generation.": "Не удалось подтвердить результат ранее отправленного запроса. Нужно сверить его с провайдером; повторная генерация пока заблокирована, чтобы избежать двойного списания.",
-  "A reference image did not pass quality control. Review the job log and reference images before continuing.": "Изображение-референс не прошло проверку качества. Перед продолжением просмотрите журнал и референсы.",
-  "A saved fal.ai request cannot be read back and has to be recorded as unreachable first.": "Сохранённый запрос fal.ai невозможно прочитать; сначала его нужно отметить недостижимым.",
-  "A season is opened automatically when the next episode needs one.": "Сезон открывается сам, когда он нужен следующей серии.",
-  "A series with that id already exists.": "Сериал с таким ID уже существует.",
-  "A spoken line cannot be empty.": "Реплика не может быть пустой.",
-  "A spoken line is too long for its clip. Shorten it in the script and save again.": "Реплика не помещается в свой клип. Сократите её в сценарии и сохраните заново.",
-  "A submission never came back with a request id": "Отправка не вернула номер запроса",
-  "A voice slot holds an id — a twenty-character string with nothing to read in it. These are the voices this server's key can reach; copy an id into a slot on the service environment. Nothing here is stored.": "Слот голоса хранит id — строку из двадцати символов, в которой нечего прочитать. Ниже голоса, до которых дотягивается ключ этого сервера; скопируйте id в слот в окружении сервиса. Здесь ничего не сохраняется.",
-  "Accepting one lets the best attempt stand and production carries on. The other way is to leave it and force that scene again, which costs another attempt and may land in the same place.": "Если принять — лучший дубль остаётся, и производство идёт дальше. Иначе можно перегенерировать сцену принудительно: это ещё одна оплаченная попытка, которая может кончиться тем же.",
-  "Active jobs": "Активные задачи",
-  "Actor": "Кто",
-  "Actual": "Фактически",
-  "Actual charge: unverified.": "Фактическое списание не проверено.",
-  "Add a location": "Добавить локацию",
-  "Add a season by hand (advanced)": "Добавить сезон вручную (расширенное)",
-  "Add an episode by hand (advanced)": "Добавить серию вручную (расширенное)",
-  "Add character": "Добавить персонажа",
-  "Add characters": "Добавить персонажей",
-  "Add clothing": "Добавить одежду",
-  "Add episode": "Добавить эпизод",
-  "Add location": "Добавить локацию",
-  "Add or replace a wardrobe variant": "Добавить или заменить вариант гардероба",
-  "Add prop": "Добавить предмет",
-  "Add relationship": "Добавить отношения",
-  "Add season": "Добавить сезон",
-  "Add secret": "Добавить секрет",
-  "Administrator auth and all studio records": "Вход администраторов и данные студии",
-  "Administrator sign-in": "Вход администратора",
-  "Advanced settings": "Расширенные настройки",
-  "After approving the references, open the episode and click Resume to continue production.": "После утверждения референсов откройте эпизод и нажмите «Продолжить» для возобновления производства.",
-  "Age": "Возраст",
-  "All media: references, takes, voices, subtitles, masters, manifests": "Медиа: референсы, дубли, голоса, субтитры и готовые видео",
-  "Allowed states — one per line (the validator enforces these)": "Допустимые состояния — по одному на строку (проверяются системой)",
-  "Already recorded as unreachable. Open the episode and click Resume; only this take is generated again.": "Уже отмечен как недостижимый. Откройте эпизод и нажмите «Продолжить» — заново будет сгенерирован только этот дубль.",
-  "Already recorded. Open the episode and click Resume.": "Уже отмечено. Откройте эпизод и нажмите «Продолжить».",
-  "Already recorded. Open the episode and click Resume; only this take is generated again.": "Уже отмечено. Откройте эпизод и нажмите «Продолжить» — заново создастся только этот дубль.",
-  "Amount / billing": "Сумма / списание",
-  "An image provider is likely to refuse this wording:": "Провайдер изображений, скорее всего, откажет из-за этих слов:",
-  "Answer": "Ответ",
-  "Appearance and wardrobe text goes to the image models, so it must be English and camera-ready. Voices are bound by environment-variable": "Описания внешности и одежды передаются модели изображений: пишите их по-английски, описывая видимые детали. Голос задаётся через",
-  "Appearance — English, 80–150 words, camera-ready": "Внешность — по-английски, 80–150 слов, видимые детали",
-  "Appearance — English, camera-ready": "Внешность — по-английски, видимые детали",
-  "Applies only to this episode. Spending from other episodes is not counted.": "Применяется только к этому эпизоду. Расходы других эпизодов не учитываются.",
-  "Applies to every episode of this series, including the ones the studio writes next.": "Применяется ко всем сериям этого сериала, включая те, что студия напишет дальше.",
-  "Applies to this series. Your scenes and dialogue stay as saved.": "Настройка применяется к сериалу. Сохранённые сцены и реплики не меняются.",
-  "Apply the change": "Применить",
-  "Approval": "Утверждение",
-  "Approval is only possible once the episode reaches": "Утверждение доступно после перехода эпизода в статус",
-  "Approve and start finishing": "Подтвердить и запустить завершение",
-  "Approve and start supervised repair": "Утвердить и запустить контролируемое исправление",
-  "Approve and start video-only repair": "Подтвердить и запустить ремонт только видеосцен",
-  "Approve episode": "Утвердить эпизод",
-  "Approve one ElevenLabs narration call using the current script and assigned narrator voice.": "Разрешить один запрос ElevenLabs для озвучки текущего сценария назначенным голосом рассказчика.",
-  "Approve one generation up to": "Разрешаю одну генерацию до",
-  "Approve reference pack": "Утвердить референсы",
-  "Approve the current script and budget in the production form.": "Утвердите текущий сценарий и бюджет в форме запуска производства.",
-  "Approve the finished episode on its page, then run the publish stage.": "Утвердите готовый эпизод на его странице, затем запустите стадию публикации.",
-  "Approve the pack": "Утвердить набор",
-  "Approve the reference pack on the series' References page, then resume.": "Проверьте и утвердите изображения на странице «Референсы», затем нажмите «Продолжить».",
-  "Approve this preview": "Утвердить этот клип",
-  "Approve this script and live production up to": "Утверждаю этот сценарий и генерацию с лимитом до",
-  "Approved by": "Утвердил(а)",
-  "Approved ceiling:": "Утверждённый лимит:",
-  "Approved for bible": "Утверждено для версии библии",
-  "Aspect ratio": "Соотношение сторон",
-  "Asset": "Материал",
-  "Assign voices": "Назначить голоса",
-  "Assigned character voices — ElevenLabs and lipsync": "Голоса персонажей — ElevenLabs и синхронизация губ",
-  "At least 8 characters.": "Минимум 8 символов.",
-  "Audio": "Озвучка",
-  "Authentication backend:": "Система входа:",
-  "Authentication checked — generation not tested": "Авторизация проверена — генерация не проверялась",
-  "Back to sign-in": "Вернуться ко входу",
-  "Before generation": "Перед генерацией",
-  "Before this episode can be written": "Чего не хватает, чтобы написать серию",
-  "Behaviour": "Поведение",
-  "Behaviour — gesture and expression style": "Поведение — жесты и мимика",
-  "Between": "Между",
-  "Brief valid —": "Сценарий прошёл проверку —",
-  "Budget cap reached.": "Достигнут лимит бюджета.",
-  "By": "Кто",
-  "By episode": "По эпизодам",
-  "Call": "Вызов",
-  "Calls": "Вызовы",
-  "Calm — nothing at stake": "Спокойно — ничего не решается",
-  "Camera rules": "Правила камеры",
-  "Cancel": "Отмена",
-  "Cancel requested.": "Запрошена отмена.",
-  "Cancelling.": "Задача отменяется.",
-  "Captions": "Субтитры",
-  "Changes how they are drawn, so this pack is rebuilt": "меняет внешность — этот пакет придётся пересобрать",
-  "Character A": "Персонаж A",
-  "Character B": "Персонаж B",
-  "Character id": "ID персонажа",
-  "Character of the voice": "Характер голоса",
-  "Character removed.": "Персонаж удалён.",
-  "Character saved.": "Персонаж сохранён.",
-  "Character voices": "Голоса персонажей",
-  "Characters": "Персонажи",
-  "Characters (": "Персонажи (",
-  "Characters —": "Персонажи —",
-  "Characters, clothing and voices": "Персонажи, гардероб и голоса",
-  "Check failed": "Проверка не пройдена",
-  "Check production settings": "Проверить настройки производства",
-  "Check status and save result": "Проверить статус и сохранить результат",
-  "Check the approval status of the current images below.": "Проверьте статус утверждения текущих изображений ниже.",
-  "Check the provider's own request log for this run. If nothing was delivered for it, record that below: nothing is deleted, nothing is relaxed anywhere else, and exactly this one take is sent again.": "Посмотрите в журнале запросов провайдера. Если по нему ничего не выдано — отметьте это ниже: ничего не удаляется, никакие защиты в других местах не ослабляются, и повторно отправляется ровно этот один дубль.",
-  "Check the provider's usage for this run. If nothing was delivered for it, record that below: exactly this one call is made again and nothing else changes.": "Посмотрите расход у провайдера за этот прогон. Если по нему ничего не выдано — отметьте ниже: повторно будет сделан ровно этот один вызов, больше ничего не изменится.",
-  "Checking notification settings…": "Проверяем настройки уведомлений…",
-  "Checking status does not submit another video generation.": "Проверка статуса не запускает новую генерацию видео.",
-  "Checksum": "Контрольная сумма",
-  "Choose one of the picture settings.": "Выберите один из вариантов картинки.",
-  "Choose one of the subtitle options.": "Выберите один из вариантов субтитров.",
-  "Choose one of the supported video models.": "Выберите одну из поддерживаемых моделей видео.",
-  "Choose one of this server's voice slots.": "Выберите один из слотов голоса этого сервера.",
-  "Choose production stages from the episode form; publishing is separate.": "Выберите этапы в форме эпизода. Публикация выполняется отдельно.",
-  "Cliffhanger (required by the validator)": "Интрига в финале (обязательна для проверки)",
-  "Clips": "Клипы",
-  "Colour rules": "Правила цвета",
-  "Completed": "Завершено",
-  "Completed stages are skipped and finished takes are reused, so re-running never repeats work.": "Завершённые этапы пропускаются, готовые дубли используются повторно.",
-  "Configured through backend environment variables only. This page shows whether a credential is present — never its value. No secret is sent to the browser or stored in the database.": "Ключи задаются в настройках сервера. Эта страница показывает наличие ключа, но не его значение. Секреты не передаются в браузер и не сохраняются в базе.",
-  "Configured — access not verified": "Настроено — доступ не проверен",
-  "Connected": "Настроено",
-  "Connection tests are": "Проверки подключения работают",
-  "Continues this series from the ending you just approved.": "Продолжает сериал с того финала, который вы утвердили.",
-  "Copy": "Скопируйте",
-  "Cost": "Стоимость",
-  "Cost log": "Журнал расходов",
-  "Cost monitor": "Учёт расходов",
-  "Costs": "Расходы",
-  "Costs — Series Studio": "Расходы — Студия сериалов",
-  "Could not update notifications. Refresh the page and try again.": "Не удалось обновить уведомления. Обновите страницу и попробуйте снова.",
-  "Create series": "Создать сериал",
-  "Created": "Создано",
-  "Creates one audio file from the current narrator lines. It does not generate or change video, images, references, music or existing takes, and it does not publish.": "Создаёт один аудиофайл из текущих реплик рассказчика. Не генерирует и не изменяет видео, изображения, референсы, музыку или существующие дубли и ничего не публикует.",
-  "Current pack version:": "Текущая версия набора:",
-  "Current stage": "Текущий этап",
-  "Dashboard": "Главная",
-  "Default": "По умолчанию",
-  "Default budget for new episodes (USD)": "Стандартный бюджет новых эпизодов (USD)",
-  "Delivered by": "Доставляет",
-  "Describe the character": "Описать персонажа",
-  "Describe the garment rather than what it leaves bare.": "Опишите сам предмет одежды, а не то, что он открывает.",
-  "Describe the location": "Описать локацию",
-  "Description": "Описание",
-  "Description — English, 80–150 words: geometry, materials, fixtures, view": "Описание по-английски, 80–150 слов: геометрия, материалы, обстановка, вид",
-  "Description — exact items, colours, materials, shoes, jewellery": "Описание — предметы одежды, цвета, материалы, обувь, украшения",
-  "Descriptions feed the reference and keyframe models. State what must never move — that is what keeps geometry consistent between clips.": "Описания используются для референсов и ключевых кадров. Укажите, какие предметы не должны перемещаться между клипами.",
-  "Detail": "Подробности",
-  "Dialogue language": "Язык озвучки",
-  "Dialogue · English": "Реплики · английский",
-  "Disable on this browser": "Выключить в этом браузере",
-  "Disabled.": "Отключено.",
-  "Download narration track": "Скачать дорожку рассказчика",
-  "Duration": "Длительность",
-  "ELEVENLABS_API_KEY is not set on this server.": "ELEVENLABS_API_KEY не задан на этом сервере.",
-  "Each job runs the engine's stages in a background worker. Pausing stops at the next stage boundary; resuming skips completed stages.": "Каждая задача выполняет этапы в фоновом процессе. Пауза срабатывает на границе этапов, продолжение пропускает завершённые этапы.",
-  "Each row below names the exception and the line that raised it.": "В каждой строке ниже — исключение и строка, на которой оно возникло.",
-  "Edit": "Изменить",
-  "Edit identity": "Изменить персонажа",
-  "Edit spoken lines": "Изменить реплики",
-  "Email": "Электронная почта",
-  "Email notifications": "Уведомления на почту",
-  "Enable PIPELINE_ALLOW_PAID in the service environment to use live production.": "Включите PIPELINE_ALLOW_PAID в переменных окружения сервиса, чтобы запускать живое производство.",
-  "Enable notifications": "Включить уведомления",
-  "Endpoint": "API-эндпоинт",
-  "Ends on:": "Заканчивается на:",
-  "Engine detail": "Подробности движка",
-  "Engine log": "Технический журнал",
-  "English": "Английский",
-  "Enter an email and password.": "Введите почту и пароль.",
-  "Entity": "Объект",
-  "Episode": "Серия",
-  "Episode budget (USD)": "Бюджет эпизода (USD)",
-  "Episode budget: enter a finite amount greater than zero.": "Бюджет эпизода: укажите корректную сумму больше нуля.",
-  "Episode created.": "Эпизод создан.",
-  "Episode details": "Настройки эпизода",
-  "Episode id": "ID эпизода",
-  "Episode in progress": "Серия в работе",
-  "Episode mock mode.": "Симуляция эпизодов.",
-  "Episode saved.": "Эпизод сохранён.",
-  "Episode simulation": "Тестовый эпизод",
-  "Episode {id!r} has not been opened yet.": "Серия {id!r} ещё не открыта.",
-  "Episodes": "Эпизоды",
-  "Episodes with cost": "Эпизоды с расходами",
-  "Error": "Ошибка",
-  "Error.": "Ошибка.",
-  "Estimated": "Оценка",
-  "Estimated cost": "Оценка стоимости",
-  "Estimated generation cost:": "Расчётная стоимость генерации:",
-  "Estimated spend": "Оценка расходов",
-  "Event": "Событие",
-  "Every production event is emailed once, with the reason in the letter.": "Каждое событие производства уходит письмом один раз, причина — в самом письме.",
-  "Every scene is accepted. Production carries on from the episode page.": "Все сцены приняты. Производство продолжается со страницы эпизода.",
-  "Every screen answers.": "Все экраны отвечают.",
-  "Every screen, fetched against this server's own database. No writes, no paid work.": "Каждый экран, открытый на базе этого сервера. Ничего не записывается, ничего не оплачивается.",
-  "Everything in flight, on one screen. This page refreshes itself.": "Всё, что в работе, на одном экране. Страница обновляется сама.",
-  "FAL_KEY contains a header or variable prefix. Paste only the full key_id:key_secret value.": "В FAL_KEY попал префикс заголовка или имя переменной. Вставьте только полное значение key_id:key_secret.",
-  "FAL_KEY contains quotes or masking characters. Paste the full value copied when the key was created.": "В FAL_KEY есть кавычки или символы маскировки. Вставьте полное значение, скопированное при создании ключа.",
-  "FAL_KEY contains whitespace or non-ASCII characters. Copy the complete key again.": "Внутри FAL_KEY есть пробелы или посторонние символы. Скопируйте полный ключ ещё раз.",
-  "FAL_KEY is missing.": "FAL_KEY не задан.",
-  "FAL_KEY must contain both key_id and key_secret separated by a colon. The dashboard ID alone is not a key.": "FAL_KEY должен содержать ID и секретную часть через двоеточие. Одного ID из списка ключей недостаточно.",
-  "File": "Файл",
-  "Files are written under": "Файлы сохраняются в",
-  "Fill this in automatically": "Заполнить автоматически",
-  "Final approval": "Финальное утверждение",
-  "Final scene id": "ID финальной сцены",
-  "Finished": "Завершение",
-  "Finishing plan": "План завершения",
-  "First clip": "Первый клип",
-  "First clip · MarkeVita AI Series Studio": "Первый клип · Студия AI-сериалов MarkeVita",
-  "Fix:": "Исправление:",
-  "For four 8-second scenes, choose minimum 30 seconds and maximum 40 seconds, with minimum 4 scenes. Budget and regeneration limits are capped by (": "Для четырёх сцен по 8 секунд задайте диапазон 30–40 секунд и минимум 4 сцены. Верхние ограничения бюджета и повторов задаются настройками (",
-  "For this series: dialogue, speech and subtitles. Interface language is a separate preference. Write dialogue in the selected language.": "Язык реплик, озвучки и субтитров этого сериала. Язык интерфейса выбирается отдельно. Пишите реплики на выбранном языке.",
-  "Force": "Принудительный повтор",
-  "Force regeneration of (scene or stage ids, comma separated)": "Повторно создать (ID сцен или этапов через запятую)",
-  "Forced takes are new immutable takes, flagged and logged; earlier takes are kept.": "Повторная генерация создаёт новые дубли с записью в журнале. Предыдущие сохраняются.",
-  "Forgot password?": "Забыли пароль?",
-  "Format": "Формат",
-  "Format reference": "Справка по формату",
-  "Frames the quality check sent back": "Кадров забраковано проверкой качества",
-  "Full episode generation remains simulated. The first clip preview has a separate approval for one paid generation.": "Для генерации эпизода требуется согласие на его странице. Первый клип имеет отдельное согласие на одну платную генерацию.",
-  "Full episode runs use simulated provider calls.": "Вызовы провайдеров в эпизодах имитируются.",
-  "Full episodes are managed on their episode pages. Nothing is published automatically.": "Полные эпизоды запускаются на страницах эпизодов. Автоматической публикации нет.",
-  "Generate first clip": "Создать первый клип",
-  "Generate narration track only": "Создать только дорожку рассказчика",
-  "Generate the reference pack for the current series settings first.": "Набор референсов для текущих настроек ещё не готов. Откройте журнал последней задачи: сначала нужно устранить ошибку и завершить подготовку набора.",
-  "Generated for each episode — about $0.18": "Генерируется для каждого эпизода — около $0.18",
-  "Generated material failed quality control. Review the failed scenes in the job log. Existing takes are retained.": "Материал не прошёл проверку качества. Посмотрите замечания к сценам в журнале задачи. Созданные дубли сохранены.",
-  "Genre": "Жанр",
-  "High — 1080p, sharper references and better lip-sync": "Высокое — 1080p, более чёткие референсы и лучший липсинк",
-  "Hook — the question or image the episode ends on": "Крючок — вопрос или образ, на котором заканчивается эпизод",
-  "I approve moving this episode to finishing, up to the additional amount above. No new video is generated, no automatic provider fallback is used, and publication is not included.": "Я подтверждаю переход этого эпизода к завершению в пределах указанной дополнительной суммы. Новое видео не генерируется, автоматический переход к другому провайдеру не используется, публикация не входит.",
-  "I approve this exact scene repair plan up to the projected incremental amount. No automatic provider fallback and no publication.": "Утверждаю этот точный план исправления сцен в пределах прогнозной дополнительной суммы. Без автоматического перехода к другому провайдеру и без публикации.",
-  "I approve this exact video-only scene repair plan up to the projected incremental amount. Voice, lipsync, assembly, delivery, automatic provider fallback and publication remain disabled.": "Я подтверждаю именно этот план ремонта только видеосцен в пределах прогнозируемой дополнительной суммы. Озвучивание, синхронизация губ, монтаж, доставка, автоматический переход к другому провайдеру и публикация остаются отключёнными.",
-  "Id": "ID",
-  "Idempotency key": "Ключ защиты от повторного запуска",
-  "If it fails": "Если не получится",
-  "If that address has an account, a recovery link is on its way.": "Если аккаунт с таким адресом существует, на него отправлена ссылка для восстановления.",
-  "If the check marks a shot down": "Если проверка забракует кадр",
-  "Immutable rules — one per line": "Неизменные правила — по одному на строку",
-  "Immutable — one per line": "Неизменные детали — по одной на строку",
-  "Immutable:": "Неизменные детали:",
-  "In frame:": "В кадре:",
-  "In use": "Занят",
-  "Individual calls": "Отдельные вызовы",
-  "Initial state": "Начальное состояние",
-  "Integrations": "Интеграции",
-  "Integrations — Series Studio": "Интеграции — Студия сериалов",
-  "Interface language": "Язык интерфейса",
-  "Invalid character id.": "Некорректный ID персонажа.",
-  "Invalid email or password.": "Неверная почта или пароль.",
-  "Invalid episode id.": "Некорректный ID эпизода.",
-  "Invalid location id.": "Некорректный ID локации.",
-  "Invalid prop id.": "Некорректный ID реквизита.",
-  "Invalid relationship id.": "Некорректный ID отношений.",
-  "Invalid season id.": "Некорректный ID сезона.",
-  "Invalid secret id.": "Некорректный ID тайны.",
-  "Invalid wardrobe id.": "Некорректный ID одежды.",
-  "Job": "Задача",
-  "Job history": "История задач",
-  "Job log": "Журнал задачи",
-  "Job started.": "Задача запущена.",
-  "Jobs": "Задачи",
-  "Jobs — Series Studio": "Задачи — Студия сериалов",
-  "Just finished": "Только что завершились",
-  "Keep the original audio mode when resuming this episode.": "При продолжении эпизода сохраните первоначальный режим озвучки.",
-  "Keep this face": "Закрепить это лицо",
-  "Kept at {pass_score} and above; within {close_enough} of it is kept rather than paid for again. MAX_SCENE_REGENERATIONS, QC_PASS_SCORE and QC_CLOSE_ENOUGH on the server decide this.": "Принимается от {pass_score} и выше; недобор в пределах {close_enough} тоже принимается, а не оплачивается заново. Этим управляют MAX_SCENE_REGENERATIONS, QC_PASS_SCORE и QC_CLOSE_ENOUGH на сервере.",
-  "Key": "Параметр",
-  "Kind": "Категория",
-  "Knowledge state after each episode": "Знания после каждого эпизода",
-  "Known at start": "Кто знает в начале",
-  "Language": "Язык озвучки",
-  "Last error": "Последняя ошибка",
-  "Last sign of life": "Последний признак жизни",
-  "Last test": "Последняя проверка",
-  "Latest: version": "Последняя версия:",
-  "Leave it empty to continue from the recorded ending of the previous episode.": "Оставьте пустым, чтобы продолжить с зафиксированного финала предыдущей серии.",
-  "Length": "Длительность",
-  "Let me know when production finishes": "Сообщать о завершении производства",
-  "Let the best take stand": "Оставить лучший дубль",
-  "Letters link back to": "Письма ведут на",
-  "Level": "Уровень",
-  "Lighting states — one": "Состояния света — одна пара",
-  "Lighting:": "Освещение:",
-  "Limit": "Лимит",
-  "Live": "Реальный режим",
-  "Live episode": "Реальный эпизод",
-  "Live episode estimate": "Оценка расходов на эпизоды",
-  "Live episode estimate:": "Расчётные расходы на эпизоды:",
-  "Live episode production.": "Генерация эпизодов включена.",
-  "Live production": "Реальное производство",
-  "Loaded key ID starts with": "ID загруженного ключа начинается с",
-  "Local administrator": "Локальный администратор",
-  "Local check only. Enable STUDIO_ALLOW_CONNECTION_TESTS=true in Render for an authentication check without generation.": "Сейчас проверяется только формат. Для проверки авторизации без генерации включите STUDIO_ALLOW_CONNECTION_TESTS=true в Render.",
-  "Local production checks passed. Provider access and saved-request recovery are checked separately; no generation was started.": "Локальные проверки производства пройдены. Доступ к провайдерам и восстановление сохранённых запросов проверяются отдельно. Генерация не запускалась.",
-  "Location id": "ID локации",
-  "Location removed.": "Локация удалена.",
-  "Location saved.": "Локация сохранена.",
-  "Locations": "Локации",
-  "Locations (": "Локации (",
-  "Locations and props": "Локации и реквизит",
-  "Locations —": "Локации —",
-  "Locked for the season": "Закрепить на сезон",
-  "Log": "Журнал",
-  "Logline": "Краткое описание сюжета",
-  "Lowercase letters, digits and underscores. Left blank, it is derived from the title.": "Строчные латинские буквы, цифры и подчёркивания. Если оставить пустым, ID будет создан из названия.",
-  "MAX_EPISODE_BUDGET_USD": "MAX_EPISODE_BUDGET_USD",
-  "Make the ending tenser. Nora should see them through the door first. Shorten that line.": "Сделай финал напряжённее. Нора должна сначала увидеть их через дверь. Сократи эту реплику.",
-  "Make the video": "Создать видео",
-  "MarkeVita AI Series Studio": "Студия AI-сериалов MarkeVita",
-  "MarkeVita operates this studio. Each series below is an independent production with its own bible, budget and approvals.": "Каждый сериал — отдельный проект со своей библией персонажей и мира, бюджетом и утверждениями.",
-  "Marks": "Метки",
-  "Marks — where characters stand by default": "Метки — где персонажи стоят по умолчанию",
-  "Masters": "Готовые видео",
-  "Max scenes": "Максимум сцен",
-  "Maximum additional amount": "Максимальная дополнительная сумма",
-  "Maximum approved spend": "Утверждённый лимит расходов",
-  "Maximum episode seconds": "Максимальная длительность эпизода, сек.",
-  "Maximum — 4K, everything at its best": "Максимум — 4K, всё на максимуме",
-  "Measured Decision Core V2": "Measured Decision Core V2",
-  "Min scenes": "Минимум сцен",
-  "Minimum episode seconds": "Минимальная длительность эпизода, сек.",
-  "Missing": "Не настроено",
-  "Mock": "Тестовый режим",
-  "Mock mode — simulated amounts. Reserve happens before a call, settle after; a billed failure still counts.": "Симуляция: суммы условные. Резерв создаётся до вызова, списание учитывается после; оплаченная ошибка тоже учитывается.",
-  "Mode": "Режим",
-  "Model": "Модель",
-  "Model selected": "Выбранная модель",
-  "Music": "Музыка",
-  "Music plays under every scene, quieter under dialogue and tighter as the scene tightens.": "Музыка идёт под каждой сценой: тише под репликами и напряжённее там, где напряжённее сцена.",
-  "My own files, uploaded below": "Мои файлы, загруженные ниже",
-  "Name": "Имя",
-  "Narration generation stopped without an automatic retry:": "Создание озвучки остановилось без автоматической повторной попытки:",
-  "Narration is being generated. This page refreshes to show the download.": "Озвучка создаётся. Страница обновится и покажет ссылку для скачивания.",
-  "Narration track only": "Только дорожка рассказчика",
-  "Native audio": "Встроенный звук",
-  "Native audio needs no voice IDs. Voice consistency and exact wording need your review; subtitle timing is estimated. Assigned voices use the character's configured voice ID.": "Для встроенной речи ID голосов не нужны. Постоянство голосов и точность реплик требуют просмотра; тайминг субтитров приблизительный. Отдельная озвучка использует назначенный персонажу ID голоса.",
-  "Native scene audio — speech generated with video": "Встроенная речь — создаётся вместе с видео",
-  "Need evidence": "Недостаточно данных",
-  "Needed": "Нужен",
-  "Negative — clips": "Исключить в видео",
-  "Negative — stills": "Исключить в изображениях",
-  "New password": "Новый пароль",
-  "New series": "Новый сериал",
-  "New value": "Новое значение",
-  "Next episode": "Следующая серия",
-  "No QA report yet — it is produced by the": "Отчёта о качестве пока нет. Его создаёт этап",
-  "No Shadow Mode report has been recorded for this episode yet.": "Для этого эпизода ещё нет отчёта Shadow Mode.",
-  "No cost recorded yet.": "Расходов пока нет.",
-  "No costs recorded yet.": "Расходов пока нет.",
-  "No episodes yet.": "Эпизодов пока нет.",
-  "No jobs yet.": "Задач пока нет.",
-  "No locations yet.": "Локаций пока нет.",
-  "No log output.": "Журнал пока пуст.",
-  "No log yet.": "Журнал пока пуст.",
-  "No music": "Без музыки",
-  "No preview cost recorded.": "Расходы на первый клип не записаны.",
-  "No props. Props are optional — add them when an object must stay consistent between clips.": "Реквизит необязателен. Добавляйте предметы, внешний вид которых должен сохраняться между клипами.",
-  "No references yet. Run the": "Референсов пока нет. Запустите этап",
-  "No relationships defined.": "Отношения пока не заданы.",
-  "No scenes yet. Paste a script above.": "Сцен пока нет. Вставьте сценарий выше.",
-  "No secrets defined.": "Секреты пока не заданы.",
-  "No series yet. Create the first one on the right.": "Сериалов пока нет. Создайте первый в форме справа.",
-  "No subtitles": "Без субтитров",
-  "No voice slots exist yet. Add ELEVENLABS_VOICE_1, _2, _3 … to the service environment, then put one of the ids below in each.": "Слотов голоса пока нет. Добавьте ELEVENLABS_VOICE_1, _2, _3 … в окружение сервиса и впишите в каждый один из id ниже.",
-  "No wardrobe yet. A character on camera needs at least one variant before references can be generated.": "Гардероб ещё не задан. Для персонажа в кадре нужен хотя бы один вариант одежды до создания референсов.",
-  "None of this is confirmed by the provider: fal returns no price, so every amount is this studio's own estimate at the published rate. The provider's billing page is the only confirmed figure.": "Ничто из этого не подтверждено провайдером: fal не возвращает цену, поэтому все суммы — собственная оценка студии по опубликованному тарифу. Подтверждённая цифра есть только в биллинге провайдера.",
-  "Nora pretends to leave but listens at the door. Build tension, a sense of being watched, and a strong hook at the end.": "Нора делает вид, что ушла, но подслушивает под дверью. Нужны напряжение, эффект подглядывания и сильная интрига в финале.",
-  "Not included. It is never part of a finishing approval and needs its own decision.": "Не входит. Публикация никогда не входит в подтверждение завершения и требует отдельного решения.",
-  "Note": "Примечание",
-  "Nothing below has been started and no provider has been called. This is what finishing would run.": "Ничего из перечисленного не запущено и ни один провайдер не вызван. Это то, что выполнило бы завершение.",
-  "Nothing is delivered by email.": "Почтой ничего не доставляется.",
-  "Nothing is missing.": "Ничего не пропущено.",
-  "Nothing is running.": "Нет запущенных задач.",
-  "Nothing is running. Open an episode and press Resume to start.": "Ничего не выполняется. Откройте эпизод и нажмите «Продолжить».",
-  "Nothing recorded yet. Run an episode's": "Записей пока нет. Запустите в эпизоде этап",
-  "Notifications": "Уведомления",
-  "Notifications are blocked. Allow them in this site's browser settings, then try again.": "Уведомления заблокированы. Разрешите их в настройках этого сайта в браузере и попробуйте снова.",
-  "Notifications are off on this browser.": "Уведомления выключены в этом браузере.",
-  "Notifications are working.": "Уведомления работают.",
-  "Notifications enabled on this browser.": "Уведомления включены в этом браузере.",
-  "Number": "Номер",
-  "Object key": "Ключ объекта",
-  "Old → new": "Было → стало",
-  "Older jobs": "Прежние задачи",
-  "On Render, open your markevita service → Environment → Environment Variables. Character voice IDs use the variable names shown on the Characters page.": "В Render откройте сервис markevita → Environment → Environment Variables. Для голосов используйте имена переменных со страницы «Персонажи».",
-  "On camera": "В кадре",
-  "On screen:": "На экране:",
-  "On the video": "На видео",
-  "On the video, plus a separate subtitle file": "На видео и отдельным файлом",
-  "One file per level of tension. The studio loops each one under the scenes at that level, so a short piece is enough. Used only when Music above is set to your own files.": "По одному файлу на уровень напряжения. Студия зацикливает каждый под сценами своего уровня, так что короткого отрывка достаточно. Используется, только если выше выбрано «Мои файлы».",
-  "One pack per bible version: headshots, expressions, a full-body reference per wardrobe variant, locations and props. Any change to the bible invalidates the approval and the pack is regenerated.": "Один набор на версию библии: портреты, выражения лица, ростовые изображения для каждого варианта одежды, локации и реквизит. Изменение библии требует обновления и повторного утверждения референсов.",
-  "One real preview.": "Один реальный клип.",
-  "One sentence.": "Одно предложение.",
-  "One submission. No automatic retries, regeneration or publishing.": "Один запрос. Без автоматических повторов, повторной генерации или публикации.",
-  "Only jobs you started are included. Enable separately on each device. On a shared computer, disable before signing out.": "Уведомления приходят только по задачам, которые запустили вы. Включайте их отдельно на каждом устройстве. На общем компьютере отключайте перед выходом из аккаунта.",
-  "Only the words change. Speaker, delivery and the video already generated stay as they are.": "Меняются только слова. Кто говорит, манера подачи и уже созданное видео остаются прежними.",
-  "Open": "Открыть",
-  "Open References": "Открыть Референсы",
-  "Open Render environment settings": "Открыть настройки ключей в Render",
-  "Open episode": "Открыть эпизод",
-  "Open it: if it lands in the studio, the links in letters work.": "Откройте: если попадёте в студию, ссылки в письмах работают.",
-  "Open log →": "Открыть журнал →",
-  "Open or download clip": "Открыть или скачать клип",
-  "Open progress": "Открыть ход работы",
-  "Open references": "Открыть референсы",
-  "Open the episode and Resume": "Открыть эпизод и нажать Resume",
-  "Opens the next episode of this series and asks what should happen in it.": "Открывает следующую серию этого сериала и спрашивает, что в ней должно произойти.",
-  "Or choose native scene audio below.": "Либо выберите встроенную речь ниже.",
-  "Owner": "Владелец",
-  "Package invalid.": "Проект не прошёл проверку.",
-  "Package valid — bible version": "Проект прошёл проверку — версия библии",
-  "Package validation": "Проверка проекта",
-  "Paid stages": "Платные этапы",
-  "Password": "Пароль",
-  "Password recovery needs Supabase Auth, which is not configured. The local administrator password is set directly in the backend environment.": "Восстановление требует Supabase Auth, который сейчас не настроен. Пароль локального администратора задаётся в настройках сервера.",
-  "Password recovery — Series Studio": "Восстановление пароля — Студия сериалов",
-  "Password updated, but this account is not a studio administrator.": "Пароль обновлён, но у этого аккаунта нет прав администратора студии.",
-  "Password updated. Sign in with the new password.": "Пароль обновлён. Войдите с новым паролем.",
-  "Password updated. Sign in with your new password.": "Пароль обновлён. Войдите с новым паролем.",
-  "Paste or upload a script": "Вставить или загрузить сценарий",
-  "Pause": "Пауза",
-  "Pause requested.": "Запрошена пауза.",
-  "Pausing at the next stage boundary.": "Задача остановится после текущего этапа.",
-  "Phone effect": "Эффект телефонного голоса",
-  "Picture": "Картинка",
-  "Prepare the script": "Подготовить сценарий",
-  "Preview": "Просмотр",
-  "Production": "Производство",
-  "Production could not be started or updated. Check Jobs before retrying; saved requests have not been cleared.": "Не удалось запустить или обновить производство. Перед повтором проверьте раздел «Задачи»: запрос мог уже запуститься. Сохранённые запросы не удалены.",
-  "Production dashboard": "Панель производства",
-  "Production is": "Производство",
-  "Production is paused before video generation. Open the reference images and approve the pack if you are happy with it.": "Производство приостановлено перед созданием видео. Откройте изображения персонажей и локаций и утвердите пакет, если результат вас устраивает.",
-  "Production jobs": "Задачи производства",
-  "Production limits": "Лимиты производства",
-  "Production needs attention": "Производству требуется внимание",
-  "Production pauses for reference review before video. Provider billing may differ from estimates. Nothing is published automatically.": "Перед видео производство остановится для просмотра референсов. Фактические списания могут отличаться от оценки. Автоматической публикации нет.",
-  "Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.": "Производство остановлено. Запросы сохранены; «Продолжить» не отправит повторно запрос с неизвестным результатом.",
-  "Projected repair": "Прогноз исправления",
-  "Prompts": "Промпты",
-  "Prop id": "ID предмета",
-  "Prop removed.": "Реквизит удалён.",
-  "Props": "Реквизит",
-  "Provider": "Провайдер",
-  "Provider diagnostics below are shown in their original language.": "Технический журнал провайдеров ниже приведён на исходном языке.",
-  "Provider invoices have not been independently verified. Simulated costs are shown separately below.": "Счета провайдера отдельно не проверялись. Расходы симуляции показаны ниже отдельно.",
-  "Public": "Известно всем",
-  "Publication": "Публикация",
-  "Put the actual id in": "Укажите сам ID в",
-  "QA and deliverables": "Проверка качества и готовые файлы",
-  "Ready": "Готово",
-  "Real preview": "Пробный клип",
-  "Real preview estimate reserved": "Зарезервированная оценка первого клипа",
-  "Real preview:": "Первый реальный клип:",
-  "Reason": "Причина",
-  "Receive a system notification when your episode is ready, production needs attention, or references need approval. Click it to open the result or the next step.": "Получайте системное уведомление, когда эпизод готов, возникла ошибка или нужно утвердить референсы. Нажатие откроет результат или следующий шаг.",
-  "Recent activity": "Последние действия",
-  "Recent runs": "Последние запуски",
-  "Record as delivering nothing": "Отметить: ничего не выдано",
-  "Record as unreachable": "Отметить недостижимым",
-  "Record override": "Записать изменение лимита",
-  "Recorded": "Записано",
-  "Recorded by the engine when an episode runs. Each episode starts from the previous episode's end state.": "Записываются при выполнении эпизода. Следующий эпизод начинается с итогового состояния предыдущего.",
-  "Recorded calls": "Учтённые вызовы",
-  "Recorded overrides": "Изменения лимитов",
-  "Recorded. Open the episode and click Resume to generate that one take again.": "Записано. Откройте эпизод и нажмите «Продолжить», чтобы заново сгенерировать этот один дубль.",
-  "Recording it as unreachable keeps the request id in the take history, charges its estimate as possibly billed, and allows one new submission for this take only. Every other saved request stays protected.": "Отметка сохраняет ID запроса в истории дубля, списывает его оценку как возможно оплаченную и разрешает одну новую отправку только для этого дубля. Все остальные сохранённые запросы остаются защищёнными.",
-  "Recover your password": "Восстановить пароль",
-  "Reference images": "Картинки-референсы",
-  "Reference images define your characters, wardrobe and locations. Existing images can be reused when their visual settings and files are verified unchanged.": "Референсы определяют внешность персонажей, одежду и локации. Готовые изображения можно использовать повторно, если проверка подтверждает, что их визуальные настройки и файлы не изменились.",
-  "Reference images, keyframes, video, lip-sync": "Референсы, ключевые кадры, видео и синхронизация губ",
-  "Reference images: {count}": "Изображений-референсов: {count}",
-  "Reference pack": "Набор референсов",
-  "Reference pack approved.": "Референсы утверждены.",
-  "References": "Референсы",
-  "References are ready for your review": "Референсы готовы — проверьте изображения",
-  "References need your review": "Нужно проверить референсы",
-  "References —": "Референсы —",
-  "Refresh status": "Обновить статус",
-  "Refreshes this page. It does not resume production.": "Перечитывает статус на этой странице. Для возобновления производства нажмите «Продолжить» в эпизоде.",
-  "Regenerations per scene": "Повторов генерации на сцену",
-  "Relationship removed.": "Отношения удалены.",
-  "Relationships": "Отношения",
-  "Relationships, secrets and knowledge": "Отношения, секреты и знания",
-  "Release it": "Открепить",
-  "Remove": "Удалить",
-  "Remove character": "Удалить персонажа",
-  "Remove location": "Удалить локацию",
-  "Remove this character with all clothing and voice settings?": "Удалить персонажа вместе с настройками одежды и голоса?",
-  "Removed from the list. Saved provider requests are untouched.": "Убрано из списка. Сохранённые запросы провайдера не тронуты.",
-  "Repair": "Нужно исправить",
-  "Repeat new password": "Повторите новый пароль",
-  "Request a new one": "Запросить новую ссылку",
-  "Requested by": "Запросил(а)",
-  "Required before keyframes and video may use these references. The decision is recorded against the exact bible version.": "Утверждение требуется перед использованием референсов для ключевых кадров и видео. Решение привязано к точной версии библии.",
-  "Reserved alternate director / QC model": "Резервная модель режиссуры и проверки качества",
-  "Resolves in": "Разрешается в эпизоде",
-  "Resume": "Продолжить",
-  "Resume will stop on the same refusal.": "«Продолжить» остановится на том же отказе.",
-  "Resumed. Completed stages are skipped.": "Работа продолжена. Завершённые этапы пропускаются.",
-  "Reuses": "Переиспользует",
-  "Review a script and spending cap on its episode page before starting.": "Перед запуском проверьте сценарий и лимит расходов на странице эпизода.",
-  "Review and record it": "Открыть и отметить",
-  "Review integrations →": "Проверить интеграции →",
-  "Right now": "Сейчас",
-  "Right now — Series Studio": "Сейчас — Студия сериалов",
-  "Role": "Роль",
-  "Run Shadow Analysis": "Запустить Shadow-анализ",
-  "Run the episode again: the pack is rebuilt for the current bible, and then it can be approved.": "Запустите серию заново: пакет пересоберётся под текущую библию, и тогда его можно будет утвердить.",
-  "Running now": "Сейчас выполняется",
-  "Russian": "Русский",
-  "Save": "Сохранить",
-  "Save duration range": "Сохранить диапазон длительности",
-  "Save episode": "Сохранить эпизод",
-  "Save lines": "Сохранить реплики",
-  "Save script and rebuild scenes": "Сохранить сценарий и обновить сцены",
-  "Save series": "Сохранить сериал",
-  "Save variant": "Сохранить вариант",
-  "Save voice binding": "Сохранить настройки голоса",
-  "Saved request": "Сохранённый запрос",
-  "Saving replaces this episode's scenes. Every version is kept.": "Сохранение заменяет сцены этого эпизода. Все версии сценария сохраняются.",
-  "Scene": "Сцена",
-  "Scene decisions": "Решения по сценам",
-  "Scene direction and vision QC": "Режиссура сцен и проверка изображений",
-  "Scenes (": "Сцены (",
-  "Scenes the change does not touch keep their wording and their footage. Changing what is seen or how the camera moves means that clip is generated again.": "Сцены, которых правка не касается, сохраняют и текст, и снятое видео. Если меняется изображение или движение камеры, этот клип снимается заново.",
-  "Screen": "Экран",
-  "Script": "Сценарий",
-  "Script text — structured format or a full JSON brief": "Текст сценария — структурированный формат или полный JSON-бриф",
-  "Season": "Сезон",
-  "Season added.": "Сезон добавлен.",
-  "Season id": "ID сезона",
-  "Seasons": "Сезоны",
-  "Secret id": "ID секрета",
-  "Secret removed.": "Тайна удалена.",
-  "Secrets": "Секреты сюжета",
-  "Select": "Выбрать",
-  "Selected stages completed": "Выбранные этапы завершены",
-  "Self-check": "Самопроверка",
-  "Send a test message": "Отправить тестовое письмо",
-  "Send recovery link": "Отправить ссылку",
-  "Send test notification": "Отправить тестовое уведомление",
-  "Sent to:": "Кому уходит:",
-  "Separate subtitle file only — the video stays clean": "Только отдельным файлом — видео без надписей",
-  "Series": "Сериалы",
-  "Series created.": "Сериал создан.",
-  "Series id": "ID сериала",
-  "Series id must be lowercase letters, digits and underscores.": "В ID сериала используйте строчные латинские буквы, цифры и подчёркивания.",
-  "Series saved.": "Настройки сериала сохранены.",
-  "Series settings": "Настройки сериала",
-  "Series settings and visual style": "Настройки сериала и визуальный стиль",
-  "Set NOTIFICATION_TO to choose the readers.": "Переменная NOTIFICATION_TO задаёт получателей.",
-  "Set PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE for your plan, or choose Native scene audio.": "Укажите стоимость ElevenLabs для своего тарифа в PRICE_ELEVENLABS_PER_1K_CHARS_ESTIMATE. Либо выберите встроенную речь.",
-  "Set a new password": "Создать новый пароль",
-  "Set a new password — Series Studio": "Новый пароль — Студия сериалов",
-  "Set in series settings; changing the interface language does not change the voices.": "Задаётся в настройках сериала. Переключение языка интерфейса не меняет озвучку.",
-  "Set on this server": "Задано на этом сервере",
-  "Set password": "Сохранить пароль",
-  "Settled calls": "Рассчитанные вызовы",
-  "Shadow Mode examines the saved script, takes, QC evidence and spend. It cannot call a provider, approve a retry, change a take or publish.": "Shadow Mode анализирует сохранённый сценарий, дубли, результаты QC и расходы. Он не может запускать провайдера, утверждать повтор, менять выбранный дубль или публиковать.",
-  "Show every attempt": "Показать все попытки",
-  "Show only what is finished or under way": "Показать только готовое и то, что в работе",
-  "Showing the current pack": "Показан текущий пакет",
-  "Sign in": "Войти",
-  "Sign in required": "Войдите в студию",
-  "Sign in to manage scripts, review references, and produce episodes.": "Войдите, чтобы работать со сценариями, проверять референсы и создавать эпизоды.",
-  "Sign out": "Выйти",
-  "Simulated episode costs": "Расходы симуляции эпизодов",
-  "Simulated spend": "Условные расходы",
-  "Simulation": "Тестовый режим",
-  "Simulation costs, live episode estimates and first-clip estimates are tracked separately. A generation estimate is not a verified provider charge.": "Симуляция, расчётные расходы на эпизоды и на первый клип учитываются отдельно. Оценка стоимости не подтверждает списание провайдера.",
-  "Slots waiting for an id:": "Слоты, ожидающие id:",
-  "Something in the studio broke": "Что-то в студии сломалось",
-  "Sound": "Звук",
-  "Spent": "Потрачено",
-  "Spent on this episode": "Потрачено на этот эпизод",
-  "Stage": "Этап",
-  "Stage:": "Этап:",
-  "Stages": "Этапы",
-  "Stages requested": "Запрошенные этапы",
-  "Stages to run": "Этапы запуска",
-  "Stakes": "Что поставлено на карту",
-  "Standard — 1080p, faster and cheapest": "Стандарт — 1080p, быстрее и дешевле всего",
-  "Start production": "Запустить производство",
-  "Started": "Начало",
-  "State": "Состояние",
-  "Status": "Статус",
-  "Still to pay for": "Ещё предстоит оплатить",
-  "Story secrets — who knows what. Not credentials.": "Секреты внутри истории: кто что знает. Это не пароли и не ключи.",
-  "Style notes — register, pace, delivery": "Характер голоса — регистр, темп, подача",
-  "Style sentence (immutable once references are approved)": "Описание стиля (фиксируется после утверждения референсов)",
-  "Subject": "Предмет",
-  "Subtitles": "Субтитры",
-  "Subtitles:": "Субтитры:",
-  "Supabase Auth": "Supabase Auth",
-  "Take": "Дубль",
-  "Takes": "Дубли",
-  "Taut — a turn or a cliffhanger": "Напряжённо — поворот или клиффхэнгер",
-  "Technical details": "Технические детали",
-  "Test": "Проверить",
-  "Test sent. Check your system notifications.": "Тест отправлен. Проверьте системные уведомления.",
-  "That episode already exists.": "Такой эпизод уже существует.",
-  "That is a path, not an address: open any studio screen once, or set STUDIO_PUBLIC_URL.": "Это путь, а не адрес: откройте любой экран студии один раз или задайте STUDIO_PUBLIC_URL.",
-  "That is not the engine's own format, so the studio is writing it into scenes. This page refreshes itself.": "Это не формат движка, поэтому студия сама разложит текст на сцены. Страница обновится сама.",
-  "That job is already gone.": "Этой задачи уже нет.",
-  "That request is already recorded as unreachable.": "Этот запрос уже отмечен как недостижимый.",
-  "The": "Раздел",
-  "The approved request is recorded. You can return to this page without starting another generation.": "Утверждённый запрос сохранён. Вы можете вернуться на эту страницу без запуска новой генерации.",
-  "The assembled video failed final quality checks. The job log names the failed checks; generated scenes are saved.": "Собранный ролик не прошёл финальную проверку качества. Неудавшиеся проверки указаны в журнале задачи; созданные сцены сохранены.",
-  "The bible has changed since": "Библия изменилась с версии",
-  "The cast, wardrobe or style changed after they were made, so they cannot be approved for what the studio would generate now.": "Состав, гардероб или стиль изменились после того, как их сделали, поэтому утвердить их для текущих настроек нельзя.",
-  "The clip is saved privately. Playback uses a temporary link.": "Клип сохранён в закрытом хранилище. Для просмотра используется временная ссылка.",
-  "The download of an already generated file was interrupted. Resume this episode to retrieve the saved result; do not force regeneration.": "Скачивание уже созданного файла прервалось. Нажмите «Продолжить» на странице эпизода, чтобы получить сохранённый результат. Принудительная перегенерация не нужна.",
-  "The engine simulates these across scenes and episodes. A brief where someone acts on a secret nobody told them is rejected before any generation starts.": "Система отслеживает их по сценам и эпизодам. Если герой использует секрет, которого ещё не узнал, сценарий отклоняется до генерации.",
-  "The episode hit its budget cap. Record an override with a reason to continue.": "Достигнут лимит бюджета эпизода. Для продолжения измените лимит с указанием причины.",
-  "The existing request is retained for review. No replacement will be generated automatically.": "Существующий запрос сохранён для проверки. Новый запрос автоматически отправлен не будет.",
-  "The id itself is never stored here — only which slot this character uses.": "Сам id здесь не хранится — только то, какой слот занимает этот персонаж.",
-  "The model declined to write this. Rephrase the request.": "Модель отказалась это писать. Переформулируйте запрос.",
-  "The model ran out of room before it finished. Ask for fewer scenes, or a shorter episode in the series settings.": "Модели не хватило места, чтобы дописать. Попросите меньше сцен или уменьшите длину серии в настройках сериала.",
-  "The number of lines must stay the same.": "Количество реплик должно остаться прежним.",
-  "The pictures exist and are paid for. The check is an opinion about them, and whether it is good enough for this shot is yours to decide — read its notes in the job log below.": "Картинки сделаны и оплачены. Проверка — это мнение о них, а достаточно ли хорошо для этого кадра, решаете вы: её замечания в журнале задачи ниже.",
-  "The quality check marked these scenes down": "Проверка качества забраковала эти сцены",
-  "The queue accepted this request, so it was not rejected on submission. fal.ai then refused to read it back. A request cannot be read back by a key that did not create it, so this happens when the fal key was replaced after the request was submitted.": "Очередь приняла этот запрос, то есть при отправке отказа не было. Затем fal.ai отказал в его чтении. Запрос нельзя прочитать ключом, который его не создавал, поэтому так бывает, когда ключ fal заменили уже после отправки.",
-  "The run stopped rather than continuing silently. An override is recorded with actor, time, old value, new value and reason.": "Производство остановлено. Изменение лимита записывается с автором, временем, старым и новым значением и причиной.",
-  "The scene": "Сцена",
-  "The script": "Сценарий",
-  "The soundtrack could not be normalized. Source media is saved; review the audio before continuing.": "Не удалось нормализовать звуковую дорожку. Исходные материалы сохранены; проверьте звук перед продолжением.",
-  "The studio cannot ask the provider what happened to this one, because it has no request id to ask about. Guessing wrong here is the one mistake that pays twice for a single picture, so the decision is yours and the studio will not make it.": "Студия не может спросить провайдера, что случилось с этим дублем: нет номера запроса, о котором спрашивать. Ошибиться здесь — единственный случай, когда за одну картинку платят дважды, поэтому решение ваше, и студия его за вас не примет.",
-  "The studio does not know whether this one was delivered, and repeating it blindly is the one mistake that pays twice. So it stops and asks you, instead of deciding for you.": "Студия не знает, был ли он выполнен, а слепой повтор — единственная ошибка, за которую платят дважды. Поэтому она останавливается и спрашивает вас, а не решает за вас.",
-  "The studio is writing the cast and places.": "Студия пишет персонажей и локации.",
-  "The studio is writing this episode.": "Студия пишет эту серию.",
-  "The studio keeps your approved cast, wardrobe and locations. This uses the language model and costs a few cents.": "Студия сохраняет утверждённых актёров, одежду и локации. Используется языковая модель, это стоит несколько центов.",
-  "The studio writes only with the cast and places you approved. It never invents a new character or location.": "Студия пишет только теми персонажами и локациями, которые вы утвердили. Новых она не придумывает.",
-  "The studio writes the cast and places from what this series already established, and keeps everything you wrote yourself.": "Студия опишет персонажей и локации по тому, что уже сказано в этом сериале, и не тронет ничего, что вы написали сами.",
-  "The two passwords do not match.": "Пароли не совпадают.",
-  "The uploaded file is not UTF-8 text.": "Загруженный файл должен быть текстом в кодировке UTF-8.",
-  "The voice variable name may contain only A-Z, 0-9 and underscores.": "В имени переменной голоса допустимы только A–Z, 0–9 и подчёркивания.",
-  "These characters speak but have no voice assigned:": "У этих персонажей есть реплики, но не назначен голос:",
-  "These checks confirm configuration, not permission to generate with every model. ElevenLabs, Supabase and R2 can also test metadata access when connection tests are enabled. No generation is started.": "Эта проверка подтверждает настройки. Доступ к генерации каждой модели проверяется отдельно. Для ElevenLabs, Supabase и R2 доступна также проверка служебного API, если она включена. Генерация не запускается.",
-  "These checks confirm configuration, not permission to generate with every model. fal.ai, ElevenLabs, Supabase and R2 can also test metadata access when connection tests are enabled. No generation is started.": "Эта проверка подтверждает настройки. Доступ к генерации каждой модели проверяется отдельно. Для fal.ai, ElevenLabs, Supabase и R2 доступна проверка служебного API, если она включена. Генерация не запускается.",
-  "These images are from an earlier version of the bible.": "Эти изображения — от прежней версии библии.",
-  "This account is not a studio administrator.": "У этого аккаунта нет прав администратора студии.",
-  "This browser does not support push notifications here. Try Chrome on your computer.": "Этот браузер не поддерживает push-уведомления здесь. Попробуйте Chrome на компьютере.",
-  "This ceiling does not cover": "Этот потолок не покрывает",
-  "This episode budget (USD)": "Бюджет этого эпизода (USD)",
-  "This episode will not run yet.": "Эпизод пока нельзя запустить.",
-  "This face is kept": "Это лицо закреплено",
-  "This is where the money goes: video resolution, reference sharpness and lip-sync. A three-minute episode at Maximum runs well over a hundred dollars, so raise the budget above to match — and the server's own ceiling caps it regardless.": "Именно сюда уходят деньги: разрешение видео, чёткость референсов и липсинк. Трёхминутная серия на «Максимуме» стоит заметно больше сотни долларов — поднимите бюджет выше соответственно, и учтите, что потолок сервера всё равно ограничивает сверху.",
-  "This job did not report that request as refused.": "Эта задача не сообщала об отказе по такому запросу.",
-  "This job is still under way. Pause or cancel it first.": "Эта задача ещё выполняется. Сначала поставьте на паузу или отмените.",
-  "This page can generate one paid clip after your approval. Full episode production remains in mock mode. Nothing is published automatically.": "На этой странице можно создать один платный клип после вашего согласия. Полные эпизоды запускаются на своих страницах. Автоматической публикации нет.",
-  "This page can generate one paid clip after your approval. Full episodes are managed on their episode pages. Nothing is published automatically.": "На этой странице можно создать один платный клип после вашего подтверждения. Полные эпизоды запускаются на страницах эпизодов. Автоматической публикации нет.",
-  "This page is following the run; new lines appear on their own.": "Страница следит за прогоном — новые строки появляются сами.",
-  "This page needs a valid recovery link. Request a new one.": "Нужна действующая ссылка для восстановления пароля. Запросите новую.",
-  "This page was opened without a recovery link.": "Эта страница открыта без ссылки восстановления.",
-  "This script will not run yet.": "Этот сценарий пока не запустится.",
-  "This series has no characters yet. Add them before writing an episode.": "У этого сериала ещё нет персонажей. Добавьте их, прежде чем писать серию.",
-  "This series has no locations yet. Add one before writing an episode.": "У этого сериала ещё нет локаций. Добавьте хотя бы одну, прежде чем писать серию.",
-  "This series has no season yet. Add one on the series page.": "У этого сериала ещё нет сезона. Добавьте его на странице сериала.",
-  "This series has nothing written yet. Add a logline or an episode first.": "Про этот сериал пока ничего не написано. Добавьте логлайн или серию.",
-  "This series is not ready to film yet.": "Этот сериал пока нельзя снимать.",
-  "This series is set to an unknown picture quality: {quality!r}.": "У сериала задано неизвестное качество картинки.",
-  "This series is set to spend up to ${wanted:.0f} per episode, but the server caps every episode at ${ceiling:.0f}. Raise MAX_EPISODE_BUDGET_USD to at least ${wanted:.0f} in the service environment, or lower the series budget.": "У сериала задано до ${wanted:.0f} на серию, но сервер ограничивает любую серию суммой ${ceiling:.0f}. Поднимите MAX_EPISODE_BUDGET_USD минимум до ${wanted:.0f} в окружении сервиса — или уменьшите бюджет сериала.",
-  "This studio is not configured and cannot be used yet.": "Студия ещё не настроена и недоступна для работы.",
-  "This takes a minute or two. The page refreshes itself.": "Это занимает минуту-две. Страница обновится сама.",
-  "Time left, at this run's own pace": "Осталось, по темпу самого прогона",
-  "Title": "Название",
-  "To redo:": "Переснять:",
-  "Type": "Тип",
-  "Uneasy — something is moving": "Тревожно — что-то сдвинулось",
-  "Untitled": "Без названия",
-  "Unverified": "Не проверено",
-  "Upload": "Загрузить",
-  "Use positive scene counts and durations; minimum must not exceed maximum.": "Количество сцен и длительность должны быть больше нуля. Минимум не должен превышать максимум.",
-  "Used for every episode of this series, including the ones the studio writes next. Veo 3.1 costs about twice Fast per second of video; the estimate before each run uses the model chosen here.": "Используется для всех серий этого сериала, включая те, что студия напишет дальше. Обычная Veo 3.1 стоит примерно вдвое дороже Fast за секунду видео; оценка перед запуском считается по выбранной здесь модели.",
-  "VO": "За кадром",
-  "Value": "Значение",
-  "Variant": "Вариант",
-  "Variant id": "ID варианта",
-  "Video aspect ratio: the configured video model supports 16:9 or 9:16.": "Формат видео: выбранная модель поддерживает 16:9 или 9:16.",
-  "Video model": "Модель видео",
-  "Video repair is not complete yet, so finishing cannot be planned or started.": "Ремонт видео ещё не завершён, поэтому завершение нельзя ни спланировать, ни запустить.",
-  "View": "Посмотреть",
-  "View first clip →": "Посмотреть первый клип →",
-  "View integrations →": "Открыть интеграции →",
-  "View the exact generation prompt": "Посмотреть точный промпт генерации",
-  "Visual style — appended to every image and video prompt": "Визуальный стиль — добавляется в промпты изображений и видео",
-  "Voice": "Голос",
-  "Voice ID — this is the value": "Voice ID — это и есть значение",
-  "Voice id variable name": "Имя переменной с ID голоса",
-  "Voice slots are set on the server once, as": "Слоты голосов задаются на сервере один раз, как",
-  "Voices on this ElevenLabs account": "Голоса на этом аккаунте ElevenLabs",
-  "Waiting for you to approve the reference pack.": "Ждёт, пока вы утвердите пакет референсов.",
-  "Wardrobe variant removed.": "Вариант одежды удалён.",
-  "Wardrobe variants": "Варианты гардероба",
-  "Warnings:": "Предупреждения:",
-  "Watch or download episode": "Смотреть или скачать эпизод",
-  "We will email a recovery link. It opens a page where you set a new password.": "Мы отправим ссылку по почте. По ней откроется страница создания нового пароля.",
-  "What": "Назначение",
-  "What should happen in this episode?": "Что должно произойти в этой серии?",
-  "What to change?": "Что изменить?",
-  "When": "Когда",
-  "Where the last episode ended": "Чем закончилась прошлая серия",
-  "Where these are set": "Где задать ключи",
-  "Where this run has got to": "До чего дошёл этот прогон",
-  "Who knows it at series start — one id per line": "Кто знает в начале сериала — по одному ID на строку",
-  "Will not be run": "Не будет запущено",
-  "Works with the Studio tab closed. Delivery depends on your browser and system notification settings; sleeping or offline devices receive it later.": "Работает при закрытой вкладке студии. Доставка зависит от настроек браузера и системы; спящее устройство или устройство без интернета получит уведомление позже.",
-  "World": "Мир истории",
-  "World saved.": "Мир сериала сохранён.",
-  "World —": "Мир истории —",
-  "Write it in your own words, in any language — the spoken lines will be in": "Напишите своими словами, на любом языке — реплики будут на",
-  "Writing the bible stopped.": "Заполнение остановилось.",
-  "Writing the episode stopped.": "Написание серии остановилось.",
-  "Your browser cannot play this video. Use the link below.": "Браузер не может воспроизвести видео. Используйте ссылку ниже.",
-  "Your episode is ready": "Ваш эпизод готов",
-  "Your own music": "Своя музыка",
-  "accepted": "принято",
-  "already done": "уже сделано",
-  "also": "также",
-  "alternate": "альтернативный",
-  "an estimate, not a quote": "оценка, а не цена",
-  "and fill it in. The file is git-ignored. Character voice ids use the per-character variable name shown on the Characters page.": "и заполните. Файл не включается в Git. Для голосов используйте имена переменных со страницы персонажей.",
-  "another portrait is kept": "закреплён другой портрет",
-  "approved": "Утверждено",
-  "as": "в формате",
-  "assemble": "Монтаж",
-  "at stage": "на этапе",
-  "broken": "сломан",
-  "by": "автор:",
-  "cancelled": "Отменено",
-  "cancelling": "Отменяется",
-  "cap": "лимит",
-  "change in series settings": "изменить в настройках сериала",
-  "characters": "Персонажи",
-  "cliffhanger": "интрига в финале",
-  "clips": "клипов",
-  "clips,": "клипов,",
-  "complete": "Готово",
-  "completed": "этапы завершены",
-  "continues": "продолжает",
-  "default": "по умолчанию",
-  "deliver": "Сохранение результата",
-  "dialogue in": "реплики на",
-  "direction": "Режиссура",
-  "does not match the engine's own total": "не совпадает с собственным итогом движка",
-  "done": "Завершено",
-  "draft": "Черновик",
-  "drafted by the studio": "черновик студии",
-  "empty on this server": "на сервере не задан",
-  "en-US": "Английский",
-  "episode": "эпизод",
-  "estimate": "оценка",
-  "estimated and reserved. Actual provider billing is unverified; this amount is excluded from simulated episode costs.": "— оценка и резерв. Фактическое списание не проверено; эта сумма не входит в расходы симуляции эпизодов.",
-  "estimated only, not charged here": "только оценка, здесь не списано",
-  "failed": "Ошибка",
-  "failed_provider": "Ошибка провайдера",
-  "failed_qa": "Не пройдена проверка качества",
-  "fal.ai authentication failed. Check the API key in Render.": "fal.ai не принял авторизацию. Проверьте API-ключ в Render.",
-  "fal.ai authentication failed. Open Integrations to compare the loaded key ID and check authentication without generation.": "fal.ai не принял авторизацию. Откройте «Интеграции»: там можно сверить ID загруженного ключа и проверить авторизацию без генерации.",
-  "fal.ai could not complete this operation. Check the saved request status before continuing.": "fal.ai не смог завершить операцию. Перед продолжением проверьте статус сохранённого запроса.",
-  "fal.ai could not detect the required face in the input image.": "fal.ai не смог обнаружить нужное лицо на входном изображении.",
-  "fal.ai could not download an input file. Check the saved request in fal.ai before retrying.": "fal.ai не смог скачать входной файл. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
-  "fal.ai could not read an input image. Check the saved request in fal.ai before retrying.": "fal.ai не смог прочитать входное изображение. Перед повторной попыткой проверьте сохранённый запрос в fal.ai.",
-  "fal.ai denied access at submission. A key that has already been billed for work in this same run has the permissions it needs, so check the fal.ai balance first: an account out of credit is refused this way.": "fal.ai отказал в доступе на отправке запроса. Ключ, которому в этом же прогоне уже начислялась работа, имеет нужные права — поэтому сначала проверьте баланс fal.ai: аккаунт без средств получает отказ именно так.",
-  "fal.ai denied access while reading a request it had already accepted. This is not proof that a new submission would be refused. The saved request is kept, and Resume re-reads it instead of paying again.": "fal.ai отказал в доступе при чтении запроса, который очередь уже приняла. Это не доказывает, что новая отправка была бы отклонена. Сохранённый запрос не удалён, и «Продолжить» перечитает его, а не оплатит заново.",
-  "fal.ai refused a request it had already accepted": "fal.ai отказал в запросе, который уже принял",
-  "fal.ai refused to generate this under its content policy. Nothing is retried on its own: change the wording it was given — for a reference that is the character's appearance or the wardrobe item, for a clip it is the scene's action — and run the episode again.": "fal.ai отказался это создавать по своим правилам. Само по себе ничего не повторяется: измените описание, которое ему дали — для референса это внешность персонажа или предмет одежды, для клипа — действие в сцене, — и запустите серию снова.",
-  "fal.ai rejected an input file or parameter. Check the saved request details.": "fal.ai отклонил входной файл или параметр. Проверьте данные сохранённого запроса.",
-  "fal.ai rejected the key loaded by this server (HTTP 401). Check the full FAL_KEY value in Render.": "fal.ai отклонил ключ, загруженный этим сервером (HTTP 401). Проверьте полное значение FAL_KEY в Render.",
-  "fal.ai reported a processing failure. Check the saved request status before continuing.": "fal.ai сообщил об ошибке обработки. Перед продолжением проверьте статус сохранённого запроса.",
-  "fal.ai reported a request limit. Check the fal.ai request status before continuing.": "fal.ai сообщил о лимите запросов. Перед продолжением проверьте статус запроса в fal.ai.",
-  "fal.ai requires a billing check. Check the fal.ai account balance and billing status.": "fal.ai требует проверить оплату. Проверьте баланс и статус оплаты аккаунта fal.ai.",
-  "fal.ai returned an unexpected metadata response. Authentication was not confirmed.": "fal.ai вернул неожиданный ответ служебного API. Авторизация не подтверждена.",
-  "fine": "в порядке",
-  "first clip preview": "первого клипа",
-  "for one clip with native audio. Maximum approved generation spend:": "за один клип со встроенным звуком. Утверждённый лимит генерации:",
-  "forced": "повторный",
-  "free": "бесплатно",
-  "from": "с адреса",
-  "genre not set": "жанр не указан",
-  "has a separate approval for one real generation. Nothing is published automatically. Records are held in the": "имеет отдельное согласие на одну реальную генерацию. Автоматической публикации нет. Записи хранятся в",
-  "in estimated provider charges.": "по расчётным тарифам провайдеров.",
-  "intake": "Проверка сценария",
-  "integrations are not configured (": "интеграций не настроены (",
-  "interrupted": "Прервано",
-  "invalid": "Есть ошибки",
-  "is": "—",
-  "is deliberately absent — it is a separate, approved act and stays disabled in this build.": "в этот запуск не входит. Публикация требует отдельного согласия и здесь отключена.",
-  "keyframes": "Ключевые кадры",
-  "lipsync": "Синхронизация губ",
-  "live": "Реальный режим",
-  "locations": "Локации",
-  "min": "мин",
-  "mock": "Тестовый режим",
-  "mode": "режим",
-  "name": "имя переменной окружения",
-  "narrow": "narrow",
-  "needed:": "нужна:",
-  "needs": "требуется",
-  "needs attention": "нужно внимание",
-  "needs review": "нужна проверка",
-  "needs_budget_override": "Достигнут лимит бюджета",
-  "no": "нет",
-  "no brief": "нет сценария",
-  "no voice slots configured on this server": "на сервере не настроено ни одного слота голоса",
-  "no — voice only": "нет — только голос",
-  "none": "нет",
-  "none yet": "пока нет",
-  "of": "из",
-  "off": "выключены",
-  "offline": "без обращения к провайдерам",
-  "older per-character variable": "старая переменная под персонажа",
-  "on": "дата:",
-  "on camera": "в кадре",
-  "on the video": "на видео",
-  "on the video, plus a separate file": "на видео и отдельным файлом",
-  "optional": "необязательно",
-  "paused": "На паузе",
-  "pausing": "Останавливается",
-  "pending": "Ожидает проверки",
-  "per clip": "за клип",
-  "per frame": "за кадр",
-  "per line": "на строку",
-  "permits free metadata probes — never a generation call.": "разрешает бесплатные проверки метаданных, но не генерацию.",
-  "production stops here": "здесь производство остановится",
-  "props": "Реквизит",
-  "public": "известно всем",
-  "publish": "Публикация",
-  "published": "Опубликовано",
-  "qa": "Проверка качества",
-  "queued": "В очереди",
-  "ready": "готово",
-  "reference asset": "референс",
-  "references": "Референсы",
-  "references_pending": "Создание референсов",
-  "references_review": "Проверка референсов",
-  "rejected": "Отклонено",
-  "reserved": "Зарезервировано",
-  "ru-RU": "Русский",
-  "running": "В работе",
-  "s": "сек.",
-  "s ·": "сек. ·",
-  "s.": "сек.",
-  "scenes": "сцен",
-  "screens are broken.": "экранов сломано.",
-  "seconds": "сек.",
-  "selected": "выбран",
-  "separate file only": "только отдельным файлом",
-  "simulated": "условные расходы",
-  "stage": "этап",
-  "stage copies them to the private namespace.": "копирует их в закрытое хранилище.",
-  "stage on any episode of this series.": "в любом эпизоде этого сериала.",
-  "stage to build the ledger.": "для построения истории знаний.",
-  "stage.": ".",
-  "stays": "остаётся",
-  "store; sign-in uses": "; вход через",
-  "submitted": "Отправлено",
-  "succeeded": "Успешно",
-  "superseded rows discarded": "отброшено замещённых строк",
-  "take(s)": "дублей",
-  "that face was already the one kept. Nothing changed, so the reference pack is still good.": "это лицо уже было закреплено. Ничего не изменилось, пакет референсов остаётся годным.",
-  "this face is now the one the studio keeps. It changes how they are drawn, so this reference pack is now out of date and the next run rebuilds it. Do not lock a face out of that rebuilt pack unless you want it rebuilt again — approve it instead.": "это лицо теперь закреплено. Оно меняет внешность персонажа, поэтому текущий пакет референсов устарел и будет пересобран следующим прогоном. Не закрепляйте лицо из пересобранного пакета, если не хотите пересобирать его снова — утвердите его.",
-  "to": "в",
-  "unknown": "неизвестно",
-  "up to {attempts} attempt(s) per scene": "до {attempts} попыток(и) на сцену",
-  "uploaded": "загружен",
-  "valid": "Проверено",
-  "version(s) kept.": "версий сохранено.",
-  "video": "Видео",
-  "voice": "Озвучка",
-  "voice only": "только голос",
-  "words": "слов",
-  "yes": "да",
-  "{count} earlier job(s) for this episode are not shown.": "Ещё {count} задач(и) по этому эпизоду не показаны.",
-  "{count} image(s) from earlier versions of the bible are kept but not shown: they are not what the next episode uses.": "{count} изобр. от прежних версий библии сохранены, но не показаны: следующая серия использует не их.",
-  "{count} still to go.": "Осталось: {count}.",
-  "{count} superseded attempt(s) hidden.": "Скрыто устаревших попыток: {count}.",
-  "{made} of {needed} reference images are made.": "Готово {made} из {needed} картинок-референсов.",
-  "{name}. Production stopped. Saved requests are retained; Resume will not resubmit an uncertain request.": "{name}. Производство остановлено. Запросы сохранены; «Продолжить» не отправит повторно запрос с неизвестным результатом.",
-  "{where}: no description. It is what keeps the space the same between clips.": "{where}: не заполнено описание. Именно оно удерживает пространство одинаковым от клипа к клипу.",
-  "{who}: no appearance description. The image models read it literally, so without it the face changes between clips.": "{who}: не заполнено описание внешности. Модели изображений читают его дословно — без него лицо будет меняться от клипа к клипу.",
-  "{who}: no clothing variant. Every on-camera character needs at least one.": "{who}: нет ни одного варианта одежды. Каждому персонажу в кадре нужен хотя бы один.",
-  "· First clip preview": "· Предпросмотр первого клипа",
-  "· Series Studio": "· Студия сериалов",
-  "· bible": "· библия",
-  "· episode": "· эпизод",
-  "· reserved": "· в резерве",
-  "— Series Studio": "— Студия сериалов",
-  "— each one is a picture paid for twice": "— каждый это оплаченная дважды картинка",
-  "— the voice id itself never enters the database.": "— сам идентификатор голоса не сохраняется в базе.",
-  "…or upload a .txt / .json file": "…или загрузите файл .txt / .json"
-}
+Y��x-���jם��i��+��j[h��ܢ��߭<�:-jZ.����)޳W��"���r#�"�]�}"��"�&RF�R6V�Ɩ�r�#�"��"��"�6fVB#�"���]�]�"��"�(	B&VvV�W&FR�B&R�&�fR�#�"�(	B���-�-R]M]]���=--]M�-R�R��-�"��"����6�&�GV7F���'V�2v�F��WBF�V�(	BF�W�&R&WV�&VB��ǒf�"ƗfRvV�W&F����#�"��
+��=��m���-]"]r��R�	M��]�����=]�]m���=m��-�������-�M]�-����R�-��"�"��"�&�f��r&V6�&G2F�RFV6�6����BF�W2��BV&Ɨ6����7Fw&�V&Ɨ6���r�2F�6&�VB��F��2'V��B�#�"�	���M���=]"]�]��R����R�=���=]"-�M]��	�=���m��"��7Fw&�}M]��-���}]��"��"�f���&�f�FW"&��Ɩ�r�2��B&VV���FWV�FV�FǒfW&�f�VB�#�"�	�-�=�-�R����R��-�M]�-M]�����R��-]�����"��"��B�2�WfW"7F�&VB�W&R�#�"�	}M]����R�]��]-��"��"�v�F�#"6��f�wW&VBF�R#�"�	����M���}����#"�-�"��#c����G66R#�#c��(	B=��}��-����"��#��bfW'F�6�#�#��b(	B-]-������"��#�F�W�fW&�g�F�BWfW'�&WV�&VBf&�&�R�2&W6V�B�B��B�6V���FW"�v�F��WB6��F7F��rF�R&�f�FW"�F�BwV&�FVW2�W&�&�f�FW"G&ff�2v���RF�R7GVF���2����6���FR�6WGF��r#�#���-]��"���}�R�]]�]���R��-=---�R}=�=�]��
+�-�����}]"��]������-�M]�"]m��R��=��m���	�-���"��$6�&7FW"�2��f��6R�B��F�RV�f�&���V�B�6�V6�F�R6�&7FW'2vRf�"F�Rf&�&�R��R�#�-
+2�]��m�]"f��6R�B"�]]�]���R��=m]����	����]]�]����=�}���-��mR*�	�]��m�+��"��$�B6��v2��FW''WFVB&Vf�&R�G2�7vW"v26fVB#�-	��-���-�}�"��-��M��]�]����--]-"��$�B&WVW7Bv2��FW''WFVB&Vf�&R�G2&W7��6Rv26fVB�&V6��6��R�Bv�F�F�R&�f�FW"&Vf�&R��F�W"GFV�B�#�-	�--]"���-���}���R���]���	�]]B��-������-����=m��-]�-�]}=��-"��-�M]���}-���}]m-�M-����=�������"��$���67&�Bv�F��G2�v��VF��w2v�&�2F���#�-	��}���m]����-����}=���-���-�mR��M��M"�"��$&�f�FW"7V&֗76����VVG2&V6��6�ƖF���F���Bf�&6R�"&WVBvV�W&F����#�-	�R=M�����M--]M�-�]}=��-"�]R�-�-�]���=�}���	�=m��-]�-�]=���-�M]�ò��--���=]�]m�����}�����-��}-���}]m-�M-����=�������"��$&VfW&V�6R��vRF�B��B72VƗG�6��G&���&Wf�WrF�R��"��r�B&VfW&V�6R��vW2&Vf�&R6��F��V��r�#�-	�}�m]��R�]M]]��R�������-]�2�}]--�	�]]B��M��m]��]�����-�-Rm=���]M]]���"��$6fVBf���&WVW7B6���B&R&VB&6��B�2F�&R&V6�&FVB2V�&V6�&�Rf�'7B�#�-
+�]�����}��f����]-�}��m����}�--ò�}�]=��=m���-�]-�-��]M�-�m�����"��$6V6���2�V�VBWF��F�6�ǒv�V�F�R�W�BW�6�FR�VVG2��R�#�-
+]}���-��-]-�����=M���=m]��]M=��]�]���"��$6W&�W2v�F�F�B�B�&VG�W��7G2�#�-
+]��-����B=mR=�]--=]"�"��$7��V�Ɩ�R6���B&RV�G��#�-
+]�����R��m]"�-��=-���"��$7��V�Ɩ�R�2F�����rf�"�G26Ɨ�6��'FV��B��F�R67&�B�B6fRv���#�-
+]�����R���]�]-�"-�������
+��-�-R]"m]�����]��-R}��-��"��$7V&֗76����WfW"6�R&6�v�F�&WVW7B�B#�-	�-�-��R-]�=����]}��"��$f��6R6��B���G2��B(	BGvV�G��6�&7FW"7G&��rv�F���F���rF�&VB���B�F�W6R&RF�Rf��6W2F��26W'fW"w2�W�6�&V6��6����B��F�6��B��F�R6W'f�6RV�f�&���V�B���F���r�W&R�27F�&VB�#�-
+��"=���]��"�B(	B-��2�rM-Mm-���-���"�"��-����]}]=���}�--��	��mR=����M���-��RM�-�=�-]-����r�-�=�]-]�����=�-R�B"��""��=m]���]-��	}M]���}]=��R�]��]-��"��$66WF��r��R�WG2F�R&W7BGFV�B7F�B�B&�GV7F���6'&�W2���F�R�F�W"v��2F��VfR�B�Bf�&6RF�B66V�Rv���v��6�6�7G2��F�W"GFV�B�B����B��F�R6�R�6R�#�-	]������-�(	B�=}���M=���--������}-�M--��M"M���R�	��}R��m���]]=]�]��--�m]�2���=M�-]�����-�]��M����}]�������-����-����m]"���}�-��-]�mR�"��$7F�fR��'2#�-	�-�-��R}M}�"��$7F�"#�-	�-�"��$7GV�#�-
+M�-�}]��"��$7GV�6�&vS�V�fW&�f�VB�#�-
+M�-�}]��R����R�R��-]]���"��$FB��6F���#�-	M�-�-����m��"��$FB6V6��'���B�Gf�6VB�#�-	M�-�-�]}��-=}�=����]���R�"��$FB�W�6�FR'���B�Gf�6VB�#�-	M�-�-�]��-=}�=����]���R�"��$FB6�&7FW"#�-	M�-�-��]��m"��$FB6�&7FW'2#�-	M�-�-��]��m]�"��$FB6��F���r#�-	M�-�-��M]mM2"��$FBW�6�FR#�-	M�-�-����}�B"��$FB��6F���#�-	M�-�-����m��"��$FB�"&W�6Rv&G&�&Rf&��B#�-	M�-�-����}�]��-�-��"=M]�"��$FB&�#�-	M�-�-��]M�]""��$FB&V�F���6��#�-	M�-�-��-���]���"��$FB6V6��#�-	M�-�-�]}��"��$FB6V7&WB#�-	M�-�-�]�]""��$F֖�7G&F�"WF��B��7GVF��&V6�&G2#�-	-]�BM����--��"�M���R-=M��"��$F֖�7G&F�"6�v�֖�#�-	-]�BM����--�"��$Gf�6VB6WGF��w2#�-
+��]���R�-����"��$gFW"&�f��rF�R&VfW&V�6W2��V�F�RW�6�FR�B6Ɩ6�&W7V�RF�6��F��VR&�GV7F����#�-	���R=--]mM]���]M]]��"�-���-R���}�B��m��-R*�	��M��m�-�+�M��-�}���-�]������}-�M--�"��$vR#�-	-�}""��$���VF��&VfW&V�6W2�F�W2�f��6W2�7V'F�F�W2��7FW'2���fW7G2#�-	�]M��]M]]���M=���=����=-�-��=�-�-�R-�M]�"��$���vVB7FFW2(	B��RW"Ɩ�R�F�RfƖFF�"V�f�&6W2F�W6R�#�-	M��=-���R�-�����(	B���M���2�-��2���-]��-��-]����"��$�&VG�&V6�&FVB2V�&V6�&�R��V�F�RW�6�FR�B6Ɩ6�&W7V�S���ǒF��2F�R�2vV�W&FVBv���#�-
+=mR�-�]}]����]M�-�m�����	�-���-R���}�B��m��-R*�	��M��m�-�+�(	B}��-�=M]"=]�]��-�-������-�"M=���"��$�&VG�&V6�&FVB��V�F�RW�6�FR�B6Ɩ6�&W7V�R�#�-
+=mR�-�]}]���	�-���-R���}�B��m��-R*�	��M��m�-�+��"��$�&VG�&V6�&FVB��V�F�RW�6�FR�B6Ɩ6�&W7V�S���ǒF��2F�R�2vV�W&FVBv���#�-
+=mR�-�]}]���	�-���-R���}�B��m��-R*�	��M��m�-�+�(	B}��-��}M-�-������-�"M=���"��$��V�B�&��Ɩ�r#�-
+=�������R"��$���vR&�f�FW"�2Ɩ�VǒF�&VgW6RF��2v�&F��s�#�-	��-�M]�}�m]������]R-]=���-�m]"�r�}�-�R��#�"��$�7vW"#�-	�--]""��$V&�6R�Bv&G&�&RFW�Bv�W2F�F�R��vR��FV�2�6��B�W7B&RV�vƗ6��B6�W&�&VG��f��6W2&R&�V�B'�V�f�&���V�B�f&�&�R#�-	������-�]���-���M]mM��]]M�-���M]���}�m]��������-R�R����=����������-�-�M���RM]-���	=���}M-�}]]r"��$V&�6R(	BV�vƗ6���(	3Sv�&G2�6�W&�&VG�#�-	-�]���-�(	B����=�������(	3S��"�-�M���RM]-��"��$V&�6R(	BV�vƗ6��6�W&�&VG�#�-	-�]���-�(	B����=������-�M���RM]-��"��$ƖW2��ǒF�F��2W�6�FR�7V�F��rg&���F�W"W�6�FW2�2��B6�V�FVB�#�-	���]��]-�-�������-��2���}�M2�
+]�M�M==�R���}�M�"�R=}�-�-�-��"��$ƖW2F�WfW'�W�6�FR�bF��26W&�W2���6�VF��rF�R��W2F�R7GVF��w&�FW2�W�B�#�-	���]��]-���-]�]����-�=�]���-���}�-R�}-�-=M������]"M���R�"��$ƖW2F�F��26W&�W2���W"66V�W2�BF���wVR7F�26fVB�#�-	�-������]��]-��]��2�
+�]����Rm]���]������R�]���-��"��$ǒF�R6��vR#�-	���]��-�"��$&�f�#�-
+=--]mM]��R"��$&�f��2��ǒ�76�&�R��6RF�RW�6�FR&V6�W2#�-
+=--]mM]��RM�-=������R�]]]�M���}�M"--="��$&�fR�B7F'Bf��6���r#�-	��M--]M�-��}�=-�-�}-]�]��R"��$&�fR�B7F'B7WW'f�6VB&W�"#�-
+=--]M�-��}�=-�-����-���=]��R��-�]��R"��$&�fR�B7F'Bf�FV����ǒ&W�"#�-	��M--]M�-��}�=-�-�]���"-�����-�M]�m]�"��$&�fRW�6�FR#�-
+=--]M�-����}�B"��$&�fR��RV�WfV��'2�'&F���6��W6��rF�R7W'&V�B67&�B�B76�v�VB�'&F�"f��6R�#�-
+}]��-��M��}��V�WfV��'2M���}-=}��-]�=�]=�m]����}�}]����=������}}���"��$&�fR��RvV�W&F���WF�#�-
+}]���M�2=]�]m��M�"��$&�fR&VfW&V�6R6�#�-
+=--]M�-�]M]]��"��$&�fRF�R7W'&V�B67&�B�B'VFvWB��F�R&�GV7F���f�&��#�-
+=--]M�-R-]�=���m]�����Mm]""M��R}�=����}-�M--�"��$&�fRF�Rf��6�VBW�6�FR���G2vR�F�V�'V�F�RV&Ɨ6�7FvR�#�-
+=--]M�-R=�-�-�����}�B�]=�-��mR�}-]�}�=-�-R-M���=���m���"��$&�fRF�R6�#�-
+=--]M�-���"��$&�fRF�R&VfW&V�6R6���F�R6W&�W2r&VfW&V�6W2vR�F�V�&W7V�R�#�-	��-]�-R�=--]M�-R�}�m]����-��mR*�
+]M]]��+��}-]��m��-R*�	��M��m�-�+��"��$&�fRF��2&Wf�Wr#�-
+=--]M�-��-�"����"��$&�fRF��267&�B�BƗfR&�GV7F���WF�#�-
+=--]mM��-�"m]����=]�]m������-��M�"��$&�fVB'�#�-
+=--]M����"��$&�fVB6V�Ɩ�s�#�-
+=--]mM��������#�"��$&�fVBf�"&�&�R#�-
+=--]mM]��M��-]������"��$7V7B&F��#�-
+��-���]��R-���"��$76WB#�-	�-]��"��$76�v�f��6W2#�-	�}�}�-�=���"��$76�v�VB6�&7FW"f��6W2(	BV�WfV��'2�BƗ7��2#�-	=����]��m]�(	BV�WfV��'2���]���}m��=="��$B�V7B�6�&7FW'2�#�-	�����=����-���"�"��$VF��#�-	�}-=}�"��$WF�V�F�6F���&6�V�C�#�-
+�-]�-]�M�"��$WF�V�F�6F���6�V6�VB(	BvV�W&F�����BFW7FVB#�-	--��}m����-]]�(	B=]�]m���R��-]���"��$&6�F�6�v�֖�#�-	-]�=-����-]�M2"��$&Vf�&RvV�W&F���#�-	�]]B=]�]m�]�"��$&Vf�&RF��2W�6�FR6�&Rw&�GFV�#�-
+}]=��R]--]"�}-�����-�]��"��$&V�f��W"#�-	��-]M]��R"��$&V�f��W"(	BvW7GW&R�BW�&W76���7G��R#�-	��-]M]��R(	Bm]-�������"��$&WGvVV�#�-	�]mM2"��$'&�VbfƖB(	B#�-
+m]���������-]�2(	B"��$'VFvWB6&V6�VB�#�-	M�-�=�="����"�Mm]-�"��$'�#�-	�-�"��$'�W�6�FR#�-	�����}�M�"��$6��#�-	-�}�""��$6��2#�-	-�}�-�"��$6��(	B��F���rB7F�R#�-
+�������(	B��}]=��R]�]-�"��$6�W&'V�W2#�-	�-����]�"��$6�6V�#�-	�-�]�"��$6�6V�&WVW7FVB�#�-	}���]��-�]��"��$6�6V�Ɩ�r�#�-	}M}�-�]��]-��"��$6F���2#�-
+=-�-�"��$6��vW2��rF�W�&RG&v��6�F��26��2&V'V��B#�-�]��]"-�]���-�(	B�-�"��]"��M-��]]�-�"��$6�&7FW"#�-	�]��b"��$6�&7FW""#�-	�]��b""��$6�&7FW"�B#�$�B�]��m"��$6�&7FW"�bF�Rf��6R#�-
+]�-]=���"��$6�&7FW"&V��fVB�#�-	�]��b=M���"��$6�&7FW"6fVB�#�-	�]��b�]���"��$6�&7FW"f��6W2#�-	=����]��m]�"��$6�&7FW'2#�-	�]��m�"��$6�&7FW'2�#�-	�]��m��"��$6�&7FW'2(	B#�-	�]��m�(	B"��$6�&7FW'2�6��F���r�Bf��6W2#�-	�]��m��=M]��=���"��$6�V6�f��VB#�-	��-]��R���M]�"��$6�V6�&�GV7F���6WGF��w2#�-	��-]�-��-�������}-�M--"��$6�V6�7FGW2�B6fR&W7V�B#�-	��-]�-�--=��]��-�]}=��-""��$6�V6�F�R&�f�7FGW2�bF�R7W'&V�B��vW2&V��r�#�-	��-]�-R--==--]mM]���-]�=��R�}�m]�����mR�"��$6�V6�F�R&�f�FW"w2�v�&WVW7B��rf�"F��2'V���b��F���rv2FVƗfW&VBf�"�B�&V6�&BF�B&V��s���F���r�2FV�WFVB���F���r�2&V��VB�v�W&RV�6R��BW�7FǒF��2��RF�R�26V�Bv���#�-	����-�-R"m=��R}���"��-�M]�	]�����]�2��}]=��R-�M��(	B�-�]-�-R�-���mS���}]=��R=M��]-�������R}��-�"M==�R�]-R�R�����-�����--����-�-��]-��-���-�"�M��M=���"��$6�V6�F�R&�f�FW"w2W6vRf�"F��2'V���b��F���rv2FVƗfW&VBf�"�B�&V6�&BF�B&V��s�W�7FǒF��2��R6���2�FRv���B��F���rV�6R6��vW2�#�-	����-�-R]�B2��-�M]}�-�"��=���	]�����]�2��}]=��R-�M��(	B�-�]-�-R��mS���--���=M]"M]���-���-�"�M��-�}�"�����R��}]=��R�}�]��-��"��$6�V6���r��F�f�6F���6WGF��w>(
+b#�-	��-]�]��-����=-]M���]���(
+b"��$6�V6���r7FGW2F�W2��B7V&֗B��F�W"f�FV�vV�W&F����#�-	��-]�--=�R}�=�]"��-=�=]�]m��-�M]��"��$6�V6�7V�#�-	���-�����=��"��$6���6R��R�bF�R�7GW&R6WGF��w2�#�-	-�]�-R�M���r-��-�"�-�����"��$6���6R��R�bF�R7V'F�F�R�F���2�#�-	-�]�-R�M���r-��-�"=-�-�"�"��$6���6R��R�bF�R7W�'FVBf�FV���FV�2�#�-	-�]�-R�M�2�r��MM]m�-]��R��M]�]�-�M]��"��$6���6R��R�bF��26W'fW"w2f��6R6��G2�#�-	-�]�-R�M���r��-�"=����-�=�]-]�"��$6���6R&�GV7F���7FvW2g&��F�RW�6�FRf�&ӲV&Ɨ6���r�26W&FR�#�-	-�]�-R�-��"M��R���}�M�	�=���m��-������]-��-M]�����"��$6Ɩff��vW"�&WV�&VB'�F�RfƖFF�"�#�-	��-�="M���R���}-]���M����-]���"��$6Ɨ2#�-	�����"��$6���W"'V�W2#�-	�-��m-]-"��$6���WFVB#�-	}-]�]��"��$6���WFVB7FvW2&R6��VB�Bf��6�VBF�W2&R&WW6VB�6�&R�'V���r�WfW"&WVG2v�&��#�-	}-]����R�-�����=��-��=�-�-�RM=�������}=�-���--����"��$6��f�wW&VBF�&�Vv�&6�V�BV�f�&���V�Bf&�&�W2��ǒ�F��2vR6��w2v�WF�W"7&VFV�F���2&W6V�B(	B�WfW"�G2f�VR���6V7&WB�26V�BF�F�R'&�w6W"�"7F�&VB��F�RFF&6R�#�-	���}�}M�-�"�-���R]-]�
+�--��m���}�-]"���}�R���}����R]=�}�}]��R�
+]�]-��R�]]M�-�"=}]��R�]���-�"}R�"��$6��f�wW&VB(	B66W72��BfW&�f�VB#�-	�-�]��(	BM�-=��R��-]]�"��$6���V7FVB#�-	�-�]��"��$6���V7F���FW7G2&R#�-	��-]����M���}]����-�""��$6��F��VW2F��26W&�W2g&��F�RV�F��r��R�W7B&�fVB�#�-	��M��m]"]��-�=�M������-���-�=--]M����"��$6��#�-
+����=�-R"��$6�7B#�-
+-����-�"��$6�7B��r#�-	m=��]�M�""��$6�7B���F�"#�-
+=}"]�M�""��$6�7G2#�-
+]�M�"��$6�7G2(	B6W&�W27GVF��#�-
+]�M�(	B
+-=M��]���""��$6�V�B��BWFFR��F�f�6F���2�&Vg&W6�F�RvR�BG'�v���#�-	�R=M������-�-�=-]M���]����	���-�-R-��m2�����=�-R��-�"��$7&VFR6W&�W2#�-
+�}M-�]��"��$7&VFVB#�-
+�}M��"��$7&VFW2��RVF��f��Rg&��F�R7W'&V�B�'&F�"Ɩ�W2��BF�W2��BvV�W&FR�"6��vRf�FV����vW2�&VfW&V�6W2��W6�2�"W��7F��rF�W2��B�BF�W2��BV&Ɨ6��#�-
+�}M"�M��=M��M���r-]�=��R]�����}}���	�R=]�]�=]"��R�}�]��]"-�M]���}�m]����]M]]����=}��2���=�]--=���RM=�����}]=��R�=���=]"�"��$7W'&V�B6�fW'6���#�-
+-]�=��-]�����"��$7W'&V�B7FvR#�-
+-]�=����-�"��$F6�&�&B#�-	=�-��"��$FVfV�B#�-	��=���}���"��$FVfV�B'VFvWBf�"�WrW�6�FW2�U4B�#�-
+-�M-����Mm]"��-�R���}�M�"�U4B�"��$FVƗfW&VB'�#�-	M�--��]""��$FW67&�&RF�R6�&7FW"#�-	���-��]��m"��$FW67&�&RF�Rv&�V�B&F�W"F��v�B�B�VfW2&&R�#�-	�����-R��]M�]"�M]mM���R-��}-����-��-]"�"��$FW67&�&RF�R��6F���#�-	���-����m��"��$FW67&�F���#�-	�����R"��$FW67&�F���(	BV�vƗ6���(	3Sv�&G3�vV��WG'���FW&��2�f��GW&W2�f�Wr#�-	�����R����=�������(	3S��#�=]��]-����-]�����-��-��-�B"��$FW67&�F���(	BW�7B�FV�2�6���W'2��FW&��2�6��W2��WvV��W'�#�-	�����R(	B�]M�]-��M]mM��m-]-��-]�����=-��=��]���"��$FW67&�F���2fVVBF�R&VfW&V�6R�B�W�g&�R��FV�2�7FFRv�B�W7B�WfW"��fR(	BF�B�2v�B�VW2vV��WG'�6��6�7FV�B&WGvVV�6Ɨ2�#�-	�����������}=�-�M��]M]]��"����}]-�R�M�"�
+=�m�-R����R�]M�]-��RM��m���]]�]�-���]mM2�������"��$FWF��#�-	��M���-�"��$F���wVR��wVvR#�-
+�}���}-=}��"��$F���wVR+rV�vƗ6�#�-
+]�����+r�=������"��$F�6&�R��F��2'&�w6W"#�-	-����}�-�"�-��=}]R"��$F�6&�VB�#�-	�-���}]���"��$F�v���B�'&F���G&6�#�-
+�}-�M��m�2�}}��"��$GW&F���#�-	M��-]����-�"��$T�UdT��%5����U��2��B6WB��F��26W'fW"�#�$T�UdT��%5����U��R}M���-��]-]R�"��$V6���"'V�2F�RV�v��Rw27FvW2��&6�w&�V�Bv�&�W"�W6��r7F�2BF�R�W�B7FvR&�V�F'��&W7V֖�r6��26���WFVB7FvW2�#�-	�mM�}M}-������]"�-��"M���-����m]R�	�=}-�-]"�=��mR�-��"���M��m]��R���=�]"}-]����R�-���"��$V6�&�r&V��r��W2F�RW�6WF����BF�RƖ�RF�B&�6VB�B�#�-	"�mM��-��R��mR(	B����}]��R�-������-������-�}������"��$VF�B#�-	�}�]��-�"��$VF�B�FV�F�G�#�-	�}�]��-��]��m"��$VF�B7��V�Ɩ�W2#�-	�}�]��-�]�����"��$V���#�-
+��]�-������}-"��$V�����F�f�6F���2#�-
+=-]M���]������}-2"��$V�&�R�TĔ�U����u��B��F�R6W'f�6RV�f�&���V�BF�W6RƗfR&�GV7F����#�-	-���}�-R�TĔ�U����u��B"�]]�]���R��=m]���]-��}-��}�=�-�m�-�R���}-�M--��"��$V�&�R��F�f�6F���2#�-	-���}�-�=-]M���]���"��$V�G���B#�$����M����""��$V�G2��#�-	}��}�-]-���"��$V�v��RFWF��#�-	��M���-�M-�m�"��$V�v��R��r#�-
+-]]��}]���m=��"��$V�vƗ6�#�-	�=������"��$V�FW"�V����B77v�&B�#�-	--]M�-R��}-2������"��$V�F�G�#�-	��]�""��$W�6�FR#�-
+]��"��$W�6�FR'VFvWB�U4B�#�-	�Mm]"���}�M�U4B�"��$W�6�FR'VFvWC�V�FW"f��FR��V�Bw&VFW"F���W&��#�-	�Mm]"���}�M�=�m�-R��]�-�=�=��2����R�=���"��$W�6�FR7&VFVB�#�-
+���}�B�}M��"��$W�6�FRFWF��2#�-	�-�������}�M"��$W�6�FR�B#�$�B���}�M"��$W�6�FR��&�w&W72#�-
+]��"�-R"��$W�6�FR��6���FR�#�-
+��=��m�����}�M�"�"��$W�6�FR6fVB�#�-
+���}�B�]���"��$W�6�FR6��V�F���#�-
+-]-�-�����}�B"��$W�6�FR��B'��2��B&VV��V�VB�WB�#�-
+]����B'�]��R�-��-�"��$W�6�FW2#�-
+���}�M�"��$W�6�FW2v�F�6�7B#�-
+���}�M�]�M��"��$W'&�"#�-	����"��$W'&�"�#�-	�����"��$W7F��FVB#�-	�m]��"��$W7F��FVB6�7B#�-	�m]��-����-�"��$W7F��FVBvV�W&F���6�7C�#�-
+}-��-����-�=]�]m���"��$W7F��FVB7V�B#�-	�m]��]�M�""��$WfV�B#�-
+��-�R"��$WfW'�&�GV7F���WfV�B�2V���VB��6R�v�F�F�R&V6����F�R�WGFW"�#�-	�mM�R��-�R���}-�M--=]�M�"�������M��r���}��(	B"�������R�"��$WfW'�66V�R�266WFVB�&�GV7F���6'&�W2��g&��F�RW�6�FRvR�#�-	-Rm]������-��	���}-�M--���M��m]-��-��m����}�M�"��$WfW'�67&VV��7vW'2�#�-	-R�����--]}�"�"��$WfW'�67&VV��fWF6�VBv��7BF��26W'fW"w2�v�FF&6R���w&�FW2����Bv�&��#�-	�mM�������-��-���}R�-�=�]-]�	��}]=��R}���-]-����}]=��R���}�-]-��"��$WfW'�F���r��fƖv�B�����R67&VV��F��2vR&Vg&W6�W2�G6V�b�#�-	-�}-�"�-R���M������R�
+-��m���-��]-���"��$d���U�6��F��2�VFW"�"f&�&�R&Vf���7FR��ǒF�RgV���W���C��W��6V7&WBf�VR�#�-	"d���U������]M��}=���-��������]]�]�����	---�-R-����������R}�}]��R�W���C��W��6V7&WB�"��$d���U�6��F��2V�FW2�"�6���r6�&7FW'2�7FRF�RgV��f�VR6��VBv�V�F�R�W�v27&VFVB�#�-	"d���U�]-��-�}�������-�������-���	---�-R�����R}�}]��R������-���R���}M������}�"��$d���U�6��F��2v��FW76R�"����44��6�&7FW'2�6��F�R6���WFR�W�v���#�-	-�=-�d���U�]-���]�������-�����R��-����
+����=�-R���������r]�r�"��$d���U��2֗76��r�#�$d���U��R}M��"��$d���U��W7B6��F��&�F��W���B�B�W��6V7&WB6W&FVB'�6�����F�RF6�&�&B�B���R�2��B�W��#�$d���U�M��m]��M]m-��B�]�]-�=�}-�}]]rM-�]-�}�R�	�M��=��B�r������}]��]M�--�}���"��$f��R#�-
+M��"��$f��W2&Rw&�GFV�V�FW"#�-
+M����]���-�""��$f���F��2��WF��F�6�ǒ#�-	}�����-�--��-�}]��"��$f���&�f�#�-
+M������R=--]mM]��R"��$f���66V�R�B#�$�BM�������m]��"��$f��6�VB#�-	}-]�]��R"��$f��6���r��#�-	���}-]�]���"��$f�'7B6Ɨ#�-	�]-������"��$f�'7B6Ɨ+r�&�Uf�F�6W&�W27GVF��#�-	�]-������+r
+-=M����]���"�&�Uf�F"��$f���#�-	��-�]��S�"��$f�"f�W"��6V6��B66V�W2�6���6R֖��V�36V6��G2�B����V�C6V6��G2�v�F�֖��V�B66V�W2�'VFvWB�B&VvV�W&F���Ɩ֗G2&R6VB'��#�-	M��}]-�Rm]����]�=�B}M�-RM��}��3(	3C]�=�B������=�Bm]���	-]]��R�=��}]����Mm]-���--��"}M�-��-������"��$f�"F��26W&�W3�F���wVR�7VV6��B7V'F�F�W2���FW&f6R��wVvR�26W&FR&VfW&V�6R�w&�FRF���wVR��F�R6V�V7FVB��wVvR�#�-
+�}��]������}-=}���=-�-�"�-�=�]���
+�}����-]M]�-��]-��-M]�����	����-R]������-������}��R�"��$f�&6R#�-	���=M�-]�������--�"��$f�&6R&VvV�W&F����b�66V�R�"7FvR�G2�6���6W&FVB�#�-	��--����}M-���Bm]�����-��"}]]r}��-=�"��$f�&6VBF�W2&R�Wr���WF&�RF�W2�f�vvVB�B��vvVC�V&ƖW"F�W2&R�WB�#�-	��--���=]�]m���}M"��-�RM=��}����"m=��R�	�]M�M=��R�]���-��"��$f�&v�B77v�&C�#�-	}��������"��$f�&�B#�-
+M��""��$f�&�B&VfW&V�6R#�-
+�-���M��-2"��$g&�W2F�RVƗG�6�V6�6V�B&6�#�-	�M�"}��-����-]����}]--"��$gV��W�6�FRvV�W&F���&V���26��V�FVB�F�Rf�'7B6Ɨ&Wf�Wr�26W&FR&�f�f�"��R�BvV�W&F����#�-	M��=]�]m�����}�M-]=]-��=��R�]=�-��mR�	�]-��������]]"�-M]����R�=��R��M�2��-�=�=]�]m���"��$gV��W�6�FR'V�2W6R6��V�FVB&�f�FW"6��2�#�-	-�}�-���-�M]�""���}�MR���-�=�-��"��$gV��W�6�FW2&R��vVB��F�V�"W�6�FRvW2���F���r�2V&Ɨ6�VBWF��F�6�ǒ�#�-	�����R���}�M�}�=��-��-��mR���}�M�"�	--��-�}]����=���m���]"�"��$vV�W&FRf�'7B6Ɨ#�-
+�}M-��]-������"��$vV�W&FR�'&F���G&6���ǒ#�-
+�}M-�-�����M��m�2�}}��"��$vV�W&FRF�R&VfW&V�6R6�f�"F�R7W'&V�B6W&�W26WGF��w2f�'7B�#�-	��]M]]��"M��-]�=��R�-�]�]��R=�-�"�	�-���-Rm=�����]M�]�}M}���}��=m��=-��-�����2�}-]��-���M=�-�-�2���"��$vV�W&FVBf�"V6�W�6�FR(	B&�WBC��#�-	=]�]�=]-�M���mM�=����}�M(	B�����C��"��$vV�W&FVB�FW&��f��VBVƗG�6��G&���&Wf�WrF�Rf��VB66V�W2��F�R��"��r�W��7F��rF�W2&R&WF��VB�#�-	�-]���R������-]�2�}]--�	����-�-R}�]}����m]��"m=��R}M}��
+�}M���RM=���]�]���"��$vV�&R#�-	m�"��$��v�(	B��6�'W"&VfW&V�6W2�B&WGFW"Ɨ�7��2#�-	-����R(	B����]R}-��R]M]]����=}���������"��$����(	BF�RVW7F����"��vRF�RW�6�FRV�G2��#�-	��}��(	B-�������r����-���}��}�-]-����}�B"��$�&�fR��f��rF��2W�6�FRF�f��6���r�WF�F�RFF�F������V�B&�fR����Wrf�FV��2v]z��-�G����ƭy�R���]"�"��%F�R7GVF��F�W2��B���rv�WF�W"F��2��Rv2FVƗfW&VB��B&WVF��r�B&Ɩ�Fǒ�2F�R��R֗7F�RF�B�2Gv�6R�6��B7F�2�B6�2��R���7FVB�bFV6�F��rf�"��R�#�-
+-=M���R}�]"�������-�����]���]�����--�(	B]M��--]��������}��-�=���-�"M-mM��	���-��2���-�-��-]-�����-]"-��R]�]"}-�"��%F�R7GVF���2w&�F��rF�R67B�B�6W2�#�-
+-=M�����]"�]��m]�����m���"��%F�R7GVF���2w&�F��rF��2W�6�FR�#�-
+-=M�����]"�-2]���"��%F�R7GVF���VW2��W"&�fVB67B�v&G&�&R�B��6F���2�F��2W6W2F�R��wVvR��FV��B6�7G2fWr6V�G2�#�-
+-=M���]��]"=--]mM���R�-�"��M]mM2����m���	�����}=]-��}���-���M]����-�-��"�]������m]�-�"�"��%F�R7GVF��w&�FW2��ǒv�F�F�R67B�B�6W2��R&�fVB��B�WfW"��fV�G2�Wr6�&7FW"�"��6F����#�-
+-=M�����]"-�����-]���]��m������m�������-��R-�=--]M����	��-�R���R��M=��-]"�"��%F�R7GVF��w&�FW2F�R67B�B�6W2g&��v�BF��26W&�W2�&VG�W7F&Ɨ6�VB��B�VW2WfW'�F���r��Rw&�FR��W'6V�b�#�-
+-=M������]"�]��m]�����m����-��2�}-�=mR�}��"�-��]��R���R-��]"��}]=��}-�-���������"��%F�RGv�77v�&G2F���B�F6��#�-	�����R�-�M�"�"��%F�RW��FVBf��R�2��BUDbӂFW�B�#�-	}==m]����M��M��m]��-�-]�-��"��M��-�RUDbӂ�"��%F�Rf��6Rf&�&�R��R��6��F����ǒբ�Ӓ�BV�FW'66�&W2�#�-	"��]���]]�]����=���M��=-���-�����(	5��(	3����M}��-����"��%F�W6R6�&7FW'27V�'WB�fR��f��6R76�v�VC�#�-
+2�-�R�]��m]�]-�]���������R�}�}]�=����"��%F�W6R6�V6�26��f�&�6��f�wW&F������BW&֗76���F�vV�W&FRv�F�WfW'���FV��V�WfV��'2�7W&6R�B#"6��6�FW7B�WFFF66W72v�V�6���V7F���FW7G2&RV�&�VB���vV�W&F����27F'FVB�#�-
+�-��-]���M--]mM]"�-�����	M�-=��=]�]m���mM����M]����-]�]-��-M]�����	M��V�WfV��'2�7W&6R�#"M�-=��-�mR��-]��=m]��=���]����-���}]��	=]�]m���R}�=�]-��"��%F�W6R6�V6�26��f�&�6��f�wW&F������BW&֗76���F�vV�W&FRv�F�WfW'���FV��f����V�WfV��'2�7W&6R�B#"6��6�FW7B�WFFF66W72v�V�6���V7F���FW7G2&RV�&�VB���vV�W&F����27F'FVB�#�-
+�-��-]���M--]mM]"�-�����	M�-=��=]�]m���mM����M]����-]�]-��-M]�����	M��f����V�WfV��'2�7W&6R�#"M�-=����-]��=m]��=���]����-���}]��	=]�]m���R}�=�]-��"��%F�W6R��vW2&Rg&���V&ƖW"fW'6����bF�R&�&�R�#�-
+�-��}�m]���(	B�"�]m�]�-]�������"��%F��266�V�B�2��B7GVF��F֖�7G&F�"�#�-
+2�-�=���=�-�]"�"M����--�-=M���"��%F��2'&�w6W"F�W2��B7W�'BW6���F�f�6F���2�W&R�G'�6�&��R����W"6��WFW"�#�-
+�-�"=}]�R��MM]m�-]"W6��=-]M���]���}M]��	����=�-R6�&��R�������-]R�"��%F��26V�Ɩ�rF�W2��B6�fW"#�-
+�-�"��-�����R����-]""��%F��2W�6�FR'VFvWB�U4B�#�-	�Mm]"�-�=����}�M�U4B�"��%F��2W�6�FRv�����B'V��WB�#�-
+���}�B����]��}�}�=-�-��"��%F��2f6R�2�WB#�-
+�-���m�}�]��]��"��%F��2�2v�W&RF�R���W�v�W3�f�FV�&W6��WF����&VfW&V�6R6�'�W72�BƗ�7��2�F�&VR�֖�WFRW�6�FRB����V�'V�2vV���fW"�V�G&VBF���'2�6�&�6RF�R'VFvWB&�fRF��F6�(	B�BF�R6W'fW"w2�v�6V�Ɩ�r62�B&Vv&F�W72�#�-	��]����M=]�M�"M]��=��}]�]��R-�M]��}-��-�]M]]��"��������
+-]���=-��]���*�	����=�\+�-��"}�]-������R�-��M����"(	B��M����-R�Mm]"-��R��--]---]�����=}-�-R�}-���-����]-]--���=��}�-]"-]]2�"��%F��2��"F�B��B&W�'BF�B&WVW7B2&VgW6VB�#�-
+�-}M}�R������-�}R��-���2}��2�"��%F��2��"�27F���V�FW"v��W6R�"6�6V��Bf�'7B�#�-
+�-}M}]�-������]-��
+�}���--�-R��=}2����-�]��-R�"��%F��2vR6�vV�W&FR��R�B6ƗgFW"��W"&�f��gV��W�6�FR&�GV7F���&V���2����6���FR���F���r�2V&Ɨ6�VBWF��F�6�ǒ�#�-	��-��-��mR��m���}M-��M����-����������R-�]=��=����	�����R���}�M�}�=��-��-��R-��mR�	--��-�}]����=���m���]"�"��%F��2vR6�vV�W&FR��R�B6ƗgFW"��W"&�f��gV��W�6�FW2&R��vVB��F�V�"W�6�FRvW2���F���r�2V&Ɨ6�VBWF��F�6�ǒ�#�-	��-��-��mR��m���}M-��M����-����������R-�]=���M--]mM]����	�����R���}�M�}�=��-��-��mR���}�M�"�	--��-�}]����=���m���]"�"��%F��2vR�2f����v��rF�R'V��WrƖ�W2V"��F�V�"�v��#�-
+-��m�]M�"}��=����(	B��-�R-������-���-����"��%F��2vR�VVG2fƖB&V6�fW'�Ɩ��&WVW7B�Wr��R�#�-	�=m�M]�--=������M��-�-��-�]��������	}���-R��-=��"��%F��2vRv2�V�VBv�F��WB&V6�fW'�Ɩ��#�-
+�--��m�-��-]r����-�-��-�]����"��%F��267&�Bv�����B'V��WB�#�-
+�-�"m]�������R}�=-�-��"��%F��26W&�W2�2��6�&7FW'2�WB�FBF�V�&Vf�&Rw&�F��r�W�6�FR�#�-
+2�-�=�]��]��]"�]��m]��	M�-�-R�R��]mMR}]���-�]���"��%F��26W&�W2�2����6F���2�WB�FB��R&Vf�&Rw&�F��r�W�6�FR�#�-
+2�-�=�]��]��]"���m���	M�-�-R]�-���M�2��]mMR}]���-�]���"��%F��26W&�W2�2��6V6���WB�FB��R��F�R6W&�W2vR�#�-
+2�-�=�]��]��]"]}���	M�-�-R]=��-��mR]���"��%F��26W&�W2�2��F���rw&�GFV��WB�FB��vƖ�R�"�W�6�FRf�'7B�#�-	���-�"]�������}]=��R������	M�-�-R��=������]���"��%F��26W&�W2�2��B&VG�F�f����WB�#�-
+�-�"]������]��}����-��"��%F��26W&�W2�26WBF��V���v��7GW&RVƗG���VƗG�'��#�-
+2]��}M���]�}-]-��R�}]--��-�����"��%F��26W&�W2�26WBF�7V�BWF�G�v�FVC��g�W"W�6�FR�'WBF�R6W'fW"62WfW'�W�6�FRBG�6V�Ɩ�s��g��&�6R���U�4�DU�%TDtUE�U4BF�B�V7BG�v�FVC��g���F�R6W'f�6RV�f�&���V�B��"��vW"F�R6W&�W2'VFvWB�#�-
+2]��}M��M�G�v�FVC��g��]�����]-]�=��}�-]"��=�]��=����G�6V�Ɩ�s��g��	��M����-R���U�4�DU�%TDtUE�U4B�����=�M�G�v�FVC��g�"��=m]���]-�(	B���=�]����-R�Mm]"]���"��%F��27GVF���2��B6��f�wW&VB�B6���B&RW6VB�WB�#�-
+-=M��]��R�-�]���]M�-=��M���-��"��%F��2F�W2֖�WFR�"Gv��F�RvR&Vg&W6�W2�G6V�b�#�-
+�-�}���]"���=-2�M-R�
+-��m���-�-���"��%F��R�VgB�BF��2'V�w2�v�6R#�-	�-������-]��2��=���=��"��%F�F�R#�-	�}-��R"��%F�&VF�#�-	�]]��-â"��%G�R#�-
+-��"��%V�V7�(	B6��WF���r�2��f��r#�-
+-]-�m��(	B}-��-�M-��=���"��%V�F�F�VB#�-	]r�}-���"��%V�fW&�f�VB#�-	�R��-]]��"��%W��B#�-	}==}�-�"��%W6R�6�F�fR66V�R6�V�G2�BGW&F���3�֖��V��W7B��BW�6VVB����V��#�-	����}]--�m]��M��-]����-�M��m���-�����R�=���	�����=��RM��m]��]-��-�����=��"��%W6VBf�"WfW'�W�6�FR�bF��26W&�W2���6�VF��rF�R��W2F�R7GVF��w&�FW2�W�B�fV�2�6�7G2&�WBGv�6Rf7BW"6V6��B�bf�FV�F�RW7F��FR&Vf�&RV6�'V�W6W2F�R��FV�6��6V��W&R�#�-	�����}=]-�M��-]R]���-�=�]���-���}�-R�}-�-=M������]"M���R�	��}��fV�2�-��"���]��-M-�RM��mRf7B}]�=�M2-�M]��m]���]]B}�=���}�-]-���-�����}M]���M]���"��%d�#�-	}�M��"��%f�VR#�-	}�}]��R"��%f&��B#�-	-��""��%f&��B�B#�$�B-��-"��%f�FV�7V7B&F��F�R6��f�wW&VBf�FV���FV�7W�'G2c���"��b�#�-
+M��"-�M]�-������M]����MM]m�-]"c�������b�"��%f�FV���FV�#�-	��M]��-�M]�"��%f�FV�&W�"�2��B6���WFR�WB�6�f��6���r6���B&R���VB�"7F'FVB�#�-
+]���"-�M]�]��R}-]������-��2}-]�]��R�]��}��������--����}�=-�-��"��%f�Wr#�-	����-]-�"��%f�Wrf�'7B6Ɨ(i"#�-	����-]-��]-������(i""��%f�Wr��FVw&F���2(i"#�-	�-��-���-]=m��(i""��%f�WrF�RW�7BvV�W&F���&��B#�-	����-]-�-�}�������"=]�]m��"��%f�7V�7G��R(	BV�FVBF�WfW'���vR�Bf�FV�&��B#�-	-�}=�����-���(	BM�-��]-�"����-��}�m]����-�M]�"��%f��6R#�-	=���"��%f��6R�B(	BF��2�2F�Rf�VR#�%f��6R�B(	B�-��]-�}�}]��R"��%f��6R�Bf&�&�R��R#�-	����]]�]�����B=���"��%f��6R6��G2&R6WB��F�R6W'fW"��6R�2#�-
+��-�=����"}M�-��]-]R�M��r���"��%f��6W2��F��2V�WfV��'266�V�B#�-	=�����-����=�-RV�WfV��'2"��%v�F��rf�"��RF�&�fRF�R&VfW&V�6R6��#�-	mM"����-�=--]M�-R��]"]M]]��"�"��%v&G&�&Rf&��B&V��fVB�#�-	-��"�M]mM�=M���"��%v&G&�&Rf&��G2#�-	-��-�=M]�"��%v&��w3�#�-	�]M=�]mM]���"��%vF6��"F�v���BW�6�FR#�-
+��-]-�����}-����}�B"��%vRv���V���&V6�fW'�Ɩ���B�V�2vRv�W&R��R6WB�Wr77v�&B�#�-	���-�-�����2����}-R�	���]��-��]-�-��m�}M�����-�=������"��%v�B#�-	�}�}]��R"��%v�B6��V�B�V���F��2W�6�FS�#�-
+}-�M��m�����}��-�"�-��]���"��%v�BF�6��vS�#�-
+}-��}�]��-��"��%v�V�#�-	��=M"��%v�W&RF�R�7BW�6�FRV�FVB#�-
+}]�}���}��������]��"��%v�W&RF�W6R&R6WB#�-	=MR}M-����}�"��%v�W&RF��2'V��2v�BF�#�-	M�}]=�M����-�"��=��"��%v�����w2�BB6W&�W27F'B(	B��R�BW"Ɩ�R#�-	�-�}�]""�}�R]��(	B���M���2�B�-��2"��%v�����B&R'V�#�-	�R=M]"}�=�]��"��%v�&�2v�F�F�R7GVF��F"6��6VB�FVƗfW'�FWV�G2����W"'&�w6W"�B7�7FV���F�f�6F���6WGF��w3�6�VW��r�"�ffƖ�RFWf�6W2&V6V�fR�B�FW"�#�-
+�-]"��}��-��-��M�R-=M���	M�--�}-��"�"�-�]�=}]��-]������]R=-��--����=-��--�]r��-]�]-���=}�"=-]M���]��R��}mR�"��%v�&�B#�-	���-���"��%v�&�B6fVB�#�-	��]���]���"��%v�&�B(	B#�-	���-���(	B"��%w&�FR�B����W"�v�v�&G2������wVvR(	BF�R7��V�Ɩ�W2v���&R��#�-	�����-R-������-���������}��R(	B]�����=M="�"��%w&�F��rF�R&�&�R7F�VB�#�-	}����]��R�-��-�����"��%w&�F��rF�RW�6�FR7F�VB�#�-	�����R]���-��-�����"��%��W"'&�w6W"6���B��F��2f�FV��W6RF�RƖ�&V��r�#�-	=}]�R��m]"-����}-]-�-�M]��	�����}=�-R���2��mR�"��%��W"W�6�FR�2&VG�#�-	-����}�B=�-�""��%��W"�v��W6�2#�-
+-���=}��"��&66WFVB#�-����-�"��&�&VG�F��R#�-=mRM]���"��&�6�#�--�mR"��&�FW&�FR#�-��-]�-�-���"��&�W7F��FR���BV�FR#�-�m]����Rm]�"��&�Bf����B���F�Rf��R�2v�B֖v��&VB�6�&7FW"f��6R�G2W6RF�RW"�6�&7FW"f&�&�R��R6��v���F�R6�&7FW'2vR�#�-�}�����-R�
+M���R-���}]-�"v�B�	M��=����"�����}=�-R��]��]]�]���R�-��m��]��m]��"��&��F�W"�'G&�B�2�WB#�-}�]���M==����-]""��&&�fVB#�-
+=--]mM]��"��&2#�-"M��-R"��&76V�&�R#�-	���-b"��&B7FvR#�-��-�R"��&'&��V�#�-����"��&'�#�---��"��&6�6V��VB#�-	�-�]�]��"��&6�6V�Ɩ�r#�-	�-�]��]-�"��&6#�-����""��&6��vR��6W&�W26WGF��w2#�-�}�]��-�"�-���R]��"��&6�&7FW'2#�-	�]��m�"��&6Ɩff��vW"#�-��-�="M���R"��&6Ɨ2#�-�����""��&6Ɨ2�#�-�����"�"��&6���WFR#�-	=�-�-�"��&6���WFVB#�-�-��}-]�]��"��&6��F��VW2#�-��M��m]""��&FVfV�B#�-��=���}���"��&FVƗfW"#�-
+�]�]��R]}=��--"��&F���wVR��#�-]������"��&F�&V7F���#�-
+]m�="��&F�W2��B�F6�F�RV�v��Rw2�v�F�F�#�-�R�-�M]"�--]�����-�=��M-�m�"��&F��R#�-	}-]�]��"��&G&gB#�-
+}]��-��"��&G&gFVB'�F�R7GVF��#�-}]��-��-=M��"��&V�G���F��26W'fW"#�-�]-]R�R}M�"��&V��U2#�-	�=������"��&W�6�FR#�-���}�B"��&W7F��FR#�-�m]��"��&W7F��FVB�B&W6W'fVB�7GV�&�f�FW"&��Ɩ�r�2V�fW&�f�VC�F��2��V�B�2W�6�VFVBg&��6��V�FVBW�6�FR6�7G2�#�.(	B�m]���]}]"�
+M�-�}]��R����R�R��-]]���-=���R-]�M�""]�M���=��m�����}�M�"�"��&W7F��FVB��ǒ���B6�&vVB�W&R#�--������m]���}M]��R����"��&f��VB#�-	����"��&f��VE�&�f�FW"#�-	������-�M]"��&f��VE�#�-	�R���M]���-]��}]--"��&f���WF�V�F�6F���f��VB�6�V6�F�R��W���&V�FW"�#�&f����R�����--��}m���	��-]�-R�����r"&V�FW"�"��&f���WF�V�F�6F���f��VB��V���FVw&F���2F�6��&RF�R��FVB�W��B�B6�V6�WF�V�F�6F���v�F��WBvV�W&F����#�&f����R�����--��}m���	�-���-R*�	��-]=m��+��-���m��-]�-��B}==m]���=����}���-]�-�--��}m��]r=]�]m���"��&f���6�V�B��B6���WFRF��2�W&F����6�V6�F�R6fVB&WVW7B7FGW2&Vf�&R6��F��V��r�#�&f����R��2}-]��-���]m���	�]]B��M��m]��]���-]�-R--=�]����=�}���"��&f���6�V�B��BFWFV7BF�R&WV�&VBf6R��F�R��WB��vR�#�&f����R��2��=m�-��=m��R��m��-]�M����}�m]����"��&f���6�V�B��BF�v���B���WBf��R�6�V6�F�R6fVB&WVW7B��f���&Vf�&R&WG'���r�#�&f����R��2�}-�-]�M���M���	�]]B��--��������-�����-]�-R�]�����}��"f����"��&f���6�V�B��B&VB���WB��vR�6�V6�F�R6fVB&WVW7B��f���&Vf�&R&WG'���r�#�&f����R��2��}�--�-]�M��R�}�m]��R�	�]]B��--��������-�����-]�-R�]�����}��"f����"��&f���FV�VB66W72B7V&֗76�����W�F�B�2�&VG�&VV�&���VBf�"v�&���F��26�R'V��2F�RW&֗76���2�B�VVG2�6�6�V6�F�Rf���&��6Rf�'7C��66�V�B�WB�b7&VF�B�2&VgW6VBF��2v��#�&f����-�}�"M�-=�R��-�-�R}���	���r���-���2"�-��mR��=��R=mR�}������-���]]"�=m��R�-(	B���-��2�}���-]�-R��f������=�"]r]M-"���=}]"�-�r��]���-��"��&f���FV�VB66W72v���R&VF��r&WVW7B�B�B�&VG�66WFVB�F��2�2��B&��bF�B�Wr7V&֗76���v�V�B&R&VgW6VB�F�R6fVB&WVW7B�2�WB��B&W7V�R&R�&VG2�B��7FVB�b���rv���#�&f����-�}�"M�-=�R��}-]���}�����-����}]]M�=mR������
+�-��RM��}�-]"�}-���-��-�-�����-����]��
+�]�����}���R=M����*�	��M��m�-�+��]]}�-]"]=���R���-�"}��-��"��&f���&VgW6VB&WVW7B�B�B�&VG�66WFVB#�&f����-�}�"}��R���-���=mR�����"��&f���&VgW6VBF�vV�W&FRF��2V�FW"�G26��FV�B�Ɩ7����F���r�2&WG&�VB���G2�v�6��vRF�Rv�&F��r�Bv2v�fV�(	Bf�"&VfW&V�6RF�B�2F�R6�&7FW"w2V&�6R�"F�Rv&G&�&R�FV��f�"6Ɨ�B�2F�R66V�Rw27F���(	B�B'V�F�RW�6�FRv���#�&f����-�}���-��}M--���-����-����
+����]R��}]=��R��--��]-��}�]��-R�����R���-��R]�2M��(	BM��]M]]��-�-�]���-��]��m����]M�]"�M]mM��M������(	BM]�--�R"m]�R�(	B�}�=-�-R]����-�"��&f���&V�V7FVB���WBf��R�"&�WFW"�6�V6�F�R6fVB&WVW7BFWF��2�#�&f����-������-]�M���M�������]-�	��-]�-RM���R�]����=�}���"��&f���&V�V7FVBF�R�W���FVB'�F��26W'fW"��EEC��6�V6�F�RgV��d���U�f�VR��&V�FW"�#�&f����-���������r�}==m]�����-��]-]����EEC��	��-]�-R�����R}�}]��Rd���U�"&V�FW"�"��&f���&W�'FVB&�6W76��rf��W&R�6�V6�F�R6fVB&WVW7B7FGW2&Vf�&R6��F��V��r�#�&f�������������R��-���	�]]B��M��m]��]���-]�-R--=�]����=�}���"��&f���&W�'FVB&WVW7BƖ֗B�6�V6�F�Rf���&WVW7B7FGW2&Vf�&R6��F��V��r�#�&f�������������-R}���"�	�]]B��M��m]��]���-]�-R--=}��"f����"��&f���&WV�&W2&��Ɩ�r6�V6��6�V6�F�Rf���66�V�B&��6R�B&��Ɩ�r7FGW2�#�&f���-]=]"��-]�-����-2�	��-]�-R���--=���-���=�-f����"��&f���&WGW&�VB�V�W�V7FVB�WFFF&W7��6R�WF�V�F�6F���v2��B6��f�&�VB�#�&f���-]�=��]�m�M�����--]"�=m]��=���	--��}m���R��M--]mM]��"��&f��R#�-"���M�R"��&f�'7B6Ɨ&Wf�Wr#�-�]-�=�����"��&f�"��R6Ɨv�F��F�fRVF�������V�&�fVBvV�W&F���7V�C�#�-}�M�������--�]����}-=����
+=--]mM��������"=]�]m���"��&f�&6VB#�-��--����"��&g&VR#�-]��-��"��&g&��#�-M]"��&vV�&R��B6WB#�-m��R=�}�"��&�26W&FR&�f�f�"��R&V�vV�W&F������F���r�2V&Ɨ6�VBWF��F�6�ǒ�&V6�&G2&R�V�B��F�R#�-��]]"�-M]����R�=��R��M�2]���=�=]�]m���	--��-�}]����=���m���]"�	}���]��-�""��&��W7F��FVB&�f�FW"6�&vW2�#�-��}-���-�M���-�M]�"�"��&��F�R#�-	��-]�m]���"��&��FVw&F���2&R��B6��f�wW&VB�#�-��-]=m���R�-�]���"��&��FW''WFVB#�-	�]-��"��&��fƖB#�-	]-������"��&�2#�.(	B"��&�2FVƖ&W&FVǒ'6V�B(	B�B�26W&FR�&�fVB7B�B7F�2F�6&�VB��F��2'V��B�#�-"�-�"}�=��R-]�M�"�	�=���m��-]=]"�-M]����=��=����}M]��-���}]��"��&�W�g&�W2#�-	���}]-�R�M�"��&Ɨ7��2#�-
+��]���}m��=="��&ƗfR#�-
+]�����]m��"��&��6F���2#�-	���m��"��&֖�#�-���"��&��6�#�-
+-]-�-��]m��"��&��FR#�-]m��"��&��R#�-����]]�]������=m]���"��&�'&�r#�&�'&�r"��&�VVFVC�#�-�=m��"��&�VVG2#�--]=]-�"��&�VVG2GFV�F���#�-�=m��-�����R"��&�VVG2&Wf�Wr#�-�=m���-]�"��&�VVG5�'VFvWE��fW'&�FR#�-	M�-�=�="����"�Mm]-"��&��#�-�]""��&��'&�Vb#�-�]"m]���"��&��f��6R6��G26��f�wW&VB��F��26W'fW"#�-�]-]R�R�-�]�����M��=���-=���"��&��(	Bf��6R��ǒ#�-�]"(	B-�����=���"��&���R#�-�]""��&���R�WB#�-����]""��&�b#�-�r"��&�fb#�--����}]��"��&�ffƖ�R#�-]r��]������-�M]�"��&��FW"W"�6�&7FW"f&�&�R#�--��]]�]�����B�]��m"��&��#�-M-�"��&��6�W&#�-"�MR"��&��F�Rf�FV�#�-�-�M]�"��&��F�Rf�FV���W26W&FRf��R#�-�-�M]���-M]�����M����"��&�F����#�-�]��}-]����"��'W6VB#�-	��=}R"��'W6��r#�-	�-�-��-]-�"��'V�F��r#�-	�m�M]"��-]��"��'W"6Ɨ#�-}����"��'W"g&�R#�-}�M"��'W"Ɩ�R#�-�-��2"��'W&֗G2g&VR�WFFF&�&W2(	B�WfW"vV�W&F���6���#�-}]�]"]��-��R��-]���]-M���R����R=]�]m���"��'&�GV7F���7F�2�W&R#�-}M]����}-�M--��-��-�-�"��'&�2#�-
+]�-�}�""��'V&Ɩ2#�-�}-]-��-]�"��'V&Ɨ6�#�-	�=���m��"��'V&Ɨ6�VB#�-	��=����-��"��'#�-	��-]��}]--"��'VWVVB#�-	"�}]]M�"��'&VG�#�-=�-�-�"��'&VfW&V�6R76WB#�-]M]]�"��'&VfW&V�6W2#�-
+]M]]��"��'&VfW&V�6W5�V�F��r#�-
+�}M��R]M]]��""��'&VfW&V�6W5�&Wf�Wr#�-	��-]�]M]]��""��'&V�V7FVB#�-	�-����]��"��'&W6W'fVB#�-	}]}]-��-��"��''R�%R#�-
+=���"��''V���r#�-	"�-R"��'2#�-]��"��'2+r#�-]��+r"��'2�#�-]��"��'66V�W2#�-m]�"��'67&VV�2&R'&��V��#�-����"������"��'6V6��G2#�-]��"��'6V�V7FVB#�--��"��'6W&FRf��R��ǒ#�--������-M]�����M����"��'6��V�FVB#�-=��-��R]�M�"��'7FvR#�-�-�"��'7FvR6��W2F�V�F�F�R&�fFR��W76R�#�-����=]"�R"}��-�R]�����R�"��'7FvR���W�6�FR�bF��26W&�W2�#�-"�������}�MR�-�=�]���"��'7FvRF�'V��BF�R�VFvW"�#�-M����-�]����-���}�����"��'7FvR�#�"�"��'7F�2#�-�--�"��'7F�&S�6�v�֖�W6W2#�#�-]�B}]]r"��'7V&֗GFVB#�-	�-�-�]��"��'7V66VVFVB#�-
+=�]���"��'7WW'6VFVB&�w2F�66&FVB#�-�-��]��}�]����R-��"��'F�R�2�#�-M=�]�"��'F�Bf6Rv2�&VG�F�R��R�WB���F���r6��vVB�6�F�R&VfW&V�6R6��27F���v��B�#�-�-���m�=mR���}�]��]���	��}]=��R�}�]��������]"]M]]��"�--�=�M����"��'F��2f6R�2��rF�R��RF�R7GVF���VW2��B6��vW2��rF�W�&RG&v��6�F��2&VfW&V�6R6��2��r�WB�bFFR�BF�R�W�B'V�&V'V��G2�B�F���B��6�f6R�WB�bF�B&V'V��B6�V��W72��Rv�B�B&V'V��Bv��(	B&�fR�B��7FVB�#�-�-���m�-]�]�}�]��]���	����]��]"-�]���-��]��m����-��2-]�=�����]"]M]]��"=-]��=M]"�]]���]M=������=�����	�R}�]����-R��m��r�]]����=���]-�]���R]�-�-R�]]��-�]=���-(	B=--]M�-R]=��"��'F�#�-""��'V���v�#�-�]�}-]-��"��'WF��GFV�G7�GFV�B�2�W"66V�R#�-M��GFV�G7�����-������m]�2"��'W��FVB#�-}==m]�"��'fƖB#�-	��-]]��"��'fW'6���2��WB�#�--]���]�]���"��'f�FV�#�-	-�M]�"��'f��6R#�-	�}-=}�"��'f��6R��ǒ#�--�����=���"��'v�&G2#�-��""��'�W2#�-M"��'�6�V�G�V&ƖW"��"�2�f�"F��2W�6�FR&R��B6��v��#�-	]��6�V�G�}Mr������-��2���}�M2�R���}���"��'�6�V�G���vR�2�g&��V&ƖW"fW'6���2�bF�R&�&�R&R�WB'WB��B6��v�F�W�&R��Bv�BF�R�W�BW�6�FRW6W2�#�'�6�V�G��}���"�]m��R-]�������]�]������R���}����]M=���]�������}=]"�R�R�"��'�6�V�G�7F���F�v��#�-	�-��â�6�V�G��"��'�6�V�G�7WW'6VFVBGFV�B�2���FFV��#�-
+��-�=-]-��R����-����6�V�G��"��'��FW��b��VVFVG�&VfW&V�6R��vW2&R�FR�#�-	=�-�-���FW��r��VVFVG��-�����]M]]��"�"��'���W��&�GV7F���7F�VB�6fVB&WVW7G2&R&WF��VC�&W7V�Rv�����B&W7V&֗B�V�6W'F��&WVW7B�#�'���W��	���}-�M--��-��-�]���	}����]�]���*�	��M��m�-�+��R�-�-�"��--���}���]�}-]-���]}=��--���"��'�v�W&WӢ��FW67&�F�����B�2v�B�VW2F�R76RF�R6�R&WGvVV�6Ɨ2�#�'�v�W&WӢ�R}����]�������R�	��]������=M]m�-]"��-�--��M����-���"���������2�"��'�v��Ӣ��V&�6RFW67&�F����F�R��vR��FV�2&VB�BƗFW&�ǒ�6�v�F��WB�BF�Rf6R6��vW2&WGvVV�6Ɨ2�#�'�v��Ӣ�R}����]�������R-�]���-��	��M]���}�m]���}�-�"]=�M���-��(	B]r�]=���m�=M]"�]��-���"���������2�"��'�v��Ӣ��6��F���rf&��B�WfW'����6�W&6�&7FW"�VVG2B�V7B��R�#�'�v��Ӣ�]"���M��=�-��-�M]mM��	�mM��2�]��m2"�MR�=m]�]�-���M���"��,+rf�'7B6Ɨ&Wf�Wr#�,+r	�]M����-�]-�=�����"��,+r6W&�W27GVF��#�,+r
+-=M��]���""��,+r&�&�R#�,+r����"��,+rW�6�FR#�,+r���}�B"��,+r&W6W'fVB#�,+r"]}]-R"��.(	B6W&�W27GVF��#�.(	B
+-=M��]���""��.(	BV6���R�2�7GW&R�Bf�"Gv�6R#�.(	B�mM���-����}]���M-mM��-���"��.(	BF�Rf��6R�B�G6V�b�WfW"V�FW'2F�RFF&6R�#�.(	B��M]�-�M��-�=����R�]��]-�"}R�"��.(
+f�"W��B�G�B��6��f��R#�.(
+m���}==}�-RM���G�B��6�� ��

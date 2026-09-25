@@ -256,3 +256,54 @@ def test_completed_supervised_motion_still_must_be_replaced_by_dynamic_video(tmp
     assert decision["recommended_action"] == "generate_dynamic_video"
     assert decision["evidence"]["evidence_source"] == "production_job_log"
     assert decision["evidence"]["target_provider"] == KLING
+
+
+def test_an_engine_that_already_failed_is_not_bought_again_even_when_it_is_not_the_best_take(tmp_path, monkeypatch):
+    """The next engine used to be chosen only past the engine of the best
+    take. sc04 failed on Veo (5) and then on Kling (3); because the Veo take
+    scored higher, Kling was offered again — a failure already paid for once.
+    With both engines on the route spent, the scene stops for a decision."""
+    store = _seed(tmp_path, monkeypatch)
+    store.insert("takes", {
+        "series_id": "wild", "episode_id": "s01e04", "scene_id": "sc04",
+        "take_id": "live:s01e04_sc04_vid_r1_01", "stage": "vid", "endpoint": KLING,
+        "actual_usd": 0.672, "selected": False,
+        "qc": {"pass": False, "score": 3, "issues": ["body scale drift"]},
+    })
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+    decision = next(row for row in report["decisions"] if row["scene_id"] == "sc04")
+
+    assert decision["recommended_action"] == "review_exhausted_dynamic_route"
+    assert decision["verdict"] == "insufficient_evidence"
+    assert decision["requires_human"] is True
+    assert decision["estimated_incremental_usd"] == 0.0
+    assert decision["evidence"].get("target_provider") in (None,)
+
+
+def test_an_engine_without_a_published_price_is_unknown_and_blocks_approval(tmp_path, monkeypatch):
+    """It used to raise out of the estimate and take the whole report down.
+    Pricing it at zero instead would put a real charge inside a ceiling that
+    never allowed for it."""
+    import pytest
+    unpriced = "fal-ai/an-engine-with-no-price/image-to-video"
+    store = _seed(tmp_path, monkeypatch)
+    episode = store.get("episodes", {"series_id": "wild", "episode_id": "s01e04"})
+    brief = dict(episode["brief"])
+    brief["video_route"] = [VEO, unpriced]
+    scenes = dict(brief["video_routing"]["scenes"])
+    scenes["sc03"] = {"mode": "video", "primary": VEO, "fallbacks": [unpriced]}
+    brief["video_routing"] = {**brief["video_routing"], "scenes": scenes}
+    store.update("episodes", {"series_id": "wild", "episode_id": "s01e04"}, {"brief": brief})
+
+    report = core_v2.run_shadow_analysis("wild", "s01e04")
+    decision = next(row for row in report["decisions"] if row["scene_id"] == "sc03")
+
+    assert decision["evidence"]["target_provider"] == unpriced
+    assert decision["estimated_incremental_usd"] is None
+    assert report["summary"]["unpriced_scenes"] == ["sc03"]
+    with pytest.raises(ValueError, match="No published price"):
+        core_v2.approve_supervised_repair(
+            "wild", "s01e04", actor="owner@example.test",
+            input_digest=report["input_digest"], max_incremental_usd=1000.0,
+        )

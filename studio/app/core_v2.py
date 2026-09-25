@@ -99,14 +99,55 @@ def _providers_for(brief: dict, scene_id: str) -> list[str]:
     ))
 
 
-def _video_estimate(scene: dict, provider: str | None) -> float:
+def _video_estimate(scene: dict, provider: str | None) -> float | None:
+    """Published-rate estimate for one clip, or None when no rate is known.
+
+    An engine missing from the price list used to raise out of here and take
+    the whole report down with it. Pricing it at zero would be worse: it would
+    sit inside an approved ceiling that never allowed for it. So it is unknown,
+    said so by name, and the approval refuses until it is priced.
+    """
     if not provider:
         return 0.0
-    from serial.costs import video_cost
+    from serial.costs import UnknownVideoModel, video_cost
 
-    return round(video_cost(
-        int(scene.get("duration_seconds") or 0), False, "1080p", provider,
-    ), 4)
+    try:
+        return round(video_cost(
+            int(scene.get("duration_seconds") or 0), False, "1080p", provider,
+        ), 4)
+    except UnknownVideoModel:
+        return None
+
+
+def _failed_engines(takes: list[dict]) -> set[str]:
+    """Every engine that already produced a take QC marked down for this scene.
+
+    Takes with no verdict at all are left out: nobody judged them, so they
+    are not evidence that the engine fails this shot.
+    """
+    failed: set[str] = set()
+    for take in takes:
+        qc = take.get("qc") or {}
+        if not qc:
+            continue
+        if not bool(qc.get("pass")) and _number(qc.get("score"), -1) < 7:
+            engine = take.get("endpoint") or take.get("provider")
+            if engine:
+                failed.add(engine)
+    return failed
+
+
+def _next_untried(providers: list[str], failed: set[str]) -> tuple[int, str | None]:
+    """The first engine on the route this scene has not already failed on.
+
+    Choosing only past the engine of the best take let a scene that failed on
+    Veo and then on Kling be offered Kling again whenever the Veo take scored
+    higher — buying a failure already paid for once.
+    """
+    for index, provider in enumerate(providers):
+        if provider not in failed:
+            return index, provider
+    return len(providers), None
 
 
 def _next_provider(route: dict, endpoint: str) -> str | None:
@@ -166,8 +207,12 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict,
     take = _best_take(takes)
     if route.get("mode") == "motion_still" or supervised_motion_still:
         used = ((take or {}).get("endpoint") or (take or {}).get("provider") or "")
-        target_index = providers.index(used) + 1 if used in providers else 0
-        target = providers[target_index] if target_index < len(providers) else None
+        tried = _failed_engines(takes)
+        if supervised_motion_still and used:
+            # A supervised still replaced a clip that failed; that engine is
+            # spent for this shot even if its verdict never reached the take.
+            tried.add(used)
+        target_index, target = _next_untried(providers, tried)
         if not target:
             return {
                 "scene_id": scene_id, "verdict": "insufficient_evidence",
@@ -265,10 +310,8 @@ def _scene_decision(scene: dict, takes: list[dict], brief: dict,
 
     categories = _categories(f"{issues_text}; {fix_hint}")
     used = take.get("endpoint") or take.get("provider") or ""
-    target_index = providers.index(used) + 1 if used in providers else 0
-    while target_index < len(providers) and providers[target_index] == used:
-        target_index += 1
-    target = providers[target_index] if target_index < len(providers) else None
+    tried = _failed_engines(takes) | ({used} if used else set())
+    target_index, target = _next_untried(providers, tried)
     if not target:
         return {
             "scene_id": scene_id,
@@ -374,7 +417,10 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
     ready = sum(decision["verdict"] == "ready" for decision in decisions)
     repair = sum(decision["verdict"] == "repair" for decision in decisions)
     missing = len(decisions) - ready - repair
-    projected = round(sum(_number(d.get("estimated_incremental_usd")) for d in decisions), 4)
+    unpriced = [d["scene_id"] for d in decisions
+                if d.get("verdict") == "repair" and d.get("estimated_incremental_usd") is None]
+    projected = round(sum(_number(d.get("estimated_incremental_usd")) for d in decisions
+                          if d.get("estimated_incremental_usd") is not None), 4)
     spent = _number(snapshot["episode"].get("spent_usd"))
     budget = _number(snapshot["episode"].get("budget_usd"))
     report = {
@@ -394,6 +440,9 @@ def run_shadow_analysis(series_id: str, episode_id: str, actor: str = "system") 
             "budget_usd": round(budget, 4),
             "remaining_budget_usd": round(max(0.0, budget - spent), 4),
             "projected_repair_usd": projected,
+            # Not in the total above, and the approval refuses while any are
+            # listed: an amount nobody can state cannot be approved.
+            "unpriced_scenes": unpriced,
             "dynamic_ready": ready,
             "dynamic_repair": repair,
             "motion_stills_allowed_in_master": 0,
@@ -465,6 +514,10 @@ def approve_supervised_repair(series_id: str, episode_id: str, *, actor: str,
     summary = report.get("summary") or {}
     if int(summary.get("insufficient_evidence") or 0):
         raise ValueError("The repair plan needs more evidence before it can run.")
+    if summary.get("unpriced_scenes"):
+        raise ValueError("No published price is known for the engine chosen for "
+                         + ", ".join(summary["unpriced_scenes"])
+                         + "; the ceiling cannot cover an amount nobody can state.")
     projected = _number(summary.get("projected_repair_usd"))
     cap = _number(max_incremental_usd, -1)
     if cap < projected or projected < 0:
